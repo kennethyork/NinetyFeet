@@ -398,9 +398,12 @@ public partial class FieldView : Node2D
                 ? (f.Target.X >= f.Spot.X ? 1f : -1f)
                 : FacingWhenStill(f);
 
+            // Facing is a left-right mirror and always will be, but where a man is *looking* is a
+            // separate thing — and it is the one that reads as paying attention. Nine fielders all
+            // tracking the ball is most of what makes a diamond look alive.
             var (pose, phase) = FielderPose(f, moving);
             CartoonPlayer.Draw(this, at, 0.42f, facing, pose, team, f.Player, _time,
-                motionPhase: phase);
+                motionPhase: phase, lookAt: BallEye());
 
             if (f.IsChaser)
             {
@@ -426,6 +429,19 @@ public partial class FieldView : Node2D
         }
 
         DrawVisit();
+    }
+
+    /// <summary>
+    /// Where the ball is on screen, including its height off the ground — a fly ball is looked up
+    /// at, which is the difference between a fielder camped under one and a fielder ignoring it.
+    /// Falls back to the plate when the ball is dead, because that is where everybody looks.
+    /// </summary>
+    private Vector2 BallEye()
+    {
+        var play = Scene.Play;
+        if (play == null || play.Phase == PlayPhase.Dead) return ToScreen(FieldGeometry.Bases[0]);
+
+        return ToScreen(play.BallSpot) - new Vector2(0f, play.BallHeight * 0.55f * _scale);
     }
 
     /// <summary>
@@ -498,7 +514,10 @@ public partial class FieldView : Node2D
                 ? (FieldGeometry.Bases[0].X >= r.Spot.X ? 1f : -1f)
                 : (next.X >= r.Spot.X ? 1f : -1f);
 
-            CartoonPlayer.Draw(this, at, 0.42f, facing, pose, shirt, r.Player, _time);
+            // A runner watches the ball, which is exactly what he is doing when he decides whether
+            // to go. A man who has been put out has stopped caring and looks at the plate.
+            CartoonPlayer.Draw(this, at, 0.42f, facing, pose, shirt, r.Player, _time,
+                lookAt: r.IsOut ? ToScreen(FieldGeometry.Bases[0]) : BallEye());
 
             if (!r.IsOut)
                 Palette.TextCentered(this, at + new Vector2(0f, 14f), r.Player.LastName, 11, Palette.Highlight);

@@ -194,9 +194,22 @@ public static class CartoonPlayer
     /// Both used to be single frozen poses, which is why neither read as motion — nothing
     /// actually moved between them.
     /// </param>
+    /// <param name="lookAt">
+    /// A point on screen this player's eyes should be on — the ball, the plate, the man he is
+    /// about to throw to.
+    ///
+    /// A face was always drawn front-on, with two eyes, but the irises pointed wherever the *body*
+    /// pointed. So a hitter stood side-on to the plate as he should and stared off toward the
+    /// dugout, and a fielder tracked nothing at all. Where a man is looking is most of what makes
+    /// him seem to be paying attention, and it is separate from which way he is standing: a hitter
+    /// keeps his chest to the plate and turns his head to the pitcher, which is the whole shape of
+    /// a batting stance.
+    ///
+    /// Null keeps the old behaviour — eyes follow the body.
+    /// </param>
     public static void Draw(CanvasItem c, Vector2 feet, float scale, float facing,
         Pose pose, TeamData team, PlayerData player, float time, bool withBat = false,
-        float motionPhase = 0f)
+        float motionPhase = 0f, Vector2? lookAt = null)
     {
         // A named kid gets the look he was written with; everyone else gets one from his seed.
         var look = player is { LegendId: >= 0 }
@@ -237,7 +250,7 @@ public static class CartoonPlayer
         if (withBat) DrawBatInHands(c, backHand, frontHand, s, facing, pose, motionPhase);
 
         DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
-        DrawHead(c, head, s, facing, look, team, pose, time);
+        DrawHead(c, head, s, facing, lookAt, look, team, pose, time);
     }
 
     private static void DrawShadow(CanvasItem c, Vector2 feet, float s, Look look)
@@ -562,7 +575,7 @@ public static class CartoonPlayer
         }
     }
 
-    private static void DrawHead(CanvasItem c, Vector2 head, float s, float facing,
+    private static void DrawHead(CanvasItem c, Vector2 head, float s, float facing, Vector2? lookAt,
         Look look, TeamData team, Pose pose, float time)
     {
         // HeadWidth used to multiply into r alongside HeadSize, which scaled both axes — so it
@@ -597,7 +610,20 @@ public static class CartoonPlayer
             new Color(0.86f, 0.48f, 0.42f, 0.10f));
 
         DrawHair(c, head, rx, r, s, look);
-        DrawFace(c, head, rx, r, s, facing, look, pose, time);
+        // Where the eyes go. Normalised and gently clamped, so a man looking at something behind
+        // him turns his eyes as far as they go rather than rolling them out of his head.
+        Vector2 gaze = new(facing, 0f);
+        if (lookAt is { } target)
+        {
+            Vector2 d = target - head;
+            if (d.LengthSquared() > 1f)
+            {
+                d = d.Normalized();
+                gaze = new Vector2(Mathf.Clamp(d.X * 1.6f, -1f, 1f), Mathf.Clamp(d.Y * 1.1f, -0.8f, 0.8f));
+            }
+        }
+
+        DrawFace(c, head, rx, r, s, facing, look, pose, time, gaze);
         DrawCap(c, head, rx, r, s, facing, team, look);
 
         // Drawn last, on purpose. Everything DrawHair puts on the crown is painted over by the
@@ -760,7 +786,7 @@ public static class CartoonPlayer
     }
 
     private static void DrawFace(CanvasItem c, Vector2 head, float rx, float r, float s, float facing,
-        Look look, Pose pose, float time)
+        Look look, Pose pose, float time, Vector2 gaze)
     {
         float eyeY = head.Y + r * 0.06f;
         // Spacing and size vary independently of style. Three eye styles across a whole league
@@ -782,7 +808,7 @@ public static class CartoonPlayer
 
         for (int side = -1; side <= 1; side += 2)
         {
-            Vector2 eye = new(head.X + side * gap + facing * r * 0.06f, eyeY);
+            Vector2 eye = new(head.X + side * gap + gaze.X * r * 0.06f, eyeY + gaze.Y * r * 0.03f);
             if (squint)
             {
                 c.DrawLine(eye + new Vector2(-eyeR, 0f), eye + new Vector2(eyeR, 0f), Outline, 2.4f * s);
@@ -795,7 +821,8 @@ public static class CartoonPlayer
                 new Color(1f, 1f, 1f, 0.55f));
             c.DrawArc(eye, eyeR, 0f, Mathf.Tau, 16, Outline, 1.5f * s);
 
-            Vector2 iris = eye + new Vector2(facing * eyeR * 0.34f, eyeR * 0.06f);
+            Vector2 iris = eye + new Vector2(gaze.X * eyeR * 0.42f,
+                eyeR * 0.06f + gaze.Y * eyeR * 0.34f);
             c.DrawCircle(iris, eyeR * 0.60f, look.Hair.Lightened(0.25f));
             c.DrawCircle(iris, eyeR * 0.34f, Outline);
             c.DrawCircle(iris + new Vector2(-eyeR * 0.22f, -eyeR * 0.24f), eyeR * 0.16f,
@@ -803,7 +830,7 @@ public static class CartoonPlayer
         }
 
         // Nose.
-        var noseAt = new Vector2(head.X + facing * rx * 0.10f, eyeY + r * 0.26f);
+        var noseAt = new Vector2(head.X + gaze.X * rx * 0.10f, eyeY + r * 0.26f);
         var noseColour = look.Skin.Darkened(0.22f);
         switch (look.NoseStyle)
         {

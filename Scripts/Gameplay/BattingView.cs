@@ -317,8 +317,10 @@ public partial class BattingView : Node2D
         // He stays in the set position until he actually starts his motion.
         var pose = Scene.Phase == AtBatPhase.PitchSelect && !Scene.Delivering
             ? Pose.Windup : Pose.Pitch;
+        // He is looking in at the plate, which from this camera is straight down the screen.
         CartoonPlayer.Draw(this, feet, 0.60f, -1f, pose, team, pitcher, _time,
-            motionPhase: Scene.DeliveryPhase);
+            motionPhase: Scene.DeliveryPhase,
+            lookAt: new Vector2(size.X * 0.5f, size.Y * 0.92f));
 
         if (Scene.Phase == AtBatPhase.PitchSelect)
         {
@@ -341,15 +343,25 @@ public partial class BattingView : Node2D
         var batterAt = BatterStand(sign);
         bool swinging = Scene.SwingFlash > 0f;
 
+        // His chest stays square to the plate — that is what a batting stance is — and his head
+        // turns to the pitcher, and then to the ball once it is on its way. Watching the hitter
+        // pick the ball up is the single thing that makes him look like he is in the at-bat.
+        Vector2 watching = Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
+            ? BallScreenPos()
+            : new Vector2(size.X * 0.5f, size.Y * 0.40f);
+
         CartoonPlayer.Draw(this, batterAt, BatterScale, -sign,
             swinging ? Pose.Swing : Pose.Stance, batTeam, batter, _time,
-            withBat: true, motionPhase: Scene.SwingPhase);
+            withBat: true, motionPhase: Scene.SwingPhase, lookAt: watching);
 
         // The catcher is nearest the camera: cropped by the bottom edge, framing the shot.
         var catcher = Scene.Situation.FieldingTeam.Fielder(Data.Position.C);
         // Far enough down that only his head and shoulders show, framing the bottom of the shot.
         CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 112f), 1.55f, 1f,
-            Pose.Field, fieldTeam, catcher, _time);
+            Pose.Field, fieldTeam, catcher, _time,
+            lookAt: Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
+                ? BallScreenPos()
+                : new Vector2(size.X * 0.5f, size.Y * 0.40f));
 
         // Name plate for the hitter, out to his side so it never covers him or the zone.
         float plateX = batterAt.X + sign * 132f;
@@ -437,6 +449,25 @@ public partial class BattingView : Node2D
             plate + new Vector2(0f, 28f),
             plate + new Vector2(-34f, 18f),
         }, Palette.Chalk);
+    }
+
+    /// <summary>
+    /// Where the ball is on screen right now, so the hitter's eyes can be on it. Mirrors the
+    /// perspective in <see cref="DrawBall"/> — the ball starts at the release point and travels
+    /// out to its crossing position as it approaches.
+    /// </summary>
+    private Vector2 BallScreenPos()
+    {
+        var pitch = Scene.CurrentPitch;
+        if (pitch == null) return new Vector2(GetViewportRect().Size.X * 0.5f,
+                                              GetViewportRect().Size.Y * 0.40f);
+
+        float t = Mathf.Clamp(Scene.PitchProgress, 0f, 1.3f);
+        Vector2 target = ToScreen(pitch.PositionAt(t));
+        Vector2 release = new(GetViewportRect().Size.X * 0.5f,
+                              GetViewportRect().Size.Y * 0.385f);
+
+        return release.Lerp(target, Mathf.Clamp(t, 0f, 1f));
     }
 
     private void DrawBall()
