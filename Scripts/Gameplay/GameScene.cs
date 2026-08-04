@@ -361,6 +361,25 @@ public partial class GameScene : Node2D
                 UpdateInPlay(dt);
                 break;
             case AtBatPhase.Result:
+                // A replay waits for the live call to finish, then rolls before play resumes.
+                if (Replay.Running)
+                {
+                    // Just-pressed, not held. IsAnythingPressed is true while any key is down, so
+                    // a finger still resting on the swing button would cancel every replay the
+                    // instant it started.
+                    if (Input.IsActionJustPressed(InputActions.Action) ||
+                        Input.IsActionJustPressed(InputActions.Back)) Replay.Stop();
+                    else Replay.Update(dt);
+                    break;
+                }
+
+                if (_phaseTimer <= 0f && _replayPending != null)
+                {
+                    Replay.Start(_replayPending);
+                    _replayPending = null;
+                    if (Replay.Running) break;
+                }
+
                 if (_phaseTimer <= 0f) AfterResult();
                 break;
             case AtBatPhase.HalfBreak:
@@ -375,7 +394,7 @@ public partial class GameScene : Node2D
         // swinging strike or a called ball cuts to an empty diamond with nobody on it.
         // A trip to the mound is the one thing worth cutting to the diamond for that is not a ball
         // in play — the whole point of it is watching the manager walk out.
-        bool showField = Phase == AtBatPhase.InPlay || Visit.Busy ||
+        bool showField = Phase == AtBatPhase.InPlay || Visit.Busy || Replay.Running ||
                          (Phase == AtBatPhase.Result && _resultCameFromPlay);
         _field.Visible = showField;
         _batting.Visible = !showField;
@@ -1543,6 +1562,7 @@ public partial class GameScene : Node2D
         Play.HumanControlsDefense = !Online && HumanPitching && !Game.Instance.AutoFielding;
         Play.HumanControlsOffense = !Online && HumanBatting;
         Play.Begin(Situation, ball, _playSeed++);
+        Replay.Tape.Begin(Play, ball);
         _playAccumulator = 0f;
         _field.OnPlayStarted();
         SetPhase(AtBatPhase.InPlay);
@@ -1590,6 +1610,7 @@ public partial class GameScene : Node2D
         while (_playAccumulator >= PlayStep && !Play.Finished && guard++ < 4000)
         {
             Play.Update(PlayStep);
+            Replay.Tape.Record(Play, PlayStep);
             _playAccumulator -= PlayStep;
         }
 
@@ -1628,7 +1649,23 @@ public partial class GameScene : Node2D
         NarrateOutcome(outcome);
         ShowResult(string.IsNullOrEmpty(outcome.Description) ? "The play is over." : outcome.Description,
             fromPlay: true);
+
+        // Was that worth another look? The bar is deliberately high — a replay of a routine ground
+        // ball is an interruption, not a replay. Online it is off entirely: one machine pausing to
+        // watch something again while the other plays on is a desync waiting to happen.
+        bool worth = Replay.Tape.WorthShowing(outcome.IsHomeRun, outcome.Runs, outcome.Outs,
+            outcome.IsHit);
+
+        if (!Online && !AutoPlay && worth)
+            _replayPending = string.IsNullOrEmpty(outcome.Description)
+                ? "That one again" : outcome.Description;
     }
+
+    /// <summary>The replay that will roll once the live call has finished, if there is one.</summary>
+    private string _replayPending;
+
+    /// <summary>The broadcast's replay: what it recorded and how it is shown.</summary>
+    public readonly ReplayDirector Replay = new();
 
     /// <summary>
     /// Picks the play-by-play line for a completed play. Priorities rise with how big the moment

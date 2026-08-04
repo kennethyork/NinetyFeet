@@ -624,7 +624,7 @@ public static class CartoonPlayer
         }
 
         DrawFace(c, head, rx, r, s, facing, look, pose, time, gaze);
-        DrawCap(c, head, rx, r, s, facing, team, look);
+        DrawCap(c, head, rx, r, s, facing, gaze, team, look);
 
         // Drawn last, on purpose. Everything DrawHair puts on the crown is painted over by the
         // cap, which left every kid in the game bare-headed under identical headwear — the single
@@ -788,11 +788,26 @@ public static class CartoonPlayer
     private static void DrawFace(CanvasItem c, Vector2 head, float rx, float r, float s, float facing,
         Look look, Pose pose, float time, Vector2 gaze)
     {
-        float eyeY = head.Y + r * 0.06f;
+        // The head turns, not just the eyes.
+        //
+        // Moving the irises alone was not enough and should not have been expected to be: a
+        // hitter's head swivels most of ninety degrees toward the pitcher while his chest stays
+        // square to the plate, and that turn is carried by the whole face moving across the skull
+        // and the features bunching together as they go round it — not by two dots sliding
+        // sideways. Everything below shifts with the gaze, and the eyes close up as the head turns
+        // away, which is the foreshortening that sells it.
+        float turnX = gaze.X;
+        float turnY = gaze.Y;
+
+        float shiftX = turnX * rx * 0.30f;
+        float shiftY = turnY * r * 0.17f;
+
+        float eyeY = head.Y + r * 0.06f + shiftY;
         // Spacing and size vary independently of style. Three eye styles across a whole league
         // meant everyone shared one of three faces.
         float gap = rx * (look.EyeStyle == 1 ? 0.42f : look.EyeStyle == 2 ? 0.32f : 0.36f)
-                      * look.EyeSpacing;
+                      * look.EyeSpacing
+                      * (1f - Mathf.Abs(turnX) * 0.34f);
         float eyeR = r * (look.EyeStyle == 1 ? 0.25f : look.EyeStyle == 2 ? 0.15f : 0.20f)
                        * look.EyeSizeMul;
 
@@ -800,7 +815,7 @@ public static class CartoonPlayer
         if (look.EyeBlack)
             for (int side = -1; side <= 1; side += 2)
                 c.DrawRect(new Rect2(
-                    new Vector2(head.X + side * gap - r * 0.16f, eyeY + r * 0.24f),
+                    new Vector2(head.X + shiftX + side * gap - r * 0.16f, eyeY + r * 0.24f),
                     new Vector2(r * 0.32f, r * 0.11f)), new Color(0.12f, 0.12f, 0.14f, 0.85f));
 
         // Eyes squeeze shut on a big swing, which sells the effort.
@@ -808,7 +823,9 @@ public static class CartoonPlayer
 
         for (int side = -1; side <= 1; side += 2)
         {
-            Vector2 eye = new(head.X + side * gap + gaze.X * r * 0.06f, eyeY + gaze.Y * r * 0.03f);
+            // The eye on the far side of the turn slides further, the way a real face does.
+            float perspective = side * turnX > 0f ? 1.22f : 0.86f;
+            Vector2 eye = new(head.X + shiftX * perspective + side * gap, eyeY);
             if (squint)
             {
                 c.DrawLine(eye + new Vector2(-eyeR, 0f), eye + new Vector2(eyeR, 0f), Outline, 2.4f * s);
@@ -821,8 +838,8 @@ public static class CartoonPlayer
                 new Color(1f, 1f, 1f, 0.55f));
             c.DrawArc(eye, eyeR, 0f, Mathf.Tau, 16, Outline, 1.5f * s);
 
-            Vector2 iris = eye + new Vector2(gaze.X * eyeR * 0.42f,
-                eyeR * 0.06f + gaze.Y * eyeR * 0.34f);
+            Vector2 iris = eye + new Vector2(turnX * eyeR * 0.30f,
+                eyeR * 0.06f + turnY * eyeR * 0.30f);
             c.DrawCircle(iris, eyeR * 0.60f, look.Hair.Lightened(0.25f));
             c.DrawCircle(iris, eyeR * 0.34f, Outline);
             c.DrawCircle(iris + new Vector2(-eyeR * 0.22f, -eyeR * 0.24f), eyeR * 0.16f,
@@ -830,7 +847,7 @@ public static class CartoonPlayer
         }
 
         // Nose.
-        var noseAt = new Vector2(head.X + gaze.X * rx * 0.10f, eyeY + r * 0.26f);
+        var noseAt = new Vector2(head.X + shiftX * 1.30f, eyeY + r * 0.26f);
         var noseColour = look.Skin.Darkened(0.22f);
         switch (look.NoseStyle)
         {
@@ -862,31 +879,33 @@ public static class CartoonPlayer
             c.DrawLine(a, b, look.Hair.Darkened(0.2f), browWeight * s);
         }
 
-        // Mouth.
-        float mouthY = head.Y + r * 0.46f;
+        // Mouth. Rides the turn with the rest of the face — a mouth left in the middle of a
+        // turned head is the single thing that makes it read as a sticker rather than a face.
+        float mouthY = head.Y + r * 0.46f + shiftY;
+        float mouthX = head.X + shiftX * 1.15f;
         if (pose == Pose.Swing || pose == Pose.Cheer)
         {
             // Open-mouthed effort or celebration.
-            c.DrawCircle(new Vector2(head.X, mouthY), r * 0.18f, new Color("#8c3b3b"));
+            c.DrawCircle(new Vector2(mouthX, mouthY), r * 0.18f, new Color("#8c3b3b"));
         }
         else
         {
             switch (look.MouthStyle)
             {
                 case 1:   // open grin
-                    c.DrawArc(new Vector2(head.X, mouthY - r * 0.14f), r * 0.32f,
+                    c.DrawArc(new Vector2(mouthX, mouthY - r * 0.14f), r * 0.32f,
                         0.18f * Mathf.Pi, 0.82f * Mathf.Pi, 14, Outline, 2.6f * s);
                     break;
                 case 2:   // straight line, all business
-                    c.DrawLine(new Vector2(head.X - r * 0.20f, mouthY),
-                        new Vector2(head.X + r * 0.20f, mouthY), Outline, 2.4f * s);
+                    c.DrawLine(new Vector2(mouthX - r * 0.20f, mouthY),
+                        new Vector2(mouthX + r * 0.20f, mouthY), Outline, 2.4f * s);
                     break;
                 case 3:   // lopsided smirk
-                    c.DrawArc(new Vector2(head.X + facing * r * 0.08f, mouthY - r * 0.08f), r * 0.24f,
+                    c.DrawArc(new Vector2(mouthX + facing * r * 0.08f, mouthY - r * 0.08f), r * 0.24f,
                         0.30f * Mathf.Pi, 0.66f * Mathf.Pi, 10, Outline, 2.4f * s);
                     break;
                 default:
-                    c.DrawArc(new Vector2(head.X, mouthY - r * 0.10f), r * 0.28f,
+                    c.DrawArc(new Vector2(mouthX, mouthY - r * 0.10f), r * 0.28f,
                         0.25f * Mathf.Pi, 0.75f * Mathf.Pi, 12, Outline, 2.2f * s);
                     break;
             }
@@ -896,7 +915,7 @@ public static class CartoonPlayer
         {
             for (int i = -1; i <= 1; i += 2)
                 for (int j = 0; j < 3; j++)
-                    c.DrawCircle(new Vector2(head.X + i * (gap + j * 3f * s), mouthY - r * 0.22f),
+                    c.DrawCircle(new Vector2(mouthX + i * (gap + j * 3f * s), mouthY - r * 0.22f),
                         1.2f * s, new Color(0.55f, 0.33f, 0.22f, 0.7f));
         }
 
@@ -912,7 +931,7 @@ public static class CartoonPlayer
     }
 
     private static void DrawCap(CanvasItem c, Vector2 head, float rx, float r, float s, float facing,
-        TeamData team, Look look)
+        Vector2 gaze, TeamData team, Look look)
     {
         if (look.CapStyle == 2) return;   // bare-headed, so the hairstyle carries the character
 
@@ -928,14 +947,21 @@ public static class CartoonPlayer
         FillOutlined(c, crown, team.Primary, s);
 
         // Brim. Backwards caps put it behind him, which is a strong silhouette cue at this size.
-        float dir = look.CapStyle == 1 ? -facing : facing;
-        float reach = look.CapStyle == 1 ? 1.10f : 1.42f;
+        //
+        // It also points where he is looking, and at this scale that is the loudest signal there
+        // is that a head has turned — louder than the eyes, which are a few pixels across. A
+        // hitter looking up at the mound gets his brim tipped up at it.
+        float look_ = look.CapStyle == 1 ? -1f : 1f;
+        float dir = look_ * (Mathf.Abs(gaze.X) > 0.05f ? Mathf.Sign(gaze.X) : facing);
+        float reach = (look.CapStyle == 1 ? 1.10f : 1.42f)
+                      * Mathf.Lerp(0.62f, 1f, Mathf.Abs(gaze.X));
+        float tip = -gaze.Y * r * 0.30f;
         var brim = new[]
         {
-            head + new Vector2(dir * -rx * 0.30f, -r * 0.26f),
-            head + new Vector2(dir * rx * reach, -r * 0.34f),
-            head + new Vector2(dir * rx * reach, -r * 0.10f),
-            head + new Vector2(dir * -rx * 0.30f, -r * 0.04f),
+            head + new Vector2(dir * -rx * 0.30f, -r * 0.26f - tip * 0.2f),
+            head + new Vector2(dir * rx * reach, -r * 0.34f - tip),
+            head + new Vector2(dir * rx * reach, -r * 0.10f - tip),
+            head + new Vector2(dir * -rx * 0.30f, -r * 0.04f - tip * 0.2f),
         };
         FillOutlined(c, brim, team.Primary.Darkened(0.28f), s);
 

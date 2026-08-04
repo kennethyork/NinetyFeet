@@ -47,14 +47,93 @@ public partial class FieldView : Node2D
         _scale = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
         _origin = new Vector2(size.X * 0.5f, size.Y - 70f);
 
+        // A replay is shot from closer in and follows the ball, which is the entire reason it is
+        // worth watching a second time. The camera pushes in and pans; nothing else changes.
+        var replay = Scene.Replay;
+        if (replay is { Running: true })
+        {
+            _scale *= replay.Zoom;
+            Vector2 follow = replay.CameraTarget;
+            _origin = new Vector2(size.X * 0.5f - follow.X * _scale,
+                                  size.Y * 0.62f + follow.Y * _scale);
+        }
+
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
         DrawField();
         DrawParkName(size);
         DrawBases();
+
+        if (replay is { Running: true })
+        {
+            DrawReplay(size);
+            DrawCallouts(size);
+            return;
+        }
+
         DrawFielders();
         DrawRunners();
         DrawBall();
         DrawCallouts(size);
+    }
+
+    /// <summary>
+    /// The recorded play, drawn from the tape rather than from the live simulation — which by now
+    /// has moved on to the next hitter.
+    /// </summary>
+    private void DrawReplay(Vector2 size)
+    {
+        var replay = Scene.Replay;
+        var tape = replay.Tape;
+        var frame = tape.At(replay.FrameIndex);
+
+        var fieldKit = Scene.Situation.KitOf(Scene.Situation.FieldingTeam);
+        var batKit = Scene.Situation.KitOf(Scene.Situation.BattingTeam);
+
+        Vector2 ballAt = ToScreen(frame.Ball) - new Vector2(0f, frame.BallHeight * 0.55f * _scale);
+
+        for (int i = 0; i < frame.Fielders.Length && i < tape.FielderPlayers.Length; i++)
+        {
+            Vector2 at = ToScreen(frame.Fielders[i]);
+            float facing = ballAt.X >= at.X ? 1f : -1f;
+            CartoonPlayer.Draw(this, at, 0.42f, facing, Pose.Run, fieldKit,
+                tape.FielderPlayers[i], _time, motionPhase: _time * 5f, lookAt: ballAt);
+
+            if (frame.HasBall[i]) DrawCircle(at + new Vector2(0f, -46f), 4f, Palette.Ball);
+        }
+
+        for (int i = 0; i < frame.Runners.Length && i < tape.RunnerPlayers.Length; i++)
+        {
+            Vector2 at = ToScreen(frame.Runners[i]);
+            var shirt = frame.RunnerOut[i] ? Palette.GreyedOut(batKit) : batKit;
+            CartoonPlayer.Draw(this, at, 0.42f, ballAt.X >= at.X ? 1f : -1f,
+                frame.RunnerOut[i] ? Pose.Idle : Pose.Run, shirt, tape.RunnerPlayers[i], _time,
+                motionPhase: _time * 6f, lookAt: ballAt);
+        }
+
+        // The ball and its shadow.
+        DrawCircle(ToScreen(frame.Ball) + new Vector2(0f, frame.BallHeight * 0.10f * _scale),
+            Mathf.Max(2f, 5f - frame.BallHeight * 0.015f), new Color(0f, 0f, 0f, 0.28f));
+        DrawCircle(ballAt, Mathf.Clamp(4.5f + frame.BallHeight * 0.012f, 4f, 8f), Palette.Ball);
+
+        DrawReplayFurniture(size, tape);
+    }
+
+    /// <summary>The broadcast dressing: the bug, the caption and how to get out of it.</summary>
+    private void DrawReplayFurniture(Vector2 size, ReplayTape tape)
+    {
+        var bug = new Rect2(new Vector2(40f, 40f), new Vector2(132f, 30f));
+        DrawRect(bug, new Color(0.72f, 0.12f, 0.12f, 0.92f));
+        Palette.TextCentered(this, bug.Position + bug.Size * 0.5f, "● REPLAY", 15, Colors.White);
+
+        if (tape.Caption != "")
+            Palette.Text(this, new Vector2(184f, 62f), tape.Caption, 16, Palette.Ink);
+
+        Palette.Text(this, new Vector2(40f, 88f),
+            $"{tape.ExitVelocityMph:F0} mph off the bat  ·  {tape.LaunchAngle:F0}° launch",
+            13, Palette.InkDim);
+
+        Palette.TextCentered(this, new Vector2(size.X * 0.5f, size.Y - 34f),
+            "any key to skip", 13, Palette.InkDim);
     }
 
     /// <summary>Field feet to screen pixels. +Y in field space is toward centre field (up-screen).</summary>
