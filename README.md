@@ -1,126 +1,214 @@
-# Sandlot Slugfest
+# Ninety Feet
 
-A Backyard-Baseball-style arcade baseball game in Godot 4.7 (C#/Mono), with a 32-club league
-spanning every real major-league market plus two expansion cities.
+Arcade baseball on an honest simulation. Thirty-two clubs, a real front office, and a race to
+ninety feet.
+
+It looks like a cartoon and it plays like one — big heads, chunky limbs, signature moves — but
+underneath, every rate in the game is measured against the 2024 major-league season and held there.
+The two halves are the point: a game that feels like Backyard Baseball and keeps books like OOTP.
+
+Godot 4.7.1 (C#/Mono, .NET 8). No image assets — every player, ballpark and menu is drawn
+procedurally, and every sound but the name callouts is synthesised.
+
+---
 
 ## Running it
 
 ```bash
-export PATH="$HOME/.dotnet:$PATH"
-export DOTNET_ROOT="$HOME/.dotnet"
-dotnet build
-~/Documents/Godot_v4.7-stable_mono_linux_x86_64/Godot_v4.7-stable_mono_linux.x86_64 .
+export PATH="$HOME/.dotnet:$PATH" DOTNET_ROOT="$HOME/.dotnet"
+dotnet build SandlotSlugfest.csproj
+godot471cs --path .
 ```
 
-Godot needs `dotnet` on its `PATH` — launching it without the exports above fails with
-`.NET: Failed to load hostfxr`.
+Godot needs `dotnet` on its `PATH`; without the exports it fails with
+`.NET: Failed to load hostfxr`. The assembly is still named `SandlotSlugfest` — the project was
+renamed, the namespace was not.
+
+Renaming the game moved `user://` with it, because Godot derives that path from `config/name`.
+Saves live in `~/.local/share/godot/app_userdata/Ninety Feet/`.
+
+---
+
+## What is in it
+
+**Season** — a full schedule with a calendar, weather, gate receipts and standings. Play your
+club's games or simulate them.
+
+**Dynasty** — the same, carried across years: development, ageing, retirement, the draft, free
+agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
+
+**The Collection** — packs, a market, and a club built out of cards you own. Cards can be spent to
+sign a player into your actual season, and he *transfers* rather than being copied: there is one of
+everybody in this league and that stays true.
+
+**Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
+replication. Both peers build the identical league and trade only what each player decides; the
+host is a sequencer, not the simulation.
+
+**Exhibition** — any two clubs, any length.
+
+---
+
+## The league
+
+Thirty-two clubs in real major-league markets — the thirty current ones plus Montreal and
+Nashville. Names, colours and marks are all original.
+
+Rosters are 26 men with 13-man staffs: five starters, a closer, two setup men, three in middle
+relief and two long men, each with a role the bullpen logic actually respects. A few clubs open
+carrying up to 29, because several written players can land on the same club and none of them is
+cut to make room. There are 1,152 handwritten players, 512 of whom are placed when a league opens;
+the rest arrive through the draft and free agency as the written share decays and generated players
+take over — from 59% of the league in year one to about 44% by year four.
+
+Every player has a repertoire of two to four pitches out of eight, chosen by what kind of pitcher
+he is — a power arm lives off a fastball and a slider, a sinkerballer wants ground balls, a crafty
+veteran survives on a cutter and a changeup. About a third of hitters bat left and one in ten
+switches, which matters because the platoon is modelled (see below).
+
+A three-rung farm system — Triple-A, Double-A, High-A — with its own rosters, its own seasons,
+its own standings, and scouting that only tells you what your scouts actually know. You can play
+or watch any of your affiliates' games.
+
+---
 
 ## Controls
 
 | Where | Key | Does |
 | --- | --- | --- |
-| At the plate | Arrows / WASD | Move the bat around the zone |
-| | Space | Swing |
-| | Shift + Space | Bunt |
+| At the plate | Mouse | Aim the hitting reticle |
+| | Left click / Space | Normal swing |
+| | F | Power swing — smaller barrel, more damage |
+| | C | Contact swing — bigger barrel, less power |
+| | B | Bunt |
+| | WASD / arrows | Aim without a mouse |
+| | Shift / Tab | Spend the signature move |
+| | R | Challenge the call |
+| Managing at the plate | G | Send the runner |
+| | H | Pinch hit (before the first pitch only) |
 | | Q / E | Hold runners / send runners |
-| On the mound | 1 2 3 4 | Fastball, curveball, changeup, slider |
-| | Arrows / WASD | Aim the pitch |
-| | Space | Deal |
+| On the mound | 1 2 3 4 | This pitcher's own repertoire, in order |
+| | Mouse | Aim the pitch |
+| | Left click / Space | Deal |
+| | P | Go to the pen — the manager walks out |
+| | V | Mound visit. Five a game; the sixth has to be a change |
+| | I | Intentional walk |
 | In the field | 1 2 3 4 | Throw to first, second, third, home |
-| Anywhere | Esc | Back out |
+| Anywhere | Esc | Back out · M mute · N commentary · `-`/`=` volume |
 
-## The league
-
-32 clubs, all original, placed in real major-league markets: the 30 current ones plus Montreal
-and Nashville. Two leagues, two divisions, eight clubs each. Team names, colours and logos are
-our own — no real club marks are used.
-
-Rosters are generated from a seed, so a given league always produces the same 16 players per
-club: five pitchers, eight position starters and three bench players, each with ratings on a
-1–10 scale and sometimes a signature move (Fireball, Crazy Curve, Moon Shot, Turbo Legs,
-Vacuum Glove, Cannon Arm, Wall Climber and friends).
-
-## Screens
-
-- **Play Ball** — pick the visitors, the home club, game length and who holds the controller.
-- **League Office** — standings, hitting and pitching leaderboards, and a club's full stat sheet.
-- **Trade Desk** — tag players on both sides and send an offer; the other club weighs talent,
-  positional need and whether the deal leaves it able to field a team.
-- **Browse the League** — an almanac of all 32 rosters with full ratings.
-
-The season (rosters, stats, standings, completed trades) is saved to `user://season.json` and
-reloaded at startup, so trades and statistics carry across sessions.
+---
 
 ## How the simulation works
 
-Play happens in field space measured in feet, home plate at the origin, `+Y` toward centre
-field. `FieldGeometry` owns the ballpark; `PlaySimulation` runs a ball in play from contact
-until the ball is dead.
+Play happens in field space measured in feet, home plate at the origin, `+Y` toward centre field.
+`FieldGeometry` owns the ballpark; `PlaySimulation` runs a ball in play from contact until it is
+dead. The play simulation steps at a **fixed 1/120 s**, never the frame delta — integrating flight
+at a long frame's delta moves the ball tens of feet per step and fielders sail past catchable
+balls.
 
-- **Pitching** (`Pitching.cs`) — each pitch has a speed and break signature. The pitcher aims at
-  a spot; command error scatters the ball around it. Break shapes the *path* to the crossing
-  point, never the crossing point itself.
+- **Pitching** (`Pitching.cs`) — each type has its own speed and break signature, and sinkers and
+  cutters break opposite ways off a left-hander and a right-hander. Command error scatters the ball
+  around the target. Break shapes the *path* to the crossing point, never the crossing point
+  itself.
 - **Batting** (`Batting.cs`) — a swing is scored on timing error and on how close the bat was to
-  the ball in the plate plane. Squared-up contact leaves the bat near 26 degrees; swinging above
-  the ball tops it, swinging under it lifts it. Early swings pull, late swings go the other way.
-- **Ball flight** — projectile motion with quadratic drag. The drag coefficient is derived from a
-  baseball's ~95 mph terminal velocity (`g / v_terminal²`), which is what keeps a well-struck
-  ball near 400 feet instead of 600.
-- **Fielding and baserunning** — fielders converge on the projected landing spot; runners compare
-  their time to the next bag against how long the defence needs to get the ball there. Forced
-  runners always go, everyone runs with two out, and non-forced runners hold on a ball in the air
-  so they are not doubled off.
+  the ball in the plate plane, with horizontal misses forgiven because a bat is long and thin.
+  Whether you make contact is forgiving; how well you struck it is a much sharper question, and
+  that second number is what drives exit velocity.
+- **The platoon** (`Platoon.cs`) — a hitter facing the opposite hand sees the ball longer and the
+  breaking stuff moves toward him rather than away. It is applied to the bat and to the read, not
+  bolted onto the result, and it is deliberately asymmetric: left-handers suffer more against
+  left-handed pitching than right-handers do against right-handed.
+- **Ball flight** — projectile motion with quadratic drag, the coefficient derived from a
+  baseball's ~95 mph terminal velocity (`g / v_terminal²`). That is what keeps a well-struck ball
+  near 400 feet instead of 600. Wind acts above six feet.
+- **Fielding and baserunning** — fielders cover the bags they are actually responsible for and
+  converge on the projected landing spot; runners compare their time to the next bag against how
+  long the defence needs to get the ball there.
 
-The play simulation runs on a **fixed 1/120 s timestep**, not the frame delta. Integrating ball
-flight at a long frame's delta moves the ball tens of feet per step and fielders sail past
-catchable balls.
+Every random draw comes from one seeded xorshift generator (`Rng`), which is what makes a league
+reproducible and what makes online play possible at all.
+
+---
+
+## Where a season's money goes
+
+Contracts with real service time — club control, arbitration at three years, free agency at six.
+Budgets scale with market size and with what the club drew last year. A luxury tax at 214,000
+whose rate climbs the longer you stay over it, settled before the winter market so a club that
+spent shops with less.
+
+A coaching staff of four — hitting, pitching, bench, scouting — hired out of the same money as the
+players, affecting how men develop, how fast they heal, and how much your scouts actually know. An
+empty post is worse than an ordinary coach.
+
+---
 
 ## Verifying changes
 
-Two development modes are built in. Both need the `dotnet` exports above.
+The rule here is that nothing is asserted that could be measured. Every harness drives the real
+rules engine, pitch factory, swing resolver and field simulation, and each builds a clean league
+from the seed rather than reading whatever save is on disk.
 
 ```bash
-# Play complete games with no window and print box scores plus balance diagnostics.
-godot --headless -- --sim 30
-
-# Capture screenshots of a scene (default: a CPU-vs-CPU game).
-godot -- --shot /tmp/shots 1.5 8 [--scene res://Scenes/LeagueOffice.tscn] [--fast 12]
+godot471cs --headless --path . -- --sim 350        # league rates against real MLB 2024
+godot471cs --headless --path . -- --platoon 400000 # the left-right split
+godot471cs --headless --path . -- --audit-outs 40  # every half inning must record three outs
+godot471cs --headless --path . -- --unique         # no duplicate names or faces
+godot471cs --headless --path . -- --pen 60         # bullpen usage and roster integrity
+godot471cs --headless --path . -- --farm           # can all 96 affiliates field a side?
+godot471cs --headless --path . -- --drift 3        # roster health across seasons
+godot471cs --headless --path . -- --netplay host --minutes 40
+godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40
+godot471cs --path . -- --shot /tmp/shots 1.5 8 --scene res://Scenes/Season.tscn
 ```
 
-`--sim` is the balance harness: it drives the real rules engine, pitch factory, swing resolver
-and field simulation, and reports per-game rates next to real major-league numbers. Current
-output over 30 games (both clubs combined per game):
+Current `--sim 350`, both clubs combined per game:
 
-| | This game | Real baseball |
+| | Ninety Feet | MLB 2024 | |
+| --- | --- | --- | --- |
+| Runs | 8.93 | 8.79 | +1.6% |
+| Hits | 16.96 | 16.39 | +3.5% |
+| Doubles | 3.09 | 3.20 | −3.5% |
+| Triples | 0.29 | 0.29 | −1.5% |
+| Home runs | 2.15 | 2.24 | −4.1% |
+| Walks | 5.83 | 6.15 | −5.3% |
+| Strikeouts | 17.91 | 16.96 | +5.6% |
+| Stolen bases | 1.52 | 1.49 | +2.2% |
+
+Current `--platoon 400000`, batting average by matchup:
+
+| Matchup | Ninety Feet | Real |
 | --- | --- | --- |
-| Runs | 6.6 | 8.6 |
-| Hits | 18.0 | 17 |
-| Home runs | 2.8 | 2.4 |
-| Strikeouts | 16.9 | 16.5 |
-| Walks | 5.4 | 6.4 |
-| Pitches | 264 | 292 |
-| Zone % | 49.0 | 49 |
-| Swing % | 47.4 | 47 |
-| Whiff / swing | 22.2% | 24% |
-| Foul / swing | 36.8% | 38% |
-| In play / swing | 41.0% | 38% |
+| RH vs LHP | .190 | .259 |
+| RH vs RHP | .178 | .245 |
+| LH vs RHP | .189 | .254 |
+| LH vs LHP | .167 | .232 |
+| **RH platoon advantage** | **12 pts** | 14 |
+| **LH platoon advantage** | **21 pts** | 22 |
 
-Everything except run scoring sits close to the real thing; the league currently plays about
-25% below major-league run scoring, which reads as a slightly pitcher-friendly environment.
+The absolute averages in the platoon audit run low because it scores batted balls with a crude
+model rather than the full defensive simulation — only the *split* is calibrated there. The
+league's real batting rates are the `--sim` table above.
+
+Known gaps: strikeouts run about 6% high and walks about 5% low.
+
+---
 
 ## Layout
 
 ```
 Scripts/
-  Core/       rules, pitching, batting, ball-in-play simulation, CPU decisions, harnesses
-  Data/       the 32 clubs, players, roster generation
-  Season/     league state, trade valuation and execution, save/load
-  Stats/      batting, pitching and team stat lines; the record book
-  Gameplay/   the game scene, batting view, field view, scoreboard
-  UI/         menus, team select, league office, trade desk, cartoon player renderer
+  Core/       rules, pitching, batting, platoon, ball-in-play simulation, CPU brain, harnesses
+  Data/       the 32 clubs, players, the written kids, roster generation, uniforms
+  Season/     league state, schedule, contracts, free agency, the farm, coaches, finances, save/load
+  Cards/      the collection: packs, market, the reward program, signing cards into a season
+  Net/        online play — the link, the command stream, the self-test
+  Stats/      batting, pitching and team lines; the record book; awards and the Hall
+  Gameplay/   the game scene, batting view, field view, scoreboard, mound visits
+  UI/         menus, front office, league office, draft, trades, the cartoon player renderer
+Audio/vo/     the only assets in the project: name callouts
 Scenes/       one thin .tscn per screen; the scripts build their own children
 ```
 
-All art is drawn procedurally — there are no image assets. `CartoonPlayer.cs` renders the kids
-(oversized heads, chunky limbs, thick outlines, per-club uniforms), with appearance driven by
-each player's `LookSeed` so a given kid always looks the same.
+`CartoonPlayer.cs` renders every player from his `LookSeed`, so a given man always looks the same
+— and `--unique` proves no two of the 869 in a league share a face or a name.
