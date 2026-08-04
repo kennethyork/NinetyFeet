@@ -12,10 +12,10 @@ namespace SandlotSlugfest.UI;
 /// </summary>
 public partial class CardsScreen : Control
 {
-    private enum Tab { Packs, Collection, Market, Club, Franchise }
+    private enum Tab { Packs, Program, Collection, Market, Club, Franchise }
 
     private static readonly string[] TabNames =
-        { "PACKS", "MY CARDS", "MARKET", "MY CLUB", "SIGN TO SEASON" };
+        { "PACKS", "PROGRAM", "MY CARDS", "MARKET", "MY CLUB", "SIGN TO SEASON" };
 
     private Tab _tab = Tab.Packs;
     private string _notice = "";
@@ -192,6 +192,7 @@ public partial class CardsScreen : Control
         switch (_tab)
         {
             case Tab.Packs: DrawPacks(size); break;
+            case Tab.Program: DrawProgram(size); break;
             case Tab.Collection: DrawCollection(size); break;
             case Tab.Market: DrawMarket(size); break;
             case Tab.Club: DrawClub(size); break;
@@ -225,15 +226,184 @@ public partial class CardsScreen : Control
 
     // -----------------------------------------------------------------------
 
-    private void DrawPacks(Vector2 size)
+    /// <summary>
+    /// The reward program: the ladder, the missions and the daily.
+    ///
+    /// This is where a collection stops being a shop. Every game you play moves the bar, and the
+    /// packs it pays out are the ones you did not have to afford.
+    /// </summary>
+    private void DrawProgram(Vector2 size)
+    {
+        float y = 158f;
+
+        // The ladder, as a bar with the rungs marked on it.
+        var next = Program.Next;
+        Palette.Text(this, new Vector2(40f, y),
+            next == null
+                ? $"THE PROGRAM — finished, {Collection.Xp:N0} XP"
+                : $"THE PROGRAM — {Collection.Xp:N0} XP  ·  " +
+                  $"{next.Xp - Collection.Xp:N0} to {next.Name}",
+            15, Palette.Ink);
+
+        y += 18f;
+        var bar = new Rect2(new Vector2(40f, y), new Vector2(size.X - 80f, 16f));
+        DrawRect(bar, Palette.Panel);
+        float done = Mathf.Clamp(Collection.Xp / (float)Program.Summit, 0f, 1f);
+        DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * done, bar.Size.Y)),
+            Palette.Highlight);
+
+        // A tick for every rung, so the shape of what is left is visible at a glance.
+        foreach (var rung in Program.Ladder)
+        {
+            float at = bar.Position.X + bar.Size.X * (rung.Xp / (float)Program.Summit);
+            bool got = Collection.Xp >= rung.Xp;
+            DrawRect(new Rect2(new Vector2(at - 1f, bar.Position.Y - 3f), new Vector2(2f, 22f)),
+                got ? Palette.Night : Palette.InkDim);
+        }
+
+        y += 30f;
+        Palette.Text(this, new Vector2(40f, y),
+            "Every game you play moves this — a collection game, a season game, either one.",
+            13, Palette.InkDim);
+
+        // The next few rungs and what they pay.
+        y += 24f;
+        foreach (var rung in Program.Ladder.Where(r => r.Xp > Collection.Xp).Take(3))
+        {
+            Palette.Text(this, new Vector2(40f, y), rung.Name, 12, Palette.Highlight);
+            Palette.Text(this, new Vector2(220f, y), $"{rung.Xp:N0} XP", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(320f, y),
+                rung.Pack >= 0 ? Market.Packs[rung.Pack].Name : Market.Coins(rung.Coins),
+                12, Palette.Ink);
+            y += 19f;
+        }
+
+        // Today's pack.
+        y += 16f;
+        var daily = new Rect2(new Vector2(40f, y), new Vector2(240f, 34f));
+        bool ready = Program.DailyReady;
+        Palette.Panel3D(this, daily, ready ? Palette.Highlight.Darkened(0.2f) : Palette.Panel);
+        Palette.TextCentered(this, daily.Position + daily.Size * 0.5f,
+            ready ? "CLAIM TODAY'S PACK" : "CLAIMED — BACK TOMORROW", 12,
+            ready ? Palette.Night : Palette.InkDim);
+
+        if (ready)
+            _clicks.Add(daily, () =>
+            {
+                string got = Program.ClaimDaily();
+                if (got == null) return;
+                Collection.Save();
+                Say(got);
+            });
+
+        // The missions.
+        y += 52f;
+        Palette.Text(this, new Vector2(40f, y), "MISSIONS", 13, Palette.Highlight);
+        y += 24f;
+
+        foreach (var m in Program.Missions)
+        {
+            bool done2 = Program.Complete(m);
+            bool claimed = Program.Claimed(m);
+            int at = Mathf.Min(m.Progress(), m.Target);
+
+            Palette.Text(this, new Vector2(44f, y), m.Name, 12,
+                claimed ? Palette.InkDim : done2 ? Palette.Highlight : Palette.Ink);
+            Palette.Text(this, new Vector2(260f, y), m.Detail, 11, Palette.InkDim);
+            Palette.Text(this, new Vector2(700f, y), $"{at}/{m.Target}", 11,
+                done2 ? Palette.Highlight : Palette.InkDim);
+            Palette.Text(this, new Vector2(770f, y),
+                m.Pack >= 0 ? Market.Packs[m.Pack].Name : Market.Coins(m.Coins), 11, Palette.InkDim);
+
+            if (claimed)
+            {
+                Palette.Text(this, new Vector2(950f, y), "COLLECTED", 11, Palette.InkDim);
+            }
+            else if (done2)
+            {
+                var claim = new Rect2(new Vector2(946f, y - 13f), new Vector2(96f, 19f));
+                Palette.Panel3D(this, claim, Palette.Highlight.Darkened(0.2f));
+                Palette.TextCentered(this, claim.Position + claim.Size * 0.5f, "COLLECT", 11,
+                    Palette.Night);
+
+                var target = m;
+                _clicks.Add(claim, () =>
+                {
+                    string got = Program.Claim(target);
+                    if (got == null) return;
+                    Collection.Save();
+                    Say(got);
+                });
+            }
+
+            y += 20f;
+        }
+    }
+
+    /// <summary>
+    /// Packs you have earned and not yet opened.
+    ///
+    /// They sit here rather than opening themselves, because the opening is the good part and it
+    /// should happen when you are looking at it.
+    /// </summary>
+    private void DrawVault(Vector2 size)
     {
         float y = 150f;
-        float w = 300f;
+
+        if (Collection.Vault.Count == 0)
+        {
+            Palette.Text(this, new Vector2(40f, y),
+                "No earned packs waiting. Play games and work the PROGRAM to win them.",
+                13, Palette.InkDim);
+            return;
+        }
+
+        Palette.Text(this, new Vector2(40f, y),
+            $"EARNED — {Collection.Vault.Count} unopened", 13, Palette.Highlight);
+
+        float x = 250f;
+        foreach (var group in Collection.Vault.GroupBy(p => p).OrderBy(g => g.Key))
+        {
+            var pack = Market.Packs[group.Key];
+            string label = $"{pack.Name} ×{group.Count()}";
+            float bw = Palette.TextWidth(label, 11) + 24f;
+            var rect = new Rect2(new Vector2(x, y - 15f), new Vector2(bw, 26f));
+
+            Palette.Panel3D(this, rect, Palette.Highlight.Darkened(0.2f));
+            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, label, 11, Palette.Night);
+
+            int which = group.Key;
+            _clicks.Add(rect, () =>
+            {
+                // No confirmation here: an earned pack cost nothing, so opening one by accident
+                // costs nothing either. The confirmation exists to protect coins.
+                var opened = Market.OpenEarned(which);
+                if (opened == null) return;
+
+                _lastPack = opened;
+                _revealTimer = 1.2f;
+                Collection.Save();
+                var best = opened.Best;
+                Say(best == null ? "Empty pack."
+                    : $"Best card: {best.Player.Name} — {best.TierText}, " +
+                      $"worth {Market.Coins(best.Value)}.");
+            });
+
+            x += bw + 8f;
+        }
+    }
+
+    private void DrawPacks(Vector2 size)
+    {
+        DrawVault(size);
+
+        float y = 186f;
+        float w = 236f;
 
         for (int i = 0; i < Market.Packs.Length; i++)
         {
             var pack = Market.Packs[i];
-            var rect = new Rect2(new Vector2(40f + i * (w + 16f), y), new Vector2(w, 150f));
+            var rect = new Rect2(new Vector2(40f + i * (w + 10f), y), new Vector2(w, 150f));
             bool afford = Collection.Coins >= pack.Price;
             string key = $"pack:{pack.Name}";
             bool armed = IsArmed(key);

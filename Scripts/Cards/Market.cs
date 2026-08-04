@@ -37,6 +37,9 @@ public static class Market
         public float DiamondChance;
         public float GoldChance;
         public float SilverChance;
+
+        /// <summary>Draw only from the league's handwritten players.</summary>
+        public bool LegendsOnly;
     }
 
     public static readonly PackKind[] Packs =
@@ -59,6 +62,21 @@ public static class Market
             Blurb = "Three cards. One of them is a diamond one time in three.",
             DiamondChance = 0.34f, GoldChance = 1f, SilverChance = 1f,
         },
+        new()
+        {
+            Name = "PROSPECT PACK", Price = 600, Cards = 3,
+            Blurb = "Three cards, cheap. How a collection starts.",
+            DiamondChance = 0.004f, GoldChance = 0.04f, SilverChance = 0.30f,
+        },
+        new()
+        {
+            // The written players are the ones with names you recognise, and a pack that hunts
+            // only them is a different chase from a pack that hunts ratings.
+            Name = "LEGENDS PACK", Price = 14000, Cards = 4,
+            Blurb = "Four of the league's written names. Nobody generated.",
+            DiamondChance = 0.12f, GoldChance = 1f, SilverChance = 1f,
+            LegendsOnly = true,
+        },
     };
 
     /// <summary>Seeded from the clock, because a pack that always contains the same five cards
@@ -80,7 +98,7 @@ public static class Market
             : _rng.Chance(pack.SilverChance) ? Tier.Silver
             : Tier.Bronze;
 
-        var headline = Draw(best);
+        var headline = Draw(best, pack.LegendsOnly);
         if (headline != null) result.Cards.Add(headline);
 
         for (int i = result.Cards.Count; i < pack.Cards; i++)
@@ -95,7 +113,7 @@ public static class Market
                 _ => Tier.Diamond,
             };
 
-            var filler = Draw(tier);
+            var filler = Draw(tier, pack.LegendsOnly);
             if (filler != null) result.Cards.Add(filler);
         }
 
@@ -103,17 +121,30 @@ public static class Market
         return result;
     }
 
+    /// <summary>Opens a pack that was earned rather than bought, spending it from the vault.</summary>
+    public static PackResult OpenEarned(int packIndex)
+    {
+        if (packIndex < 0 || packIndex >= Packs.Length) return null;
+        if (!Collection.TakeFromVault(packIndex)) return null;
+
+        return Open(Packs[packIndex]);
+    }
+
     /// <summary>One random card of a given tier, or the nearest tier that has anyone in it.</summary>
-    private static Card Draw(Tier tier)
+    private static Card Draw(Tier tier, bool legendsOnly = false)
     {
         for (int step = 0; step < 5; step++)
         {
             // Walk down if the league happens to have nobody at that tier.
             var at = (Tier)Mathf.Max(0, (int)tier - step);
-            var pool = Collection.Catalogue.Where(c => c.Tier == at).ToList();
+            var pool = Collection.Catalogue
+                .Where(c => c.Tier == at && (!legendsOnly || c.Player.IsLegend))
+                .ToList();
             if (pool.Count > 0) return pool[_rng.Range(0, pool.Count)];
         }
-        return null;
+
+        // A legends pack that has run the written players dry still owes you a card.
+        return legendsOnly ? Draw(tier) : null;
     }
 
     /// <summary>What the market pays for a card. Less than it charges, and that gap is the point.</summary>

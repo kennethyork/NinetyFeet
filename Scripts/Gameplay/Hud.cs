@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using SandlotSlugfest.Core;
 using SandlotSlugfest.UI;
@@ -440,29 +441,28 @@ public partial class Hud : Node2D
 
     private void DrawPitchPicker(Vector2 size)
     {
-        string[] names = { "1 Fastball", "2 Curveball", "3 Changeup", "4 Slider" };
-        var types = new[] { PitchType.Fastball, PitchType.Curveball, PitchType.Changeup, PitchType.Slider };
-
-        float w = 132f;
-        float x = size.X * 0.5f - (w * 4f + 24f) * 0.5f;
-        float y = size.Y - 66f;
-
         var arm = Scene.Situation.FieldingTeam.CurrentPitcher;
 
-        for (int i = 0; i < 4; i++)
+        // Only what this man throws, rather than four fixed slots with the ones he lacks greyed
+        // out. Pitchers now carry between two and four pitches out of eight, so a fixed row would
+        // be mostly dead buttons — and the number keys should land on his pitches, not on gaps.
+        var types = arm.Arsenal.ToArray();
+        if (types.Length == 0) types = new[] { PitchType.Fastball };
+
+        float w = types.Length >= 5 ? 108f : 132f;
+        float x = size.X * 0.5f - (w * types.Length + 8f * (types.Length - 1)) * 0.5f;
+        float y = size.Y - 66f;
+
+        for (int i = 0; i < types.Length; i++)
         {
-            bool knows = arm.Knows((int)types[i]);
             bool on = types[i] == Scene.SelectedPitch;
             var rect = new Rect2(new Vector2(x + i * (w + 8f), y), new Vector2(w, 34f));
 
-            // Only what this pitcher actually throws is on offer.
-            var fill = !knows ? Palette.Panel.Darkened(0.45f)
-                : on ? Palette.Highlight.Darkened(0.2f) : Palette.Panel;
-            Palette.Panel3D(this, rect, fill);
-            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, names[i], 15,
-                !knows ? Palette.InkDim.Darkened(0.35f) : on ? Palette.Night : Palette.Ink);
+            Palette.Panel3D(this, rect, on ? Palette.Highlight.Darkened(0.2f) : Palette.Panel);
+            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f,
+                $"{i + 1} {SwingProfileNames.Of(types[i])}", types.Length >= 5 ? 13 : 15,
+                on ? Palette.Night : Palette.Ink);
 
-            if (!knows) continue;
             var picked = types[i];
             Clicks.Add(rect, () =>
             {

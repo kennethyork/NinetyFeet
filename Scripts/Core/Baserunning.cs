@@ -38,8 +38,13 @@ public static class Baserunning
     /// Sized against a league that saw 3.57 pitches a plate appearance. Two-strike protection
     /// pushed that to 3.77, and because this is offered per pitch rather than per at-bat, steals
     /// rose 21% without anybody changing how willing a runner is to go.
+    ///
+    /// It cuts the other way too. Giving pitchers real repertoires shortened at-bats — a man with
+    /// a sinker and a changeup gets outs sooner than one throwing four pitches at random — and
+    /// fewer pitches an at-bat meant fewer chances offered, which cost 16% of the league's steals
+    /// without anybody touching baserunning. This is sized back up to meet it.
     private static float Willingness(PlayerData runner) =>
-        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.096f, 0f, 0.096f);
+        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.114f, 0f, 0.114f);
 
     /// <summary>
     /// Chance the throw beats him. A catcher's arm matters, but a fast runner beats most of them —

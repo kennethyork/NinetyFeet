@@ -270,21 +270,7 @@ public static class RosterGenerator
             if (rng.Chance(i == 0 ? 0.75f : 0.35f))
                 p.Special = rng.Pick(PitcherSpecials);
 
-            // Everyone can throw a fastball. Better command earns more pitches on top of it,
-            // and a signature move always brings its own pitch along.
-            p.Repertoire = 1 << (int)PitchType.Fastball;
-            int extras = p.PitchControl >= 8 ? 3 : p.PitchControl >= 6 ? 2 : 1;
-            var pool = new[] { PitchType.Slider, PitchType.Curveball, PitchType.Changeup };
-            rng.Shuffle(pool);
-            for (int e = 0; e < extras; e++) p.Repertoire |= 1 << (int)pool[e];
-
-            p.Repertoire |= p.Special switch
-            {
-                Special.CrazyCurve => 1 << (int)PitchType.Curveball,
-                Special.Corkscrew => 1 << (int)PitchType.Slider,
-                Special.Knuckleball => 1 << (int)PitchType.Changeup,
-                _ => 0,
-            };
+            AssignArsenal(p, ref rng);
 
             roster.Pitchers.Add(p);
             roster.Players.Add(p);
@@ -688,13 +674,89 @@ public static class RosterGenerator
                    + rng.Range(0, 3);
         p.Potential = Mathf.Clamp(p.Overall + room, 1, 10);
 
-        // Everyone throws a fastball; command earns the rest.
-        p.Repertoire = 1 << (int)PitchType.Fastball;
-        var pool = new[] { PitchType.Slider, PitchType.Curveball, PitchType.Changeup };
-        rng.Shuffle(pool);
-        for (int e = 0; e < (p.PitchControl >= 7 ? 2 : 1); e++) p.Repertoire |= 1 << (int)pool[e];
-
+        AssignArsenal(p, ref rng);
         return p;
+    }
+
+    /// <summary>
+    /// What this arm throws.
+    ///
+    /// A repertoire is most of a pitcher's identity, and the old one was three pitches drawn from
+    /// a pool of three — so every arm in the league was a slightly different shuffle of the same
+    /// hand. Real staffs are not like that. A power arm lives off a fastball and a slider; a
+    /// sinkerballer wants ground balls and barely uses a breaking ball; a crafty veteran with no
+    /// velocity survives on a cutter and a changeup and knowing where they go.
+    ///
+    /// So the kind of pitcher comes first and the pitches follow from it. Relievers carry fewer,
+    /// which is the real reason a good reliever cannot start: two pitches will get you through a
+    /// lineup once and not twice.
+    /// </summary>
+    private static void AssignArsenal(PlayerData p, ref Rng rng)
+    {
+        // Everybody has a fastball. That much is universal.
+        p.Repertoire = 1 << (int)PitchType.Fastball;
+
+        void Add(PitchType t) => p.Repertoire |= 1 << (int)t;
+
+        bool hard = p.PitchPower >= 7;
+        bool crafty = p.PitchControl >= 7 && p.PitchPower <= 6;
+
+        // The knuckleballer is a genuine rarity, and he is his own thing entirely — soft, odd,
+        // and able to go a long way on an arm that should not be able to.
+        if (rng.Chance(0.015f))
+        {
+            Add(PitchType.Knuckler);
+            Add(PitchType.Curveball);
+            return;
+        }
+
+        if (hard && rng.Chance(0.55f))
+        {
+            // Power: the fastball sets it up and the slider finishes it.
+            Add(PitchType.Slider);
+            if (rng.Chance(0.45f)) Add(PitchType.Splitter);
+            else if (rng.Chance(0.6f)) Add(PitchType.Curveball);
+        }
+        else if (crafty && rng.Chance(0.6f))
+        {
+            // Crafty: nothing arrives hard, so it had better not arrive straight.
+            Add(PitchType.Cutter);
+            Add(PitchType.Changeup);
+            if (rng.Chance(0.5f)) Add(PitchType.Curveball);
+        }
+        else if (rng.Chance(0.30f))
+        {
+            // Sinkerballer: run and sink, and let them hit it into the ground.
+            Add(PitchType.Sinker);
+            Add(PitchType.Changeup);
+            if (rng.Chance(0.45f)) Add(PitchType.Slider);
+        }
+        else
+        {
+            // Conventional: a breaking ball and something slow.
+            Add(rng.Chance(0.5f) ? PitchType.Slider : PitchType.Curveball);
+            if (rng.Chance(0.7f)) Add(PitchType.Changeup);
+            if (p.PitchControl >= 8 && rng.Chance(0.5f)) Add(PitchType.Curveball);
+        }
+
+        // A signature move always brings its own pitch along — a curveball specialist who cannot
+        // throw a curveball would be a joke at his own expense.
+        switch (p.Special)
+        {
+            case Special.CrazyCurve: Add(PitchType.Curveball); break;
+            case Special.Corkscrew: Add(PitchType.Slider); break;
+            case Special.Knuckleball: Add(PitchType.Knuckler); break;
+        }
+
+        // Relievers work in short bursts off two or three pitches. Trim the least useful.
+        if (p.Role != StaffRole.Starter && p.Role != StaffRole.Long)
+        {
+            foreach (var drop in new[] { PitchType.Changeup, PitchType.Curveball, PitchType.Cutter })
+            {
+                if (System.Numerics.BitOperations.PopCount((uint)p.Repertoire) <= 2) break;
+                p.Repertoire &= ~(1 << (int)drop);
+            }
+        }
     }
 
     private static readonly Position[] FieldPositionsPool =

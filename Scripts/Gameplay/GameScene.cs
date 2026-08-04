@@ -729,11 +729,20 @@ public partial class GameScene : Node2D
             PitchAim.X = Mathf.Clamp(PitchAim.X, -1.9f, 1.9f);
             PitchAim.Y = Mathf.Clamp(PitchAim.Y, 0.8f, 4.6f);
 
+            // The number keys index this arm's own repertoire, matching the picker on screen.
+            // They used to be hardwired to the first four pitch types, so a pitcher whose second
+            // pitch was a sinker had no key for it at all.
             var arm = Situation.FieldingTeam.CurrentPitcher;
-            if (Input.IsActionJustPressed(InputActions.Pitch1) && arm.Knows(0)) SelectedPitch = PitchType.Fastball;
-            if (Input.IsActionJustPressed(InputActions.Pitch2) && arm.Knows(1)) SelectedPitch = PitchType.Curveball;
-            if (Input.IsActionJustPressed(InputActions.Pitch3) && arm.Knows(2)) SelectedPitch = PitchType.Changeup;
-            if (Input.IsActionJustPressed(InputActions.Pitch4) && arm.Knows(3)) SelectedPitch = PitchType.Slider;
+            var arsenal = arm.Arsenal.ToArray();
+            void Choose(int slot)
+            {
+                if (slot < arsenal.Length) SelectedPitch = arsenal[slot];
+            }
+
+            if (Input.IsActionJustPressed(InputActions.Pitch1)) Choose(0);
+            if (Input.IsActionJustPressed(InputActions.Pitch2)) Choose(1);
+            if (Input.IsActionJustPressed(InputActions.Pitch3)) Choose(2);
+            if (Input.IsActionJustPressed(InputActions.Pitch4)) Choose(3);
             if (Input.IsActionJustPressed(InputActions.PowerUp)) TogglePowerUp();
 
             PitchClock -= dt;
@@ -1709,11 +1718,32 @@ public partial class GameScene : Node2D
             bool youWon = Situation.AwayScore > Situation.HomeScore;
             int purse = Cards.Market.Purse(youWon, Situation.AwayScore, Situation.HomeScore);
             Cards.Collection.Earn(purse);
+
+            // The game also counts towards the reward program, which is where the packs you do
+            // not pay for come from.
+            var rewards = Cards.Program.BookGame(youWon, Situation.AwayScore, Situation.HomeScore);
             Cards.Collection.Save();
 
             g.LastResultLine += $"   ·   {Cards.Market.Coins(purse)} earned";
+            if (rewards.Count > 0) g.LastResultLine += $"   ·   {rewards[0]}";
             g.CardClubRoster = null;
             return;
+        }
+
+        // A season or dynasty game counts towards the program too. Running a franchise is playing
+        // the game, and only paying the collection mode would quietly punish you for preferring
+        // the other one.
+        int userTeam = g.League?.UserTeamId ?? -1;
+        if (userTeam >= 0 &&
+            (Situation.Away.Team.Id == userTeam || Situation.Home.Team.Id == userTeam))
+        {
+            bool home = Situation.Home.Team.Id == userTeam;
+            int mine = home ? Situation.HomeScore : Situation.AwayScore;
+            int theirs = home ? Situation.AwayScore : Situation.HomeScore;
+
+            Cards.Collection.Load();
+            Cards.Program.BookGame(mine > theirs, mine, theirs);
+            Cards.Collection.Save();
         }
 
         // Book the decision, then fold the box score into the season and save it.

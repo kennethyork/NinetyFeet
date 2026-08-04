@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using SandlotSlugfest.Data;
 
@@ -44,19 +45,50 @@ public static class CpuBrain
             rng.Range(ahead ? 0.85f : 1.42f, ahead ? 4.3f : 3.58f));
 
         float roll = rng.NextFloat();
-        type = pitcher.Special switch
+
+        // A signature move is thrown often enough to be the thing he is known for.
+        var want = pitcher.Special switch
         {
             Special.Fireball when roll < 0.45f => PitchType.Fastball,
             Special.CrazyCurve when roll < 0.40f => PitchType.Curveball,
             Special.Corkscrew when roll < 0.40f => PitchType.Slider,
-            _ => roll switch
-            {
-                < 0.42f => PitchType.Fastball,
-                < 0.64f => PitchType.Slider,
-                < 0.84f => PitchType.Curveball,
-                _ => PitchType.Changeup,
-            },
+            Special.Knuckleball when roll < 0.55f => PitchType.Knuckler,
+            _ => Choose(pitcher, roll, ahead),
         };
+
+        // Never call for something he does not throw. ReleasePitch used to catch this and quietly
+        // substitute a fastball, which meant an arm with no changeup threw a fastball every time
+        // the brain asked for one — the more distinctive his repertoire, the more predictable he
+        // became, which is precisely backwards.
+        type = pitcher.Knows((int)want) ? want : PitchType.Fastball;
+    }
+
+    /// <summary>
+    /// Picks from what this arm actually has.
+    ///
+    /// The fastball is the backbone and everything else is what he goes to; ahead in the count he
+    /// reaches for the pitch that misses bats, and behind it he needs the one he can locate.
+    /// </summary>
+    private static PitchType Choose(PlayerData pitcher, float roll, bool ahead)
+    {
+        // Roughly a real major-league mix: a bit under half fastballs, the rest spread over
+        // whatever secondary stuff he owns.
+        if (roll < (ahead ? 0.36f : 0.50f)) return PitchType.Fastball;
+
+        var secondary = new List<PitchType>();
+        foreach (var t in pitcher.Arsenal)
+            if (t != PitchType.Fastball) secondary.Add(t);
+
+        if (secondary.Count == 0) return PitchType.Fastball;
+
+        // Spread the remaining probability evenly across his secondary pitches, so a man with one
+        // breaking ball leans on it and a man with three keeps a hitter guessing.
+        float span = 1f - (ahead ? 0.36f : 0.50f);
+        int at = Mathf.Clamp(
+            Mathf.FloorToInt((roll - (ahead ? 0.36f : 0.50f)) / span * secondary.Count),
+            0, secondary.Count - 1);
+
+        return secondary[at];
     }
 
     /// <summary>Decides whether to offer at a pitch, and how well the swing will be timed.</summary>

@@ -277,7 +277,50 @@ public static class Collection
         public int[] StaffIds { get; set; }
         public int[] MinorIds { get; set; }
         public bool Started { get; set; }
+
+        // The reward program. Absent in an older save, which reads back as a fresh program rather
+        // than an error — nobody should lose a collection to a new field.
+        public int Xp { get; set; }
+        public int[] VaultPacks { get; set; }
+        public string[] CounterKeys { get; set; }
+        public int[] CounterValues { get; set; }
+        public string[] ClaimedMissions { get; set; }
+        public int LastDaily { get; set; }
     }
+
+    // -----------------------------------------------------------------------
+    // The reward program's state
+    // -----------------------------------------------------------------------
+
+    /// <summary>Experience earned by playing, which drives the ladder in <see cref="Program"/>.</summary>
+    public static int Xp { get; private set; }
+
+    public static void AddXp(int xp) => Xp = Mathf.Max(0, Xp + xp);
+
+    /// <summary>Packs earned but not yet opened, as indices into <see cref="Market.Packs"/>.</summary>
+    public static readonly List<int> Vault = new();
+
+    public static void Stash(int packIndex) => Vault.Add(packIndex);
+
+    public static bool TakeFromVault(int packIndex) => Vault.Remove(packIndex);
+
+    /// <summary>Running totals the missions are measured against.</summary>
+    private static readonly Dictionary<string, int> Counters = new();
+
+    public static int Counter(string key) => Counters.GetValueOrDefault(key);
+
+    public static void Bump(string key, int by = 1) =>
+        Counters[key] = Counter(key) + by;
+
+    private static readonly HashSet<string> Claimed = new();
+
+    public static bool MissionClaimed(string key) => Claimed.Contains(key);
+    public static void ClaimMission(string key) => Claimed.Add(key);
+
+    /// <summary>The day the free pack was last taken, so it comes once and comes back tomorrow.</summary>
+    public static int LastDaily { get; private set; } = -1;
+
+    public static void SetLastDaily(int day) => LastDaily = day;
 
     /// <summary>
     /// The previous save, kept alongside the current one.
@@ -311,6 +354,12 @@ public static class Collection
             StaffIds = Staff.ToArray(),
             MinorIds = Minors.ToArray(),
             Started = true,
+            Xp = Xp,
+            VaultPacks = Vault.ToArray(),
+            CounterKeys = Counters.Keys.ToArray(),
+            CounterValues = Counters.Values.ToArray(),
+            ClaimedMissions = Claimed.ToArray(),
+            LastDaily = LastDaily,
         };
 
         using var file = FileAccess.Open(Path, FileAccess.ModeFlags.Write);
@@ -323,6 +372,11 @@ public static class Collection
         Lineup.Clear();
         Staff.Clear();
         Minors.Clear();
+        Vault.Clear();
+        Counters.Clear();
+        Claimed.Clear();
+        Xp = 0;
+        LastDaily = -1;
 
         // Fall back to the backup if the live file has gone missing or will not open.
         string path = FileAccess.FileExists(Path) ? Path
@@ -361,5 +415,18 @@ public static class Collection
 
         if (dto.StaffIds != null) Staff.AddRange(dto.StaffIds);
         if (dto.MinorIds != null) Minors.AddRange(dto.MinorIds);
+
+        Xp = Mathf.Max(0, dto.Xp);
+        LastDaily = dto.LastDaily == 0 ? -1 : dto.LastDaily;
+
+        if (dto.VaultPacks != null)
+            Vault.AddRange(dto.VaultPacks.Where(p => p >= 0 && p < Market.Packs.Length));
+
+        if (dto.CounterKeys != null && dto.CounterValues != null)
+            for (int i = 0; i < dto.CounterKeys.Length && i < dto.CounterValues.Length; i++)
+                Counters[dto.CounterKeys[i]] = dto.CounterValues[i];
+
+        if (dto.ClaimedMissions != null)
+            foreach (string key in dto.ClaimedMissions) Claimed.Add(key);
     }
 }

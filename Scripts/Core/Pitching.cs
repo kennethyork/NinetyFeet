@@ -3,7 +3,16 @@ using SandlotSlugfest.Data;
 
 namespace SandlotSlugfest.Core;
 
-public enum PitchType { Fastball, Curveball, Changeup, Slider }
+/// <summary>
+/// The pitches. The first four keep their old positions on purpose — the repertoire is a bitmask
+/// and a netplay command carries the type as an integer, so renumbering would silently change what
+/// every existing arm throws and what a command off the wire means.
+/// </summary>
+public enum PitchType
+{
+    Fastball, Curveball, Changeup, Slider,
+    Sinker, Cutter, Splitter, Knuckler,
+}
 
 /// <summary>Broadcast names for the pitch types.</summary>
 public static class SwingProfileNames
@@ -13,7 +22,24 @@ public static class SwingProfileNames
         PitchType.Curveball => "Curve",
         PitchType.Changeup => "Change",
         PitchType.Slider => "Slider",
+        PitchType.Sinker => "Sinker",
+        PitchType.Cutter => "Cutter",
+        PitchType.Splitter => "Splitter",
+        PitchType.Knuckler => "Knuckler",
         _ => "Fastball",
+    };
+
+    /// <summary>The short form the mound overlay uses, where there is no room for the long one.</summary>
+    public static string Short(PitchType t) => t switch
+    {
+        PitchType.Curveball => "CB",
+        PitchType.Changeup => "CH",
+        PitchType.Slider => "SL",
+        PitchType.Sinker => "SI",
+        PitchType.Cutter => "FC",
+        PitchType.Splitter => "FS",
+        PitchType.Knuckler => "KN",
+        _ => "FB",
     };
 }
 
@@ -103,8 +129,20 @@ public static class PitchFactory
             PitchType.Curveball => 62f + power * 16f,
             PitchType.Changeup => 66f + power * 15f,
             PitchType.Slider => 72f + power * 19f,
+
+            // A sinker gives up a little off the four-seam for run and sink; a cutter gives up
+            // less again for a short glove-side move; a splitter arrives at changeup speed and
+            // falls off the table; a knuckler barely travels and nobody knows where it goes.
+            PitchType.Sinker => 75f + power * 23f,
+            PitchType.Cutter => 76f + power * 22f,
+            PitchType.Splitter => 70f + power * 17f,
+            PitchType.Knuckler => 58f + power * 9f,
             _ => 75f,
         };
+
+        // Arm side is to the right for a right-hander and the reverse for a left-hander, which is
+        // what makes a sinker and a cutter opposites rather than two names for the same pitch.
+        float armSide = pitcher.Throws == Handedness.Left ? -1f : 1f;
 
         Vector2 brk = type switch
         {
@@ -112,6 +150,21 @@ public static class PitchFactory
             PitchType.Curveball => new Vector2(rng.Range(-0.5f, 0.5f), -(1.5f + power * 1.4f)),
             PitchType.Changeup => new Vector2(rng.Range(-0.4f, 0.4f), -(0.7f + power * 0.6f)),
             PitchType.Slider => new Vector2((rng.Chance(0.5f) ? -1f : 1f) * (1.1f + power * 1.0f), -0.5f),
+
+            PitchType.Sinker => new Vector2(
+                armSide * (0.65f + power * 0.55f) + rng.Range(-0.12f, 0.12f),
+                -(0.35f + power * 0.35f)),
+
+            PitchType.Cutter => new Vector2(
+                -armSide * (0.45f + power * 0.45f) + rng.Range(-0.1f, 0.1f),
+                rng.Range(-0.1f, 0.15f)),
+
+            PitchType.Splitter => new Vector2(
+                rng.Range(-0.3f, 0.3f), -(1.15f + power * 0.75f)),
+
+            // The whole point of a knuckleball is that it has no signature.
+            PitchType.Knuckler => new Vector2(rng.Range(-2.0f, 2.0f), rng.Range(-1.5f, 1.1f)),
+
             _ => Vector2.Zero,
         };
 

@@ -481,15 +481,22 @@ public partial class BattingView : Node2D
         // skill, and this is how a video game makes it legible.
         var seam = pitch.Type switch
         {
-            PitchType.Fastball => new Color("#e2453f"),
-            PitchType.Curveball => new Color("#4b8ef0"),
-            PitchType.Changeup => new Color("#46b566"),
+            PitchType.Fastball => new Color("#e2453f"),      // red — straight and hard
+            PitchType.Curveball => new Color("#4b8ef0"),     // blue — the big drop
+            PitchType.Changeup => new Color("#46b566"),      // green — slow
+            PitchType.Slider => new Color("#e0b23a"),        // amber — sideways
+            PitchType.Sinker => new Color("#e07a3a"),        // orange — a fastball that dies
+            PitchType.Cutter => new Color("#c65fd0"),        // violet — a fastball with a wrinkle
+            PitchType.Splitter => new Color("#3fc4c0"),      // teal — falls off the table
+            PitchType.Knuckler => new Color("#cfd3da"),      // grey — no spin to read at all
             _ => new Color("#e0b23a"),
         };
         if (radius > 5f)
         {
-            // The seam pattern rotates as it travels, which sells the spin.
-            float spin = t * 22f * (pitch.Type == PitchType.Curveball ? -1f : 1f);
+            // The seam pattern rotates as it travels, which sells the spin. A knuckleball barely
+            // turns over — that near-stillness is exactly what a hitter is trying to spot.
+            float rate = pitch.Type == PitchType.Knuckler ? 1.5f : 22f;
+            float spin = t * rate * (pitch.Type is PitchType.Curveball or PitchType.Splitter ? -1f : 1f);
             DrawArc(at, radius * 0.62f, spin + 0.6f, spin + 2.4f, 10, seam, 1.8f);
             DrawArc(at, radius * 0.62f, spin + 3.7f, spin + 5.6f, 10, seam, 1.8f);
         }

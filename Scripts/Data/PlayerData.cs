@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace SandlotSlugfest.Data;
@@ -89,9 +91,29 @@ public sealed class PlayerData
     /// Baseball your repertoire is part of who you are, so the picker only offers what this
     /// pitcher can throw. Stored as a bit set over <see cref="PitchTypeBit"/>.
     /// </summary>
+    /// <summary>
+    /// Every arm knew every pitch, which meant no arm was distinguishable from another on the
+    /// mound. A real repertoire is three or four pitches and it is most of a pitcher's identity —
+    /// a sinkerballer and a curveball specialist are not the same job. Assigned in
+    /// <see cref="RosterGenerator"/>; the fastball is the one thing everybody has.
+    /// </summary>
     public int Repertoire = 0b1111;
 
     public bool Knows(int pitchTypeIndex) => (Repertoire & (1 << pitchTypeIndex)) != 0;
+
+    /// <summary>The pitches this arm actually throws, in enum order.</summary>
+    public IEnumerable<Core.PitchType> Arsenal
+    {
+        get
+        {
+            foreach (Core.PitchType t in System.Enum.GetValues<Core.PitchType>())
+                if (Knows((int)t)) yield return t;
+        }
+    }
+
+    /// <summary>His repertoire written out, for the scouting line and the mound overlay.</summary>
+    public string ArsenalText =>
+        string.Join(" · ", Arsenal.Select(Core.SwingProfileNames.Short));
 
     /// <summary>Signature moves are used, not merely possessed: a limited charge per game.</summary>
     public int PowerUpsPerGame = 1;
