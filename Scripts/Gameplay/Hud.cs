@@ -344,6 +344,30 @@ public partial class Hud : Node2D
     /// The signature-move charge. Backyard Baseball's specials were something you chose to
     /// spend at a moment that mattered, so it needs to be visible and armable, not silent.
     /// </summary>
+    /// <summary>
+    /// Trips to the mound left, for the club currently in the field.
+    ///
+    /// A resource you cannot see is not a resource. Five a game only means anything if you know in
+    /// the fourth that spending one now is one you will not have in the eighth.
+    /// </summary>
+    private void DrawVisitsLeft(Vector2 size, float y)
+    {
+        bool away = Scene.Situation.FieldingTeam == Scene.Situation.Away;
+        int left = Scene.Visit.Left(away);
+
+        var at = new Vector2(size.X * 0.5f - 300f, y - 16f);
+        Palette.Text(this, at, "VISITS", 10, Palette.InkDim);
+
+        for (int i = 0; i < MoundVisit.AllowancePerGame; i++)
+        {
+            var pip = new Rect2(at + new Vector2(i * 10f, 6f), new Vector2(7f, 7f));
+            DrawRect(pip, i < left ? Palette.Highlight : Palette.Panel);
+        }
+
+        if (left == 0)
+            Palette.Text(this, at + new Vector2(0f, 26f), "none left", 9, Palette.Warning);
+    }
+
     private void DrawPowerUpChip(Vector2 size, Data.PlayerData who)
     {
         if (who == null || who.Special == Data.Special.None) return;
@@ -462,6 +486,8 @@ public partial class Hud : Node2D
             Palette.TextCentered(this, rect.Position + rect.Size * 0.5f,
                 $"{i + 1} {SwingProfileNames.Of(types[i])}", types.Length >= 5 ? 13 : 15,
                 on ? Palette.Night : Palette.Ink);
+
+            if (i == 0) DrawVisitsLeft(size, y);
 
             var picked = types[i];
             Clicks.Add(rect, () =>

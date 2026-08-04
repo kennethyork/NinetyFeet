@@ -17,9 +17,10 @@ namespace SandlotSlugfest.UI;
 /// </summary>
 public partial class FrontOffice : Control
 {
-    private enum Tab { Money, Market, Farm, History }
+    private enum Tab { Money, Market, Farm, Staff, History }
 
-    private static readonly string[] TabNames = { "PAYROLL", "FREE AGENTS", "FARM SYSTEM", "RECORD BOOK" };
+    private static readonly string[] TabNames =
+        { "PAYROLL", "FREE AGENTS", "FARM SYSTEM", "COACHING STAFF", "RECORD BOOK" };
 
     private Tab _tab = Tab.Money;
 
@@ -95,9 +96,9 @@ public partial class FrontOffice : Control
         {
             case Key.Escape or Key.Backspace: Leave(); return;
             case Key.Left or Key.A:
-                _tab = (Tab)Mathf.PosMod((int)_tab - 1, 4); _cursor = 0; _scroll = 0; break;
+                _tab = (Tab)Mathf.PosMod((int)_tab - 1, TabNames.Length); _cursor = 0; _scroll = 0; break;
             case Key.Right or Key.D:
-                _tab = (Tab)Mathf.PosMod((int)_tab + 1, 4); _cursor = 0; _scroll = 0; break;
+                _tab = (Tab)Mathf.PosMod((int)_tab + 1, TabNames.Length); _cursor = 0; _scroll = 0; break;
             case Key.Up or Key.W: _scroll = Mathf.Max(0, _scroll - 1); break;
             case Key.Down or Key.S: _scroll++; break;
             case Key.Home: _scroll = 0; break;
@@ -171,6 +172,7 @@ public partial class FrontOffice : Control
             case Tab.Money: DrawMoney(size); break;
             case Tab.Market: DrawMarket(size); break;
             case Tab.Farm: DrawFarm(size); break;
+            case Tab.Staff: DrawStaff(size); break;
             case Tab.History: DrawHistory(size); break;
         }
 
@@ -221,6 +223,19 @@ public partial class FrontOffice : Control
         Palette.Text(this, new Vector2(600f, y), "ROOM", 13, Palette.InkDim);
         Palette.Text(this, new Vector2(700f, y), Contracts.Text(space), 16,
             space < 0 ? Palette.Warning : Palette.Highlight);
+
+        // The tax line. A budget alone is a wall you either fit under or you do not; a tax turns
+        // "can I afford him" into "is he worth the penalty", which is the question a real front
+        // office is asking.
+        int over = Finances.OverTaxLine(_season, _season.UserTeamId);
+        Palette.Text(this, new Vector2(40f, y + 24f),
+            over > 0
+                ? $"OVER THE TAX LINE by {Contracts.Text(over)} — " +
+                  $"a bill of {Contracts.Text(Finances.TaxBill(_season, _season.UserTeamId))} " +
+                  $"at {Finances.TaxRate(books.TaxYears) * 100f:0}%, off next year's budget."
+                : $"Under the {Contracts.Text(Finances.TaxLine)} tax line by " +
+                  $"{Contracts.Text(Finances.TaxLine - payroll)}.",
+            13, over > 0 ? Palette.Warning : Palette.InkDim);
 
         Palette.Text(this, new Vector2(880f, y), "AVERAGE CROWD", 13, Palette.InkDim);
         Palette.Text(this, new Vector2(1030f, y), Attendance.Text(books.AverageCrowd), 16, Palette.Ink);
@@ -563,6 +578,101 @@ public partial class FrontOffice : Control
                     ? $"{target.Name} moves to {Farm.Name(to)}."
                     : $"{target.Name} could not be moved.");
             });
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // The coaching staff
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Who you employ, and who is out of work.
+    ///
+    /// A staff is the quietest lever in a front office and the one that compounds: a good hitting
+    /// coach is worth a few extra rating points a year to every young bat in the organisation, for
+    /// as long as you keep him. He is also paid out of the same money as the shortstop, which is
+    /// what makes hiring one a decision rather than a free upgrade.
+    /// </summary>
+    private void DrawStaff(Vector2 size)
+    {
+        float y = 150f;
+        int wages = Coaches.Payroll(_season.UserTeamId);
+
+        Palette.Text(this, new Vector2(40f, y),
+            $"Staff wages {Contracts.Text(wages)}  ·  paid out of the same budget as the players.",
+            14, Palette.InkDim);
+
+        y += 30f;
+        Header(y, "COACH", "JOB", "RATED", "WAGE", "YEARS", "WHAT HE DOES", "");
+        y += 22f;
+
+        foreach (var role in Coaches.Roles)
+        {
+            var c = Coaches.Get(_season.UserTeamId, role);
+            if (c == null)
+            {
+                Palette.Text(this, new Vector2(44f, y), "— vacant —", 13, Palette.Warning);
+                Palette.Text(this, new Vector2(260f, y), Coaches.Label(role).ToUpperInvariant(),
+                    12, Palette.InkDim);
+                Palette.Text(this, new Vector2(600f, y),
+                    "An empty post develops players worse than an ordinary coach.",
+                    12, Palette.InkDim);
+            }
+            else
+            {
+                Palette.Text(this, new Vector2(44f, y), c.Name, 13, Palette.Ink);
+                Palette.Text(this, new Vector2(260f, y), Coaches.Label(role).ToUpperInvariant(),
+                    12, Palette.Highlight);
+                Palette.Text(this, new Vector2(360f, y), $"{c.Skill} — {c.Grade}", 12, Palette.InkDim);
+                Palette.Text(this, new Vector2(490f, y), Contracts.Text(c.Salary), 12, Palette.InkDim);
+                Palette.Text(this, new Vector2(600f, y), $"{c.Years}", 12, Palette.InkDim);
+                Palette.Text(this, new Vector2(660f, y), c.What, 12, Palette.InkDim);
+            }
+
+            y += 21f;
+        }
+
+        y += 20f;
+        Palette.Text(this, new Vector2(40f, y), "AVAILABLE", 13, Palette.Highlight);
+        y += 24f;
+        Header(y, "COACH", "JOB", "RATED", "ASKING", "", "WHAT HE DOES", "");
+        y += 22f;
+
+        var market = Coaches.Available.OrderByDescending(c => c.Skill).ToList();
+        foreach (var c in market.Skip(_scroll).Take(Window(y, size.Y, market.Count)))
+        {
+            var rect = new Rect2(new Vector2(34f, y - 13f), new Vector2(size.X - 68f, 19f));
+            string key = $"coach:{c.Id}";
+            if (_armed == key) DrawRect(rect, Palette.Highlight.Darkened(0.62f));
+
+            Palette.Text(this, new Vector2(44f, y), c.Name, 13, Palette.Ink);
+            Palette.Text(this, new Vector2(260f, y), Coaches.Label(c.Role).ToUpperInvariant(),
+                12, Palette.InkDim);
+            Palette.Text(this, new Vector2(360f, y), $"{c.Skill} — {c.Grade}", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(490f, y), Contracts.Text(c.Salary), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(660f, y), c.What, 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(940f, y), _armed == key ? "CONFIRM" : "HIRE",
+                12, Palette.Highlight);
+
+            var target = c;
+            _clicks.Add(rect, () =>
+            {
+                var replacing = Coaches.Get(_season.UserTeamId, target.Role);
+                string who = replacing == null
+                    ? $"Hire {target.Name} at {Contracts.Text(target.Salary)}?"
+                    : $"Hire {target.Name} at {Contracts.Text(target.Salary)}, " +
+                      $"sacking {replacing.Name}?";
+
+                if (!Confirm(key, who)) return;
+
+                string no = Coaches.Hire(_season, _season.UserTeamId, target);
+                if (no != null) { Say(no); return; }
+
+                SaveGame.Save(_season);
+                Say($"{target.Name} joins as {Coaches.Label(target.Role)} coach.");
+            });
+
+            y += 19f;
         }
     }
 

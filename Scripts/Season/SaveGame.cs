@@ -75,6 +75,17 @@ public static class SaveGame
         public int[] FarmWins { get; set; }
         public int[] FarmLosses { get; set; }
 
+        /// <summary>Consecutive seasons over the luxury tax line, which sets the rate.</summary>
+        public int TaxYears { get; set; }
+
+        /// <summary>The coaching staff. Absent in a save from before there was one.</summary>
+        public int[] CoachIds { get; set; }
+        public string[] CoachNames { get; set; }
+        public int[] CoachRoles { get; set; }
+        public int[] CoachSkills { get; set; }
+        public int[] CoachSalaries { get; set; }
+        public int[] CoachYears { get; set; }
+
         public int W { get; set; }
         public int L { get; set; }
         public int RS { get; set; }
@@ -223,6 +234,13 @@ public static class SaveGame
                 Budget = books.Budget,
                 Gate = books.Attendance,
                 Dates = books.HomeDates,
+                TaxYears = books.TaxYears,
+                CoachIds = Coaches.Export(team.Id).Ids,
+                CoachNames = Coaches.Export(team.Id).Names,
+                CoachRoles = Coaches.Export(team.Id).Roles_,
+                CoachSkills = Coaches.Export(team.Id).Skills,
+                CoachSalaries = Coaches.Export(team.Id).Salaries,
+                CoachYears = Coaches.Export(team.Id).Years,
             });
 
             foreach (var p in roster.Players) dto.Players.Add(ToDto(p, season.Book));
@@ -352,6 +370,9 @@ public static class SaveGame
 
             var books = season.Books(td.Id);
             books.Budget = td.Budget > 0 ? td.Budget : Finances.BaselineBudget;
+            books.TaxYears = td.TaxYears;
+            Coaches.Import(td.Id, td.CoachIds, td.CoachNames, td.CoachRoles, td.CoachSkills,
+                td.CoachSalaries, td.CoachYears);
             books.Attendance = td.Gate;
             books.HomeDates = td.Dates;
         }

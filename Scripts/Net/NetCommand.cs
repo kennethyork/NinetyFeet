@@ -31,6 +31,7 @@ public enum NetVerb
 
     /// <summary>A call to the bullpen.</summary>
     ChangePitcher,
+    MoundVisit,
 
     /// <summary>Put him on.</summary>
     IntentionalWalk,

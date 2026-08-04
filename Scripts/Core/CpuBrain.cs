@@ -126,7 +126,11 @@ public static class CpuBrain
         // stay small next to the bat's sweet spot, or nobody ever squares one up.
         // Compressed on purpose. When this ranged 2.7x between the best and worst eye, it — far
         // more than the bat's sweet spot — was what let elite hitters bat .700.
-        float read = (1.25f - eye * 0.5f) * 2.1f * readError;
+        // The wrong side of the platoon is mostly a reading problem — the breaking ball moves away
+        // from him rather than toward him — so it belongs in the read error, which is also what
+        // makes a badly matched hitter chase.
+        float read = (1.25f - eye * 0.5f) * 2.1f * readError
+                     * Platoon.ReadPenalty(batter, pitch.Pitcher);
         Vector2 guess = pitch.CrossPoint + new Vector2(
             (rng.Bell() - 0.5f) * read,
             (rng.Bell() - 0.5f) * read);
@@ -261,6 +265,8 @@ public static class CpuBrain
                         && pitchesThrown >= 10;
 
         if (!spent && !wrongMan) return null;
-        return sit.FieldingTeam.NextArm(wanted, IsSaveSituation(sit));
+
+        // Who is actually coming to the plate decides which arm it should be.
+        return sit.FieldingTeam.NextArm(wanted, IsSaveSituation(sit), sit.Batter);
     }
 }

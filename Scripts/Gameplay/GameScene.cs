@@ -270,6 +270,7 @@ public partial class GameScene : Node2D
         home.LineupSpot = 0;
         away.StartGame();
         home.StartGame();
+        Visit.Reset();
 
         // A season names the day's starter before the game is handed over; only fall back to the
         // top of the rotation when nobody has been given the ball.
@@ -372,7 +373,9 @@ public partial class GameScene : Node2D
 
         // The field view is only meaningful while a ball is actually in play. Showing it for a
         // swinging strike or a called ball cuts to an empty diamond with nobody on it.
-        bool showField = Phase == AtBatPhase.InPlay ||
+        // A trip to the mound is the one thing worth cutting to the diamond for that is not a ball
+        // in play — the whole point of it is watching the manager walk out.
+        bool showField = Phase == AtBatPhase.InPlay || Visit.Busy ||
                          (Phase == AtBatPhase.Result && _resultCameFromPlay);
         _field.Visible = showField;
         _batting.Visible = !showField;
@@ -633,6 +636,9 @@ public partial class GameScene : Node2D
         if (Input.IsActionJustPressed(InputActions.ChangePitcher))
             Do(Net.NetVerb.ChangePitcher, ApplyNetPitchingChange);
 
+        if (Input.IsActionJustPressed(InputActions.MoundVisit))
+            Do(Net.NetVerb.MoundVisit, ApplyNetMoundVisit);
+
         if (Input.IsActionJustPressed(InputActions.IntentionalWalk))
             Do(Net.NetVerb.IntentionalWalk, ApplyNetIntentionalWalk);
     }
@@ -671,15 +677,39 @@ public partial class GameScene : Node2D
 
     private void ApplyNetPitchingChange()
     {
+        if (Visit.Busy) return;
+
         var team = Situation.FieldingTeam;
-        var reliever = team.NextArm(CpuBrain.RoleFor(Situation), CpuBrain.IsSaveSituation(Situation));
+        var reliever = team.NextArm(CpuBrain.RoleFor(Situation), CpuBrain.IsSaveSituation(Situation),
+            Situation.Batter);
         if (reliever == null) { Toast("The bullpen is empty.", 1.4f); return; }
 
-        var outgoing = team.CurrentPitcher;
-        team.SetPitcher(reliever);
-        Toast($"{reliever.ShortName} ({PlayerData.RoleLabel(reliever.Role)}) comes in.", 2f);
-        AddLog($"Pitching change: {reliever.Name} replaces {outgoing.Name}.");
-        CrowdSound(Sound.CrowdCheer, 0.35f);
+        // The change is not applied here any more — the manager has to walk out and take the ball
+        // first, and UpdateVisit makes the substitution when he reaches the mound. What you watch
+        // and what happens are then the same event rather than a number changing between frames.
+        Visit.Begin(Situation.FieldingTeam == Situation.Away, change: true,
+            team.CurrentPitcher, reliever);
+    }
+
+    /// <summary>
+    /// A trip out to settle the pitcher rather than to take him out.
+    ///
+    /// Five a game. The sixth is not allowed, so it becomes a change — which is the real rule and
+    /// the reason a manager thinks twice in the fourth about a trip he might want in the eighth.
+    /// </summary>
+    private void ApplyNetMoundVisit()
+    {
+        if (Visit.Busy || Situation.FieldingTeam.CurrentPitcher == null) return;
+
+        bool away = Situation.FieldingTeam == Situation.Away;
+        if (Visit.MustChange(away))
+        {
+            Toast("No visits left — that has to be a change.", 1.8f);
+            ApplyNetPitchingChange();
+            return;
+        }
+
+        Visit.Begin(away, change: false, Situation.FieldingTeam.CurrentPitcher, null);
     }
 
     private void ApplyNetIntentionalWalk()
@@ -691,8 +721,59 @@ public partial class GameScene : Node2D
         ShowResult($"{walked.ShortName} is put on intentionally.");
     }
 
+    /// <summary>The manager's trip to the mound, if he is out there.</summary>
+    public readonly MoundVisit Visit = new();
+
+    /// <summary>
+    /// Runs the manager out to the mound and holds the game while he is there.
+    ///
+    /// Nothing may be pitched, aimed or decided during a visit — that is the point of it. The
+    /// change itself is applied when he reaches the mound rather than when the button was pressed,
+    /// so what you see and what happens are the same event.
+    /// </summary>
+    private bool UpdateVisit(float dt)
+    {
+        if (!Visit.Busy) return false;
+
+        bool wasTalking = Visit.Stage == VisitStage.Talking;
+        bool finished = Visit.Update(dt);
+
+        // He arrives, and the ball changes hands.
+        if (!wasTalking && Visit.Stage == VisitStage.Talking)
+        {
+            if (Visit.IsChange && Visit.Incoming != null)
+            {
+                Situation.FieldingTeam.SetPitcher(Visit.Incoming);
+                Toast($"{Visit.Incoming.ShortName} " +
+                      $"({PlayerData.RoleLabel(Visit.Incoming.Role)}) comes in.", 2f);
+                AddLog($"Pitching change: {Visit.Incoming.Name} replaces {Visit.Outgoing?.Name}.");
+                CrowdSound(Sound.CrowdCheer, 0.35f);
+            }
+            else
+            {
+                // A word settles him. Worth about a hitter of steadier command, which is what a
+                // visit is actually for and why five of them is a resource rather than a formality.
+                var arm = Situation.FieldingTeam.CurrentPitcher;
+                if (arm != null)
+                {
+                    arm.RecentPitches = Mathf.Max(0, arm.RecentPitches - 8);
+                    _pitchCounts.TryGetValue(arm, out int thrown);
+                    _pitchCounts[arm] = Mathf.Max(0, thrown - 6);
+                }
+                AddLog($"Mound visit for {Situation.FieldingTeam.Team.Abbrev}.");
+            }
+        }
+
+        if (Visit.Caption != "") BannerText = Visit.Caption;
+        if (finished) BannerText = "";
+        return true;
+    }
+
     private void UpdatePitchSelect(float dt)
     {
+        // The manager is out there; nothing happens until he walks back.
+        if (UpdateVisit(dt)) return;
+
         HandleManagerInput();
 
         // Once he has started his motion the pitch is locked in: no more aiming, and the ball
@@ -1061,6 +1142,10 @@ public partial class GameScene : Node2D
 
                 case Net.NetVerb.ChangePitcher:
                     ApplyNetPitchingChange();
+                    break;
+
+                case Net.NetVerb.MoundVisit:
+                    ApplyNetMoundVisit();
                     break;
 
                 case Net.NetVerb.IntentionalWalk:
@@ -1691,14 +1776,17 @@ public partial class GameScene : Node2D
         if (Online) return;
 
         if (HumanPitching) return;
+        if (Visit.Busy) return;
 
         var pitcher = team.CurrentPitcher;
         _pitchCounts.TryGetValue(pitcher, out int thrown);
 
         var reliever = CpuBrain.Relieve(Situation, thrown);
         if (reliever == null) return;
-        team.SetPitcher(reliever);
-        AddLog($"Pitching change: {reliever.ShortName} comes in for {team.Team.Abbrev}.");
+
+        // The computer's manager walks out too. A change that happened between two frames was the
+        // one moment of baseball this game was quietly skipping.
+        Visit.Begin(team == Situation.Away, change: true, pitcher, reliever);
     }
 
     // -----------------------------------------------------------------------

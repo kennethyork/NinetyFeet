@@ -113,9 +113,27 @@ public static class SwingResolver
     private const float WhiffFloor = 0.355f;
 
     /// <summary>The sweet-spot radius in plate-plane feet, for drawing the coverage indicator.</summary>
+    /// <summary>
+    /// How much of the plate a hitter's bat covers, and what the reticle draws.
+    ///
+    /// The rating's share of this is deliberately larger for a human than for the simulation. The
+    /// base carries most of the ability in the resolver on purpose — small rating gaps must not
+    /// become enormous win gaps across a league of simulated games — but that same compression
+    /// meant your best hitter and your backup catcher felt nearly identical in your hands, and
+    /// feeling the difference between them is most of why a roster is interesting.
+    ///
+    /// The assist is only ever anything other than 1 for a human, so steepening the spread by it
+    /// widens the gap where a person can feel it and leaves every league statistic exactly where
+    /// it was measured.
+    /// </summary>
     public static float BarrelRadius(PlayerData batter, float assist, SwingType type)
     {
-        float barrel = (0.50f + batter.Contact / 10f * 0.26f) * assist * SwingProfile.For(type).Barrel;
+        float rated = batter.Contact / 10f;
+
+        // At assist == 1 this is the old expression to the digit; above it, ability leans harder.
+        float lean = 1f + (assist - 1f) * 0.85f;
+        float barrel = (0.50f + rated * 0.26f * lean) * assist * SwingProfile.For(type).Barrel;
+
         if (batter.Special == Special.ContactMaster) barrel *= 1.35f;
         return barrel;
     }
@@ -142,6 +160,13 @@ public static class SwingResolver
         float power = batter.Power / 10f;
         bool contactMaster = batter.Special == Special.ContactMaster;
 
+        // The left-right matchup. A hitter facing the opposite hand sees the ball longer and the
+        // breaking stuff moves toward him instead of away, and it is worth real points of average.
+        // Applied to the bat rather than bolted onto the result, so it shows up where it actually
+        // comes from — a man on the wrong side of it squares fewer balls up, he is not handed a
+        // worse outcome after hitting the ball the same way.
+        float platoon = Platoon.Factor(batter, pitch.Pitcher);
+
         // --- Timing: how many seconds early or late the swing was. ---
         float timingSec = (swingProgress - 1f) * pitch.FlightTime;
         // Ratings are deliberately compressed. Real hitters range from about .200 to .330, not
@@ -159,7 +184,7 @@ public static class SwingResolver
         // against roughly 0.070 in the majors — the simulation was turning small rating gaps into
         // enormous win gaps, and the best club finished 31-2. The base carries most of the ability;
         // the rating tilts it.
-        float windowTrue = (0.066f + contact * 0.022f) * profile.Window;
+        float windowTrue = (0.066f + contact * 0.022f) * profile.Window * platoon;
         if (contactMaster) windowTrue *= 1.4f;
         float window = windowTrue * timingAssist;
 
@@ -176,9 +201,16 @@ public static class SwingResolver
         // Whiff-per-swing was running at 12% against a real 23%: hitters were making contact on
         // nearly everything, so far too many balls reached play and the hit total ran 18% over
         // even with BABIP correct. The sweet spot has to be small enough to be missed.
-        float barrelTrue = (0.505f + contact * 0.125f) * profile.Barrel;
+        float barrelTrue = (0.505f + contact * 0.125f) * profile.Barrel * platoon;
         if (contactMaster) barrelTrue *= 1.35f;
-        float barrel = barrelTrue * assist;
+        // The assisted bat leans on ability harder than the true one — see BarrelRadius. At
+        // assist == 1 this is exactly barrelTrue, so the simulation is untouched; above it, a good
+        // hitter's advantage in a human's hands grows. The reticle is drawn from the same
+        // expression, so what is on screen stays what the swing uses.
+        float lean = 1f + (assist - 1f) * 0.85f;
+        float barrel = (0.505f + contact * 0.125f * lean) * profile.Barrel * platoon * assist;
+        if (contactMaster) barrel *= 1.35f;
+
         float spatialQuality = 1f - spatialDist / barrel;
 
         if (timingQuality <= 0f || spatialQuality <= 0f) return SwingResult.Miss;

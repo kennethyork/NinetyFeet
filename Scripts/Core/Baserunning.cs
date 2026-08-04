@@ -43,8 +43,11 @@ public static class Baserunning
     /// a sinker and a changeup gets outs sooner than one throwing four pitches at random — and
     /// fewer pitches an at-bat meant fewer chances offered, which cost 16% of the league's steals
     /// without anybody touching baserunning. This is sized back up to meet it.
+    /// And back down again when the platoon arrived and lengthened at-bats: this is offered per
+    /// pitch, so anything that changes pitches per plate appearance moves the league's steal total
+    /// without anybody touching baserunning. It is the most sensitive number in the game.
     private static float Willingness(PlayerData runner) =>
-        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.114f, 0f, 0.114f);
+        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.102f, 0f, 0.102f);
 
     /// <summary>
     /// Chance the throw beats him. A catcher's arm matters, but a fast runner beats most of them —

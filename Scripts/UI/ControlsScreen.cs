@@ -18,9 +18,15 @@ public partial class ControlsScreen : Control
         ("", "Click the diamond", "Throw over — two per hitter, a third is a balk"),
         ("", "(be ready)", "Set in the box with 8 seconds left or it is a strike"),
 
-        ("ON THE MOUND", "1 2 3 4", "Fastball, curveball, changeup, slider"),
+        ("ON THE MOUND", "1 2 3 4", "This pitcher's own repertoire, in order"),
         ("", "Move the mouse", "Aim the pitch"),
         ("", "Left click / Space", "Deal"),
+        ("", "P", "Go to the pen — the manager walks out and takes the ball"),
+        ("", "V", "Mound visit — settle him. Five a game; the sixth is a change"),
+        ("", "I", "Put him on intentionally"),
+
+        ("MANAGING AT THE PLATE", "G", "Send the runner"),
+        ("", "H", "Pinch hit — only before the first pitch of an at-bat"),
 
         ("IN THE FIELD", "1 2 3 4", "Throw to first, second, third, home"),
         ("", "(wait)", "The fielder makes the play himself"),

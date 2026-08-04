@@ -44,6 +44,9 @@ public static class InputActions
     /// <summary>Go to the bullpen.</summary>
     public const string ChangePitcher = "change_pitcher";
 
+    /// <summary>A trip to the mound to settle him rather than to take him out. Five a game.</summary>
+    public const string MoundVisit = "mound_visit";
+
     /// <summary>Put him on. A pitchout when there is a runner going.</summary>
     public const string IntentionalWalk = "intentional_walk";
 
@@ -114,6 +117,7 @@ public static class InputActions
         Bind(Steal, Key.G);
         Bind(PinchHit, Key.H);
         Bind(ChangePitcher, Key.P);
+        Bind(MoundVisit, Key.V);
         Bind(IntentionalWalk, Key.I);
         BindPad(Steal, JoyButton.LeftStick);
         BindPad(PinchHit, JoyButton.RightStick);

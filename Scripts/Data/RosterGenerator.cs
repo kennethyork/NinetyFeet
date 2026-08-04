@@ -590,8 +590,10 @@ public static class RosterGenerator
             LastName = last,
             Number = number,
             Position = pos,
-            // Lefties are the minority, and lefty throwers rarer still up the middle.
-            Bats = rng.Chance(0.32f) ? Handedness.Left : Handedness.Right,
+            // Lefties are the minority, and lefty throwers rarer still. Roughly one hitter in ten
+            // switches, which is about the real rate — and now that the platoon matters, being
+            // able to turn around is a genuine advantage rather than a line on a card.
+            Bats = BatsFrom(ref rng),
             Throws = rng.Chance(0.18f) ? Handedness.Left : Handedness.Right,
             LookSeed = (int)rng.NextUInt(),
 
@@ -757,6 +759,18 @@ public static class RosterGenerator
                 p.Repertoire &= ~(1 << (int)drop);
             }
         }
+    }
+
+    /// <summary>
+    /// Which side a hitter stands on. About a third bat left, one in ten switches, the rest are
+    /// right-handed — close enough to the real league that platoon splits come out sensibly and
+    /// a lefty out of the pen has somebody to be brought in against.
+    /// </summary>
+    private static Handedness BatsFrom(ref Rng rng)
+    {
+        float roll = rng.NextFloat();
+        if (roll < 0.095f) return Handedness.Switch;
+        return roll < 0.395f ? Handedness.Left : Handedness.Right;
     }
 
     private static readonly Position[] FieldPositionsPool =

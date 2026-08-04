@@ -424,6 +424,59 @@ public partial class FieldView : Node2D
             Palette.TextCentered(this, at + new Vector2(0f, 14f),
                 PlayerData.PositionLabel(f.Slot), 11, Palette.Ink);
         }
+
+        DrawVisit();
+    }
+
+    /// <summary>
+    /// The manager's trip to the mound, and the reliever coming in from the pen.
+    ///
+    /// He walks out from his own dugout, stands with the pitcher, and walks back. On a change the
+    /// new arm jogs in from the bullpen at the same time and the man he is replacing walks off, so
+    /// the substitution is something you watch rather than a name that changes between frames.
+    /// </summary>
+    private void DrawVisit()
+    {
+        var visit = Scene.Visit;
+        if (!visit.Busy) return;
+
+        var kit = Scene.Situation.KitOf(Scene.Situation.FieldingTeam);
+        Vector2 mound = ToScreen(FieldGeometry.Mound);
+
+        // The dugouts sit either side of the diamond, behind the corner bags.
+        Vector2 dugout = ToScreen(new Vector2(visit.FromAwayDugout ? -62f : 62f, 26f));
+        Vector2 bullpen = ToScreen(new Vector2(visit.FromAwayDugout ? -104f : 104f, 96f));
+
+        float t = Mathf.SmoothStep(0f, 1f, visit.Progress);
+
+        // The manager. Drawn a touch larger and in the club's colours — he is not one of the kids
+        // but he belongs to the same side.
+        Vector2 skipper = dugout.Lerp(mound + new Vector2(visit.FromAwayDugout ? -22f : 22f, 4f), t);
+        bool walking = visit.Stage != VisitStage.Talking;
+        CartoonPlayer.Draw(this, skipper, 0.46f,
+            mound.X >= skipper.X ? 1f : -1f,
+            walking ? Pose.Run : Pose.Idle, kit, null, _time, motionPhase: walking ? _time * 6f : 0f);
+
+        Palette.TextCentered(this, skipper + new Vector2(0f, 16f), "MGR", 10, Palette.InkDim);
+
+        if (!visit.IsChange) return;
+
+        // The new man, jogging in.
+        Vector2 coming = bullpen.Lerp(mound + new Vector2(0f, 6f), t);
+        CartoonPlayer.Draw(this, coming, 0.42f, mound.X >= coming.X ? 1f : -1f,
+            Pose.Run, kit, visit.Incoming, _time, motionPhase: _time * 7f);
+
+        if (visit.Incoming != null)
+            Palette.TextCentered(this, coming + new Vector2(0f, -52f),
+                visit.Incoming.ShortName, 11, Palette.Highlight);
+
+        // And the one being taken out, walking off the other way once he has handed the ball over.
+        if (visit.Stage == VisitStage.WalkingBack && visit.Outgoing != null)
+        {
+            Vector2 going = mound.Lerp(dugout, 1f - visit.Progress);
+            CartoonPlayer.Draw(this, going, 0.42f, dugout.X >= going.X ? 1f : -1f,
+                Pose.Run, kit, visit.Outgoing, _time, motionPhase: _time * 4.5f);
+        }
     }
 
     private void DrawRunners()

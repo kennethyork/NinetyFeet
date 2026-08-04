@@ -508,6 +508,17 @@ public partial class BattingView : Node2D
     /// zone and buried the pitch. It is now a small bracket on the sweet spot, with the timing
     /// read off a thin ring around it, so you can actually see the ball you are trying to hit.
     /// </summary>
+    /// <summary>
+    /// How much wider the sweet spot is than it is tall.
+    ///
+    /// The resolver squeezes horizontal misses — <c>new Vector2(delta.X * 0.72f, delta.Y)</c> —
+    /// because a bat is long and thin, so the region you are actually judged against is an ellipse
+    /// almost forty per cent wider than it is high. The reticle was drawn as a square. High and
+    /// low misses punished you harder than the shape on screen implied and there was no way to
+    /// learn that from playing, which is the difference between a hard game and an unfair one.
+    /// </summary>
+    private const float Wide = 1f / 0.72f;
+
     private void DrawBatCursor()
     {
         var batter = Scene.Situation.Batter;
@@ -550,9 +561,27 @@ public partial class BattingView : Node2D
         {
             float sx = (i & 1) == 0 ? -1f : 1f;
             float sy = (i & 2) == 0 ? -1f : 1f;
-            var corner = at + new Vector2(sx * closeR, sy * closeR);
+            var corner = at + new Vector2(sx * closeR * Wide, sy * closeR);
             DrawLine(corner, corner + new Vector2(-sx * arm, 0f), live, onTime ? 3f : 2.2f);
             DrawLine(corner, corner + new Vector2(0f, -sy * arm), live, onTime ? 3f : 2.2f);
+        }
+
+        // The barrel: the part of the sweet spot that produces a struck ball rather than contact.
+        //
+        // The resolver already grades every swing continuously — `squared` decides exit velocity
+        // and it is far sharper than whether you made contact at all — and none of that was ever
+        // on screen. You could see the region where you would hit the ball and had no way to see
+        // the much smaller region where you would hurt it. This is that region, drawn to the same
+        // ellipse as the maths.
+        float coreR = r * 0.52f;
+        var coreTint = new Color(live.R, live.G, live.B, 0.30f);
+        for (int i = 0; i < 4; i++)
+        {
+            float sx = (i & 1) == 0 ? -1f : 1f;
+            float sy = (i & 2) == 0 ? -1f : 1f;
+            var corner = at + new Vector2(sx * coreR * Wide, sy * coreR);
+            DrawLine(corner, corner + new Vector2(-sx * coreR * 0.4f, 0f), coreTint, 1.5f);
+            DrawLine(corner, corner + new Vector2(0f, -sy * coreR * 0.4f), coreTint, 1.5f);
         }
 
         // A faint centre mark so the aim point is unambiguous without covering anything.
@@ -566,7 +595,7 @@ public partial class BattingView : Node2D
             {
                 float sx = (i & 1) == 0 ? -1f : 1f;
                 float sy = (i & 2) == 0 ? -1f : 1f;
-                var mark = at + new Vector2(sx * r, sy * r);
+                var mark = at + new Vector2(sx * r * Wide, sy * r);
                 DrawLine(mark, mark + new Vector2(-sx * arm * 0.5f, 0f), new Color(1f, 1f, 1f, 0.22f), 1.4f);
                 DrawLine(mark, mark + new Vector2(0f, -sy * arm * 0.5f), new Color(1f, 1f, 1f, 0.22f), 1.4f);
             }

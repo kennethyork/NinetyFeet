@@ -176,6 +176,7 @@ public sealed class SeasonState
         Farm.Stock(this, seed);
         Farm.PlaySeason(this, gamesPerTeam, seed + 211);
         FarmSeason.Clear();
+        Coaches.Stock(seed);
     }
 
     /// <summary>
@@ -212,6 +213,12 @@ public sealed class SeasonState
         }
 
         LastWinter = new List<string>();
+
+        // The bill for a payroll comes before the winter's shopping, so a club that spent last year
+        // goes into free agency with less. That is the whole point of a tax rather than a cap.
+        LastWinter.AddRange(Finances.SettleTax(this));
+
+        LastWinter.AddRange(Coaches.RunOffseason(LeagueSeed + Year * 907));
         LastWinter.AddRange(Farm.RunOffseason(this, LeagueSeed + Year * 131));
         LastWinter.AddRange(FreeAgency.Run(this, LeagueSeed + Year * 61));
         foreach (var line in LastWinter) Report(line);

@@ -175,6 +175,13 @@ public partial class Game : Node
         "--sim", "--hitlab", "--audit-outs", "--unique", "--written", "--flavour", "--drift",
         "--swings", "--legends", "--season", "--balance", "--schedule", "--calendar",
         "--franchise", "--sfxdump", "--parks", "--roster", "--pen",
+
+        // Forgetting to list a harness here is not a small mistake: it silently measures whatever
+        // league happens to be on disk instead of a clean one. The platoon audit reported every
+        // written player as right-handed for three runs, because the save it was reading had been
+        // written before handedness was generated properly — the code was right and the
+        // measurement was of something else entirely.
+        "--platoon", "--farm",
     };
 
     private static bool IsVerificationRun()
@@ -255,6 +262,17 @@ public partial class Game : Node
         }
 
         // `--pen [games]` audits how the league's pitching staffs are actually used over a season.
+        // `--platoon [PA]` measures the left-right split against the real one.
+        int plat = System.Array.IndexOf(args, "--platoon");
+        if (plat >= 0)
+        {
+            int pa = 60000;
+            if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
+            PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
         // `--farm` checks that every club's three affiliates can actually field a side, which is
         // what playing or watching a farm game needs and what simulating one never did.
         if (System.Array.IndexOf(args, "--farm") >= 0)

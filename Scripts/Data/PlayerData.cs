@@ -11,7 +11,12 @@ namespace SandlotSlugfest.Data;
 /// </summary>
 public enum Position { P, C, First, Second, Third, Short, Left, Center, Right, DH }
 
-public enum Handedness { Right, Left }
+/// <summary>
+/// Which side a man bats or throws from. Switch is appended rather than inserted because a save
+/// stores the raw enum value, and putting it in the middle would have turned every left-hander in
+/// an existing league into a switch hitter. Nobody throws with both hands.
+/// </summary>
+public enum Handedness { Right, Left, Switch }
 
 /// <summary>
 /// A pitcher's job. A five-man staff had no room for one — the last arm was "the closer" and the

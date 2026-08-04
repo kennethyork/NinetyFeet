@@ -118,7 +118,7 @@ public static class Development
                     continue;
                 }
 
-                Develop(p, ref rng);
+                Develop(p, ref rng, Coaches.DevelopmentFactor(team.Id, p));
 
                 int after = p.Overall;
                 report.Add(new Progress
@@ -171,11 +171,18 @@ public static class Development
     /// prospect sat at the rating he was drafted with and never became anything, which made the
     /// whole ladder a filing cabinet rather than a development system.
     /// </summary>
-    public static void DevelopProspect(PlayerData p, ref Rng rng) => Develop(p, ref rng);
+    public static void DevelopProspect(PlayerData p, ref Rng rng, int teamId = -1) =>
+        Develop(p, ref rng, teamId < 0 ? 1f : Coaches.DevelopmentFactor(teamId, p));
 
-    private static void Develop(PlayerData p, ref Rng rng)
+    /// <param name="coaching">
+    /// What the club's staff is worth at this man's job — see <see cref="Coaches"/>. A club with
+    /// nobody in the post develops worse than one with an ordinary coach, which is what makes the
+    /// job worth paying for. Only growth is affected: no hitting coach on earth stops a
+    /// thirty-eight-year-old declining.
+    /// </param>
+    private static void Develop(PlayerData p, ref Rng rng, float coaching = 1f)
     {
-        float rate = GrowthRate(p.Age);
+        float rate = GrowthRate(p.Age) * coaching;
         float decline = DeclineRate(p.Age);
         int gap = p.Potential - p.Overall;
 

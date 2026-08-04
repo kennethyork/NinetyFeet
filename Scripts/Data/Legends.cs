@@ -30,7 +30,19 @@ public sealed class Legend
 {
     public string First, Last, Bio;
     public Position Position;
-    public Handedness Bats = Handedness.Right, Throws = Handedness.Right;
+    /// <summary>
+    /// Which side he stands on, or null to have it derived from who he is.
+    ///
+    /// These both defaulted to Right and not one of the eleven hundred written players ever set
+    /// them, so the entire authored half of the league was right-handed — eight per cent of the
+    /// league's hitters were left-handed against a real thirty, and there was not a single switch
+    /// hitter anywhere. That did not matter while handedness only decided which way a man pulled
+    /// the ball. It matters enormously now that the platoon does.
+    ///
+    /// Deriving it from the player's own id means it is stable for ever, distributed correctly,
+    /// and still overridable for anyone worth writing a hand for.
+    /// </summary>
+    public Handedness? Bats, Throws;
     public Archetype Archetype = Archetype.Balanced;
     public Special Special = Special.None;
     public int Number, Age = 27, Potential = 8;
@@ -5915,6 +5927,54 @@ public static class Legends
     }
 
     /// <summary>Builds the player record for a named kid.</summary>
+    /// <summary>
+    /// A written player's hand, fixed to him for ever. Its own generator, seeded from his id, so
+    /// adding a player or reordering the list never changes anybody else's — the same reasoning
+    /// as his face.
+    ///
+    /// About three hitters in ten bat left and one in ten switches; fewer than two arms in ten
+    /// throw left. Nobody throws with both hands.
+    /// </summary>
+    private static Handedness HandFor(int id, bool batting)
+    {
+        var rng = new Core.Rng(id * 5387 + (batting ? 911 : 4133));
+
+        // Warm the generator up before reading it. Ids run 0, 1, 2… so these seeds are an
+        // arithmetic progression, and xorshift32 seeded by a linear map gives strongly correlated
+        // *first* outputs — every player landed in the same band and the whole list came out
+        // right-handed, which is exactly the bug this method exists to fix. A few rounds of
+        // mixing destroys the correlation.
+        for (int i = 0; i < 4; i++) rng.NextUInt();
+
+        float roll = rng.NextFloat();
+
+        if (!batting) return roll < 0.18f ? Handedness.Left : Handedness.Right;
+        if (roll < 0.095f) return Handedness.Switch;
+        return roll < 0.395f ? Handedness.Left : Handedness.Right;
+    }
+
+    /// <summary>
+    /// The handedness the written half of the league comes out with, straight from the source.
+    /// Part of the platoon audit: the split cannot be right if the hands are not.
+    /// </summary>
+    public static (int Left, int Switch, int Right, int Authored) HandCheck()
+    {
+        int l = 0, s = 0, r = 0, authored = 0;
+
+        for (int id = 0; id < All.Length; id++)
+        {
+            if (Get(id).Bats.HasValue) authored++;
+            switch (Get(id).Bats ?? HandFor(id, batting: true))
+            {
+                case Handedness.Left: l++; break;
+                case Handedness.Switch: s++; break;
+                default: r++; break;
+            }
+        }
+
+        return (l, s, r, authored);
+    }
+
     public static PlayerData Make(int id, int playerId)
     {
         var l = Get(id);
@@ -5926,8 +5986,8 @@ public static class Legends
             LastName = l.Last,
             Number = l.Number,
             Position = l.Position,
-            Bats = l.Bats,
-            Throws = l.Throws,
+            Bats = l.Bats ?? HandFor(id, batting: true),
+            Throws = l.Throws ?? HandFor(id, batting: false),
             Archetype = l.Archetype,
             Special = l.Special,
             Contact = l.Contact,

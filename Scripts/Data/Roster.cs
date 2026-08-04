@@ -86,7 +86,15 @@ public sealed class Roster
     /// </summary>
     /// <param name="wanted">The job the situation calls for; see CpuBrain.RoleFor.</param>
     /// <param name="save">Whether there is a small lead to protect.</param>
-    public PlayerData NextArm(StaffRole wanted, bool save)
+    /// <summary>
+    /// The next arm out of the pen, with the man due up taken into account.
+    ///
+    /// <paramref name="dueUp"/> is who the other club has coming, if it is worth playing the
+    /// matchup. Bringing a left-hander in to face a left-handed hitter is one of the oldest
+    /// decisions in the game and the whole reason a club carries one, and with no platoon in the
+    /// simulation there had never been a reason to do it.
+    /// </summary>
+    public PlayerData NextArm(StaffRole wanted, bool save, PlayerData dueUp = null)
     {
         var pool = Bullpen
             .Where(p => p != CurrentPitcher && !UsedArms.Contains(p) && !p.IsInjured)
@@ -104,8 +112,17 @@ public sealed class Roster
             .OrderByDescending(p => (p.Role == wanted ? 40f : 0f)
                                     + (p.Role == StaffRole.Closer && !save ? -25f : 0f)
                                     + p.Overall * 2f
-                                    + p.RestDays)
+                                    + p.RestDays
+                                    + Matchup(p))
             .First();
+
+        // Worth something, but not worth more than having the right man for the inning: a lefty
+        // in the seventh does not get to close.
+        float Matchup(PlayerData arm)
+        {
+            if (dueUp == null || dueUp.Bats == Handedness.Switch) return 0f;
+            return dueUp.Bats == arm.Throws ? 14f : -6f;
+        }
     }
 
     /// <summary>Bring in the freshest arm that is not already on the mound.</summary>

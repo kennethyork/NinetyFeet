@@ -469,7 +469,7 @@ public static class Farm
                 foreach (var p in Of(t.Id, level).ToList())
                 {
                     p.Age++;
-                    Development.DevelopProspect(p, ref rng);
+                    Development.DevelopProspect(p, ref rng, t.Id);
 
                     int ceiling = level == Level.HighA ? 24 : level == Level.DoubleA ? 26 : 28;
                     if (p.Age > ceiling && p.Overall < PromotionBar(level == Level.TripleA
