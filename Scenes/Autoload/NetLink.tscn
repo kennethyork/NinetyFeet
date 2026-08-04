@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scripts/Net/NetLink.cs" id="1_netlink"]
+
+[node name="NetLink" type="Node"]
+script = ExtResource("1_netlink")

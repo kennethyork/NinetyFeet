@@ -1,0 +1,43 @@
+; Engine configuration file.
+; Ninety Feet — arcade baseball on an honest simulation, with 32 clubs.
+
+config_version=5
+
+[application]
+
+config/name="Ninety Feet"
+config/description="Arcade baseball on an honest simulation. 32 clubs, a real front office, and a race to ninety feet."
+run/main_scene="res://Scenes/MainMenu.tscn"
+config/features=PackedStringArray("4.7.1", "C#", "Forward Plus")
+config/icon="res://icon.svg"
+; Renaming the game moves user:// with it, because Godot derives that path from
+; config/name. The existing season and card collection were copied across by hand
+; when the name changed; nothing else needs doing.
+
+[autoload]
+
+NetLink="*res://Scenes/Autoload/NetLink.tscn"
+Game="*res://Scenes/Autoload/Game.tscn"
+Sfx="*res://Scenes/Autoload/Sfx.tscn"
+Narrator="*res://Scenes/Autoload/Narrator.tscn"
+Music="*res://Scenes/Autoload/Music.tscn"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+; Every screen is composed against a 1280x720 viewport using fractions of its height and
+; width. "expand" hands the layout a different aspect when the window is resized, which
+; scatters the batting view. "keep" letterboxes instead, so the composition always holds.
+window/stretch/aspect="keep"
+
+[dotnet]
+
+project/assembly_name="SandlotSlugfest"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+anti_aliasing/quality/msaa_2d=1
+environment/defaults/default_clear_color=Color(0.06, 0.09, 0.13, 1)

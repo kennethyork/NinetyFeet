@@ -1,0 +1,471 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using Godot;
+using SandlotSlugfest.Data;
+using SandlotSlugfest.Stats;
+
+namespace SandlotSlugfest.Season;
+
+/// <summary>
+/// Reads and writes the season to <c>user://season.json</c>. Players are stored in full rather
+/// than regenerated from the seed, because trades move them between clubs.
+/// </summary>
+public static class SaveGame
+{
+    private const string Path = "user://season.json";
+
+    private sealed class PlayerDto
+    {
+        public int Id { get; set; }
+        public string First { get; set; }
+        public string Last { get; set; }
+        public int Number { get; set; }
+        public int Pos { get; set; }
+        public int Bats { get; set; }
+        public int Throws { get; set; }
+        public int Special { get; set; }
+        public int Arch { get; set; }
+        public int Age { get; set; }
+        public int Pot { get; set; }
+        public int Rep { get; set; }
+
+        /// <summary>
+        /// Which written kid this is, or -1 for a generated player. Saved because loading a season
+        /// rebuilds every roster from this file — without it, the named kids lost their identity
+        /// (and so their written appearance and biography) the moment a save was reloaded.
+        /// Defaults to 0 in older saves, so it is stored offset by one.
+        /// </summary>
+        public int Legend { get; set; }
+        public int Con { get; set; }
+        public int Pow { get; set; }
+        public int Spd { get; set; }
+        public int Arm { get; set; }
+        public int Fld { get; set; }
+        public int PPow { get; set; }
+        public int PCon { get; set; }
+        public int Sta { get; set; }
+        public int Look { get; set; }
+
+        // --- The contract and the job. All default to 0 in an older save, which is why the
+        // loader treats a zero salary as "never had one" and works him out a fresh deal. ---
+        public int Sal { get; set; }
+        public int CYr { get; set; }
+        public int Svc { get; set; }
+        public int Role { get; set; }
+
+        public int[] Bat { get; set; }     // batting counters
+        public int[] Pit { get; set; }     // pitching counters
+        public int[] Car { get; set; }     // career batting, then career pitching
+        public int[] Min { get; set; }     // Triple-A batting, then Triple-A pitching
+        public int Seasons { get; set; }
+    }
+
+    private sealed class TeamDto
+    {
+        public int Id { get; set; }
+        public int[] PlayerIds { get; set; }
+        public int[] FarmIds { get; set; }
+        public int W { get; set; }
+        public int L { get; set; }
+        public int RS { get; set; }
+        public int RA { get; set; }
+
+        /// <summary>The club's money and gate.</summary>
+        public int Budget { get; set; }
+        public long Gate { get; set; }
+        public int Dates { get; set; }
+    }
+
+    private sealed class AwardDto
+    {
+        public int Y { get; set; }
+        public string A { get; set; }
+        public int Pid { get; set; }
+        public string Who { get; set; }
+        public int T { get; set; }
+        public string L { get; set; }
+    }
+
+    private sealed class HallDto
+    {
+        public int Y { get; set; }
+        public string Who { get; set; }
+        public string Pos { get; set; }
+        public string Career { get; set; }
+        public int Score { get; set; }
+    }
+
+    private sealed class RecordDto
+    {
+        public string S { get; set; }
+        public float V { get; set; }
+        public int Y { get; set; }
+        public string Who { get; set; }
+        public int T { get; set; }
+    }
+
+    private sealed class GameDto
+    {
+        public int D { get; set; }      // day
+        public int A { get; set; }      // away team id
+        public int H { get; set; }      // home team id
+        public bool P { get; set; }     // played
+        public int AR { get; set; }     // away runs
+        public int HR { get; set; }     // home runs
+        public int C { get; set; }      // crowd
+    }
+
+    private sealed class SeriesDto
+    {
+        public string R { get; set; }
+        public int Hi { get; set; }
+        public int Lo { get; set; }
+        public int HW { get; set; }
+        public int LW { get; set; }
+        public int Best { get; set; }
+    }
+
+    private sealed class SaveDto
+    {
+        public int Seed { get; set; }
+        public int GamesPlayed { get; set; }
+        public int UserTeamId { get; set; }
+        public int Innings { get; set; }
+        public List<PlayerDto> Players { get; set; }
+        public List<TeamDto> TeamList { get; set; }
+        public List<GameDto> Schedule { get; set; }
+        public List<SeriesDto> Playoffs { get; set; }
+        public int ChampionId { get; set; } = -1;
+
+        /// <summary>
+        /// The calendar. Stored as day+1 so an older save, which has no field at all and so reads
+        /// 0, is recognisable as "unknown" rather than being mistaken for opening day.
+        /// </summary>
+        public int DayPlusOne { get; set; }
+
+        public int Year { get; set; }
+
+        /// <summary>Players belonging to nobody, by id. They are stored in <c>Players</c> too.</summary>
+        public int[] FreeAgentIds { get; set; }
+
+        public List<AwardDto> Awards { get; set; }
+        public List<HallDto> Hall { get; set; }
+        public List<RecordDto> Records { get; set; }
+    }
+
+    public static bool Exists() => FileAccess.FileExists(Path);
+
+    public static void Delete()
+    {
+        if (Exists()) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(Path));
+    }
+
+    public static void Save(SeasonState season)
+    {
+        var dto = new SaveDto
+        {
+            Seed = season.LeagueSeed,
+            GamesPlayed = season.GamesPlayed,
+            DayPlusOne = season.CurrentDay + 1,
+            Year = season.Year,
+            UserTeamId = season.UserTeamId,
+            Innings = season.Innings,
+            Players = new List<PlayerDto>(),
+            TeamList = new List<TeamDto>(),
+            Schedule = season.Games.ConvertAll(g => new GameDto
+            {
+                D = g.Day, A = g.AwayId, H = g.HomeId, P = g.Played, AR = g.AwayRuns,
+                HR = g.HomeRuns, C = g.Crowd,
+            }),
+            Playoffs = season.Playoffs.Series.ConvertAll(s => new SeriesDto
+            {
+                R = s.Round, Hi = s.HighSeedId, Lo = s.LowSeedId,
+                HW = s.HighWins, LW = s.LowWins, Best = s.BestOf,
+            }),
+            ChampionId = season.Playoffs.ChampionId,
+        };
+
+        foreach (var team in Teams.All)
+        {
+            var roster = season.RosterFor(team.Id);
+            var rec = season.Book.Record(team.Id);
+            var books = season.Books(team.Id);
+            var farm = Farm.Of(team.Id);
+
+            dto.TeamList.Add(new TeamDto
+            {
+                Id = team.Id,
+                PlayerIds = roster.Players.Select(p => p.Id).ToArray(),
+                FarmIds = farm.Select(p => p.Id).ToArray(),
+                W = rec.Wins,
+                L = rec.Losses,
+                RS = rec.RunsScored,
+                RA = rec.RunsAllowed,
+                Budget = books.Budget,
+                Gate = books.Attendance,
+                Dates = books.HomeDates,
+            });
+
+            foreach (var p in roster.Players) dto.Players.Add(ToDto(p, season.Book));
+            foreach (var p in farm) dto.Players.Add(ToDto(p, season.Book));
+        }
+
+        // Free agents belong to nobody, so they are written alongside the clubs' players rather
+        // than under one of them.
+        dto.FreeAgentIds = season.FreeAgents.Select(p => p.Id).ToArray();
+        foreach (var p in season.FreeAgents) dto.Players.Add(ToDto(p, season.Book));
+
+        dto.Awards = season.Annals.Awards.ConvertAll(a => new AwardDto
+        {
+            Y = a.Year, A = a.Award, Pid = a.PlayerId, Who = a.PlayerName, T = a.TeamId, L = a.Line,
+        });
+        dto.Hall = season.Annals.Hall.ConvertAll(h => new HallDto
+        {
+            Y = h.Year, Who = h.Name, Pos = h.Position, Career = h.Career, Score = h.Score,
+        });
+        dto.Records = season.Annals.Records
+            .Select(kv => new RecordDto
+            {
+                S = kv.Key, V = kv.Value.Value, Y = kv.Value.Year,
+                Who = kv.Value.PlayerName, T = kv.Value.TeamId,
+            })
+            .ToList();
+
+        string json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = false });
+        using var file = FileAccess.Open(Path, FileAccess.ModeFlags.Write);
+        if (file == null)
+        {
+            GD.PushError($"Could not write {Path}: {FileAccess.GetOpenError()}");
+            return;
+        }
+        file.StoreString(json);
+    }
+
+    public static SeasonState Load()
+    {
+        if (!Exists()) return null;
+
+        using var file = FileAccess.Open(Path, FileAccess.ModeFlags.Read);
+        if (file == null) return null;
+
+        SaveDto dto;
+        try
+        {
+            dto = JsonSerializer.Deserialize<SaveDto>(file.GetAsText());
+        }
+        catch (JsonException e)
+        {
+            GD.PushError($"Season save is corrupt, starting fresh: {e.Message}");
+            return null;
+        }
+        if (dto?.Players == null || dto.TeamList == null) return null;
+
+        var season = new SeasonState
+        {
+            LeagueSeed = dto.Seed,
+            GamesPlayed = dto.GamesPlayed,
+            Year = dto.Year <= 0 ? 1 : dto.Year,
+            UserTeamId = dto.UserTeamId,
+            Innings = dto.Innings <= 0 ? 9 : dto.Innings,
+        };
+
+        if (dto.Schedule != null)
+            season.Games = dto.Schedule.ConvertAll(g => new ScheduledGame
+            {
+                Day = g.D, AwayId = g.A, HomeId = g.H, Played = g.P, AwayRuns = g.AR,
+                HomeRuns = g.HR, Crowd = g.C,
+            });
+
+        if (dto.Playoffs != null)
+        {
+            foreach (var s in dto.Playoffs)
+                season.Playoffs.Series.Add(new PlayoffSeries
+                {
+                    Round = s.R, HighSeedId = s.Hi, LowSeedId = s.Lo,
+                    HighWins = s.HW, LowWins = s.LW, BestOf = s.Best <= 0 ? 7 : s.Best,
+                });
+            season.Playoffs.ChampionId = dto.ChampionId;
+        }
+
+        // Rebuild every player, then hand them to the club that owns them.
+        var byId = new Dictionary<int, PlayerData>();
+        foreach (var pd in dto.Players)
+        {
+            var p = FromDto(pd);
+            byId[p.Id] = p;
+            ApplyStats(season.Book, p, pd);
+        }
+
+        Farm.Clear();
+
+        foreach (var td in dto.TeamList)
+        {
+            var roster = season.RosterFor(td.Id);
+            roster.Players.Clear();
+            roster.Pitchers.Clear();
+            roster.Starters.Clear();
+            roster.BattingOrder.Clear();
+
+            foreach (int id in td.PlayerIds)
+                if (byId.TryGetValue(id, out var p)) roster.Players.Add(p);
+
+            TradeEngine.Rebuild(roster);
+
+            var farm = Farm.Of(td.Id);
+            foreach (int id in td.FarmIds ?? System.Array.Empty<int>())
+                if (byId.TryGetValue(id, out var p)) farm.Add(p);
+
+            var rec = season.Book.Record(td.Id);
+            rec.Wins = td.W;
+            rec.Losses = td.L;
+            rec.RunsScored = td.RS;
+            rec.RunsAllowed = td.RA;
+
+            var books = season.Books(td.Id);
+            books.Budget = td.Budget > 0 ? td.Budget : Finances.BaselineBudget;
+            books.Attendance = td.Gate;
+            books.HomeDates = td.Dates;
+        }
+
+        foreach (int id in dto.FreeAgentIds ?? System.Array.Empty<int>())
+            if (byId.TryGetValue(id, out var p))
+            {
+                p.IsFreeAgent = true;
+                season.FreeAgents.Add(p);
+            }
+
+        foreach (var a in dto.Awards ?? new List<AwardDto>())
+            season.Annals.Awards.Add(new AwardWin
+            {
+                Year = a.Y, Award = a.A, PlayerId = a.Pid, PlayerName = a.Who,
+                TeamId = a.T, Line = a.L,
+            });
+
+        foreach (var h in dto.Hall ?? new List<HallDto>())
+            season.Annals.Hall.Add(new HallOfFamer
+            {
+                Year = h.Y, Name = h.Who, Position = h.Pos, Career = h.Career, Score = h.Score,
+            });
+
+        foreach (var r in dto.Records ?? new List<RecordDto>())
+            season.Annals.Records[r.S] = new RecordMark
+            {
+                Stat = r.S, Value = r.V, Year = r.Y, PlayerName = r.Who, TeamId = r.T,
+            };
+
+        // A league saved before there was an economy has nobody under contract, so everyone is
+        // given the deal his age and ability imply rather than opening the books at zero.
+        var money = new Core.Rng(dto.Seed * 2971 + 401);
+        foreach (var r in season.AllRosters)
+            foreach (var p in r.Players)
+                Contracts.Establish(p, ref money);
+
+        // Likewise a save from before the farm system exists has no affiliates at all.
+        if (Teams.All.All(t => Farm.Of(t.Id).Count == 0))
+        {
+            Farm.Stock(season, dto.Seed);
+            Farm.PlaySeason(season, season.GamesPerTeam, dto.Seed + 211);
+        }
+
+        // Restore the calendar. A save written before there was one has no day recorded, so the
+        // date is inferred from how far the schedule has actually got — otherwise a season five
+        // games deep would reopen on opening day.
+        season.CurrentDay = dto.DayPlusOne > 0
+            ? dto.DayPlusOne - 1
+            : season.Games.Where(g => g.Played).Select(g => g.Day + 1).DefaultIfEmpty(0).Max();
+
+        return season;
+    }
+
+    private static PlayerDto ToDto(PlayerData p, StatBook book)
+    {
+        var b = book.Batting(p);
+        var t = book.Pitching(p);
+        return new PlayerDto
+        {
+            Id = p.Id, First = p.FirstName, Last = p.LastName, Number = p.Number,
+            Pos = (int)p.Position, Bats = (int)p.Bats, Throws = (int)p.Throws,
+            Special = (int)p.Special, Arch = (int)p.Archetype,
+            Age = p.Age, Pot = p.Potential, Rep = p.Repertoire, Legend = p.LegendId + 1,
+            Con = p.Contact, Pow = p.Power, Spd = p.Speed, Arm = p.Arm, Fld = p.Fielding,
+            PPow = p.PitchPower, PCon = p.PitchControl, Sta = p.Stamina, Look = p.LookSeed,
+            Sal = p.Salary, CYr = p.ContractYears, Svc = p.ServiceYears, Role = (int)p.Role,
+            Seasons = book.SeasonsPlayed(p),
+            Car = Pack(book.CareerBatting(p), book.CareerPitching(p)),
+            Min = book.HasMinorLine(p) ? Pack(book.MinorBatting(p), book.MinorPitching(p)) : null,
+            Bat = new[]
+            {
+                b.Games, b.PlateAppearances, b.AtBats, b.Hits, b.Doubles, b.Triples,
+                b.HomeRuns, b.Runs, b.RunsBattedIn, b.Walks, b.Strikeouts, b.StolenBases,
+            },
+            Pit = new[]
+            {
+                t.Games, t.GamesStarted, t.Outs, t.Hits, t.Runs, t.EarnedRuns, t.Walks,
+                t.Strikeouts, t.HomeRunsAllowed, t.Wins, t.Losses, t.Saves, t.Pitches,
+            },
+        };
+    }
+
+    /// <summary>A batting line and a pitching line back to back, for the career and minor totals.</summary>
+    private static int[] Pack(Stats.BattingLine b, Stats.PitchingLine t) => new[]
+    {
+        b.Games, b.PlateAppearances, b.AtBats, b.Hits, b.Doubles, b.Triples,
+        b.HomeRuns, b.Runs, b.RunsBattedIn, b.Walks, b.Strikeouts, b.StolenBases,
+        t.Games, t.GamesStarted, t.Outs, t.Hits, t.Runs, t.EarnedRuns, t.Walks,
+        t.Strikeouts, t.HomeRunsAllowed, t.Wins, t.Losses, t.Saves, t.Pitches,
+    };
+
+    private static void Unpack(int[] v, Stats.BattingLine b, Stats.PitchingLine t)
+    {
+        if (v is not { Length: 25 }) return;
+        b.Games = v[0]; b.PlateAppearances = v[1]; b.AtBats = v[2]; b.Hits = v[3];
+        b.Doubles = v[4]; b.Triples = v[5]; b.HomeRuns = v[6]; b.Runs = v[7];
+        b.RunsBattedIn = v[8]; b.Walks = v[9]; b.Strikeouts = v[10]; b.StolenBases = v[11];
+        t.Games = v[12]; t.GamesStarted = v[13]; t.Outs = v[14]; t.Hits = v[15];
+        t.Runs = v[16]; t.EarnedRuns = v[17]; t.Walks = v[18]; t.Strikeouts = v[19];
+        t.HomeRunsAllowed = v[20]; t.Wins = v[21]; t.Losses = v[22]; t.Saves = v[23];
+        t.Pitches = v[24];
+    }
+
+    private static PlayerData FromDto(PlayerDto d) => new()
+    {
+        Id = d.Id, FirstName = d.First, LastName = d.Last, Number = d.Number,
+        Position = (Data.Position)d.Pos, Bats = (Handedness)d.Bats, Throws = (Handedness)d.Throws,
+        Special = (Special)d.Special, Archetype = (Archetype)d.Arch,
+        Age = d.Age <= 0 ? 14 : d.Age, Potential = d.Pot <= 0 ? 5 : d.Pot,
+        Repertoire = d.Rep == 0 ? 0b1111 : d.Rep,
+        Contact = d.Con, Power = d.Pow, Speed = d.Spd, Arm = d.Arm, Fielding = d.Fld,
+        PitchPower = d.PPow, PitchControl = d.PCon, Stamina = d.Sta, LookSeed = d.Look,
+        LegendId = d.Legend - 1,
+        Salary = d.Sal, ContractYears = d.CYr, ServiceYears = d.Svc,
+        Role = (StaffRole)Mathf.Clamp(d.Role, 0, 4),
+    };
+
+    private static void ApplyStats(StatBook book, PlayerData p, PlayerDto d)
+    {
+        if (d.Bat is { Length: 12 })
+        {
+            var b = book.Batting(p);
+            b.Games = d.Bat[0]; b.PlateAppearances = d.Bat[1]; b.AtBats = d.Bat[2];
+            b.Hits = d.Bat[3]; b.Doubles = d.Bat[4]; b.Triples = d.Bat[5];
+            b.HomeRuns = d.Bat[6]; b.Runs = d.Bat[7]; b.RunsBattedIn = d.Bat[8];
+            b.Walks = d.Bat[9]; b.Strikeouts = d.Bat[10]; b.StolenBases = d.Bat[11];
+        }
+
+        if (d.Pit is { Length: 13 })
+        {
+            var t = book.Pitching(p);
+            t.Games = d.Pit[0]; t.GamesStarted = d.Pit[1]; t.Outs = d.Pit[2]; t.Hits = d.Pit[3];
+            t.Runs = d.Pit[4]; t.EarnedRuns = d.Pit[5]; t.Walks = d.Pit[6]; t.Strikeouts = d.Pit[7];
+            t.HomeRunsAllowed = d.Pit[8]; t.Wins = d.Pit[9]; t.Losses = d.Pit[10];
+            t.Saves = d.Pit[11]; t.Pitches = d.Pit[12];
+        }
+
+        // Career totals used to be thrown away on every reload: a ten-year veteran came back a
+        // rookie, which also meant nobody could ever be judged for the hall of fame.
+        Unpack(d.Car, book.CareerBatting(p), book.CareerPitching(p));
+        if (d.Min != null) Unpack(d.Min, book.MinorBatting(p), book.MinorPitching(p));
+        book.SetSeasonsPlayed(p, d.Seasons);
+    }
+}

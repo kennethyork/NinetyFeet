@@ -1,0 +1,334 @@
+using System.Collections.Generic;
+using System.Linq;
+using Godot;
+using SandlotSlugfest.Core;
+using SandlotSlugfest.Data;
+using SandlotSlugfest.Season;
+using SandlotSlugfest.Stats;
+
+namespace SandlotSlugfest.UI;
+
+/// <summary>
+/// The front office: standings, league leaders and a club's own stat sheet. Tab across the top
+/// with Left/Right, move down the list with Up/Down.
+/// </summary>
+public partial class LeagueOffice : Control
+{
+    private enum Tab { Standings, Hitting, Pitching, MyClub }
+
+    private static readonly string[] TabNames = { "STANDINGS", "HITTING LEADERS", "PITCHING LEADERS", "CLUB STATS" };
+
+    private Tab _tab = Tab.Standings;
+    private int _teamCursor;
+    private SeasonState _season;
+    private readonly ClickMap _clicks = new();
+
+    /// <summary>
+    /// Set when the screen is opened on top of a paused game rather than as its own scene. It then
+    /// closes back to the game instead of navigating to the main menu, so a look at the roster
+    /// between innings does not throw the game away.
+    /// </summary>
+    public System.Action CloseOverlay;
+
+    private void Leave()
+    {
+        if (CloseOverlay != null) { CloseOverlay(); return; }
+        Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+    }
+
+    public override void _Ready()
+    {
+        SetAnchorsPreset(LayoutPreset.FullRect);
+
+        // Runs while the tree is paused, which is exactly when it is used as an overlay.
+        ProcessMode = ProcessModeEnum.Always;
+
+        // Without this the Control swallows every mouse event and _UnhandledInput never
+        // sees a click, so nothing on the screen is clickable.
+        MouseFilter = MouseFilterEnum.Ignore;
+
+        _season = Game.Instance.League;
+        _teamCursor = _season.UserTeamId;
+    }
+
+    public override void _UnhandledInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+        {
+            if (_clicks.Click(mb.Position)) QueueRedraw();
+            return;
+        }
+
+        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+
+        switch (key.PhysicalKeycode)
+        {
+            case Key.Escape or Key.Backspace:
+                Leave();
+                return;
+            case Key.Left or Key.A:
+                _tab = (Tab)Mathf.PosMod((int)_tab - 1, 4);
+                break;
+            case Key.Right or Key.D:
+                _tab = (Tab)Mathf.PosMod((int)_tab + 1, 4);
+                break;
+            case Key.Up or Key.W:
+                _teamCursor = Mathf.PosMod(_teamCursor - 1, 32);
+                break;
+            case Key.Down or Key.S:
+                _teamCursor = Mathf.PosMod(_teamCursor + 1, 32);
+                break;
+        }
+        QueueRedraw();
+    }
+
+    public override void _Draw()
+    {
+        Vector2 size = GetViewportRect().Size;
+        DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
+        _clicks.Begin();
+
+        Palette.BackButton(this, size, _clicks, Leave);
+        Palette.Text(this, new Vector2(40f, 46f), "LEAGUE OFFICE", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(40f, 68f),
+            $"{_season.GamesPlayed} game{(_season.GamesPlayed == 1 ? "" : "s")} played this season",
+            14, Palette.InkDim);
+
+        DrawTabs(size);
+
+        switch (_tab)
+        {
+            case Tab.Standings: DrawStandings(size); break;
+            case Tab.Hitting: DrawHittingLeaders(size); break;
+            case Tab.Pitching: DrawPitchingLeaders(size); break;
+            case Tab.MyClub: DrawClubStats(size); break;
+        }
+
+        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+            "Left/Right to switch views  ·  Up/Down to pick a club  ·  Esc to go back",
+            14, Palette.InkDim);
+    }
+
+    private void DrawTabs(Vector2 size)
+    {
+        float x = 40f;
+        for (int i = 0; i < TabNames.Length; i++)
+        {
+            bool on = (int)_tab == i;
+            float w = Palette.TextWidth(TabNames[i], 14) + 28f;
+            var rect = new Rect2(new Vector2(x, 88f), new Vector2(w, 30f));
+            Palette.Panel3D(this, rect, on ? Palette.Highlight.Darkened(0.2f) : Palette.Panel);
+            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, TabNames[i], 14,
+                on ? Palette.Night : Palette.InkDim);
+
+            var picked = (Tab)i;
+            _clicks.Add(rect, () => _tab = picked);
+            x += w + 8f;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+
+    private void DrawStandings(Vector2 size)
+    {
+        float y = 146f;
+        float colW = (size.X - 80f) / 4f;
+
+        int col = 0;
+        foreach (var league in new[] { League.American, League.National })
+        foreach (var division in new[] { Division.East, Division.West })
+        {
+            float x = 40f + col * colW;
+            // Short form, so the heading never runs into the W column.
+            string heading = $"{(league == League.American ? "AL" : "NL")} {division.ToString().ToUpperInvariant()}";
+            Palette.Text(this, new Vector2(x, y), heading, 13, Palette.Highlight);
+
+            Palette.Text(this, new Vector2(x + 150f, y), "W", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(x + 176f, y), "L", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(x + 202f, y), "PCT", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(x + 244f, y), "DIFF", 12, Palette.InkDim);
+
+            float ry = y + 22f;
+            var rows = _season.Standings(league, division).ToList();
+            var leader = rows.Count > 0 ? rows[0].Record : new TeamRecord();
+
+            foreach (var (team, rec) in rows)
+            {
+                bool hovered = team.Id == _teamCursor;
+                var rowRect = new Rect2(new Vector2(x - 6f, ry - 13f), new Vector2(colW - 16f, 19f));
+                if (hovered) DrawRect(rowRect, Palette.PanelLight);
+
+                int pick = team.Id;
+                _clicks.Add(rowRect, () => { _teamCursor = pick; _tab = Tab.MyClub; },
+                    () => _teamCursor = pick);
+
+                DrawRect(new Rect2(new Vector2(x, ry - 11f), new Vector2(4f, 13f)), team.Primary);
+                Palette.Text(this, new Vector2(x + 10f, ry), team.Abbrev, 12,
+                    hovered ? Palette.Highlight : Palette.InkDim);
+                Palette.Text(this, new Vector2(x + 44f, ry), team.Nickname, 13,
+                    hovered ? Palette.Ink : Palette.InkDim);
+
+                Palette.Text(this, new Vector2(x + 150f, ry), rec.Wins.ToString(), 13, Palette.Ink);
+                Palette.Text(this, new Vector2(x + 176f, ry), rec.Losses.ToString(), 13, Palette.Ink);
+                Palette.Text(this, new Vector2(x + 202f, ry), rec.WinPctText, 13, Palette.Ink);
+
+                int diff = rec.RunDifferential;
+                Palette.Text(this, new Vector2(x + 244f, ry), diff > 0 ? $"+{diff}" : diff.ToString(), 13,
+                    diff > 0 ? new Color("#7ddb8a") : diff < 0 ? new Color("#c47b7b") : Palette.InkDim);
+
+                _ = leader;
+                ry += 19f;
+            }
+            col++;
+        }
+    }
+
+    private void DrawHittingLeaders(Vector2 size)
+    {
+        var boards = new (string Title, System.Func<BattingLine, float> By, System.Func<BattingLine, string> Show, int Min)[]
+        {
+            ("BATTING AVERAGE", l => l.Average, l => BattingLine.Rate(l.Average), 10),
+            ("HOME RUNS", l => l.HomeRuns, l => l.HomeRuns.ToString(), 1),
+            ("RUNS BATTED IN", l => l.RunsBattedIn, l => l.RunsBattedIn.ToString(), 1),
+            ("ON-BASE PLUS SLUGGING", l => l.Ops, l => l.Ops.ToString("F3"), 10),
+        };
+
+        DrawLeaderGrid(size, boards.Length, (i, x, y, w) =>
+        {
+            var (title, by, show, min) = boards[i];
+            Palette.Text(this, new Vector2(x, y), title, 13, Palette.Highlight);
+            float ry = y + 24f;
+
+            var rows = _season.HittingLeaders(by, min, 9);
+            if (rows.Count == 0)
+                Palette.Text(this, new Vector2(x, ry), "No qualifiers yet — play some games.", 12, Palette.InkDim);
+
+            int rank = 1;
+            foreach (var (player, line) in rows)
+            {
+                var team = _season.TeamOf(player);
+                Palette.Text(this, new Vector2(x, ry), $"{rank}.", 12, Palette.InkDim);
+                Palette.Text(this, new Vector2(x + 22f, ry), player.Name, 13, Palette.Ink);
+                if (team != null)
+                    Palette.Text(this, new Vector2(x + 150f, ry), team.Abbrev, 12, team.Secondary);
+                Palette.Text(this, new Vector2(x + w - 60f, ry), show(line), 13, Palette.Highlight);
+                ry += 19f;
+                rank++;
+            }
+        });
+    }
+
+    private void DrawPitchingLeaders(Vector2 size)
+    {
+        var boards = new (string Title, System.Func<PitchingLine, float> By, bool Asc,
+            System.Func<PitchingLine, string> Show, int Min)[]
+        {
+            ("EARNED RUN AVERAGE", l => l.Era, true, l => l.Era.ToString("F2"), 9),
+            ("STRIKEOUTS", l => l.Strikeouts, false, l => l.Strikeouts.ToString(), 1),
+            ("WINS", l => l.Wins, false, l => l.Wins.ToString(), 1),
+            ("WALKS PLUS HITS PER INNING", l => l.Whip, true, l => l.Whip.ToString("F2"), 9),
+        };
+
+        DrawLeaderGrid(size, boards.Length, (i, x, y, w) =>
+        {
+            var (title, by, asc, show, min) = boards[i];
+            Palette.Text(this, new Vector2(x, y), title, 13, Palette.Highlight);
+            float ry = y + 24f;
+
+            var rows = _season.PitchingLeaders(by, asc, min, 9);
+            if (rows.Count == 0)
+                Palette.Text(this, new Vector2(x, ry), "No qualifiers yet — play some games.", 12, Palette.InkDim);
+
+            int rank = 1;
+            foreach (var (player, line) in rows)
+            {
+                var team = _season.TeamOf(player);
+                Palette.Text(this, new Vector2(x, ry), $"{rank}.", 12, Palette.InkDim);
+                Palette.Text(this, new Vector2(x + 22f, ry), player.Name, 13, Palette.Ink);
+                if (team != null)
+                    Palette.Text(this, new Vector2(x + 150f, ry), team.Abbrev, 12, team.Secondary);
+                Palette.Text(this, new Vector2(x + w - 60f, ry), show(line), 13, Palette.Highlight);
+                ry += 19f;
+                rank++;
+            }
+        });
+    }
+
+    private void DrawLeaderGrid(Vector2 size, int count, System.Action<int, float, float, float> draw)
+    {
+        float w = (size.X - 100f) / 2f;
+        for (int i = 0; i < count; i++)
+        {
+            float x = 40f + (i % 2) * (w + 20f);
+            float y = 152f + (i / 2) * 250f;
+            draw(i, x, y, w);
+        }
+    }
+
+    private void DrawClubStats(Vector2 size)
+    {
+        var team = Teams.Get(_teamCursor);
+        var roster = _season.RosterFor(team.Id);
+        var rec = _season.Book.Record(team.Id);
+
+        var header = new Rect2(new Vector2(40f, 140f), new Vector2(size.X - 80f, 54f));
+        Palette.Panel3D(this, header, team.Primary);
+        Palette.Text(this, header.Position + new Vector2(16f, 34f),
+            $"{team.FullName}   {rec.Wins}-{rec.Losses}   ({rec.WinPctText})   " +
+            $"RS {rec.RunsScored}  RA {rec.RunsAllowed}", 18, team.TextOnPrimary);
+
+        // Hitters.
+        float y = 224f;
+        string[] cols = { "POS", "NAME", "AVG", "AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "K", "OPS" };
+        float[] xs = { 40f, 88f, 250f, 306f, 348f, 386f, 424f, 462f, 504f, 550f, 590f, 630f, 676f };
+
+        for (int i = 0; i < cols.Length; i++)
+            Palette.Text(this, new Vector2(xs[i], y), cols[i], 12, Palette.Highlight);
+        y += 20f;
+
+        foreach (var p in roster.BattingOrder)
+        {
+            var b = _season.Book.Batting(p);
+            Palette.Text(this, new Vector2(xs[0], y), p.PositionText, 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[1], y), p.Name, 13, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[2], y), BattingLine.Rate(b.Average), 13, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[3], y), b.AtBats.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[4], y), b.Hits.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[5], y), b.Doubles.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[6], y), b.Triples.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[7], y), b.HomeRuns.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[8], y), b.RunsBattedIn.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[9], y), b.Runs.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[10], y), b.Walks.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[11], y), b.Strikeouts.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[12], y), b.Ops.ToString("F3"), 12, Palette.InkDim);
+            y += 19f;
+        }
+
+        // Pitchers.
+        y += 22f;
+        string[] pcols = { "NAME", "W", "L", "ERA", "IP", "H", "ER", "BB", "K", "WHIP" };
+        float[] pxs = { 88f, 250f, 288f, 326f, 386f, 434f, 472f, 514f, 552f, 596f };
+        Palette.Text(this, new Vector2(40f, y), "STAFF", 12, Palette.Highlight);
+        for (int i = 0; i < pcols.Length; i++)
+            Palette.Text(this, new Vector2(pxs[i], y), pcols[i], 12, Palette.Highlight);
+        y += 20f;
+
+        foreach (var p in roster.Pitchers)
+        {
+            var t = _season.Book.Pitching(p);
+            Palette.Text(this, new Vector2(pxs[0], y), p.Name, 13, Palette.Ink);
+            Palette.Text(this, new Vector2(pxs[1], y), t.Wins.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(pxs[2], y), t.Losses.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[3], y), t.Outs > 0 ? t.Era.ToString("F2") : "—", 13, Palette.Ink);
+            Palette.Text(this, new Vector2(pxs[4], y), t.InningsText, 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[5], y), t.Hits.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[6], y), t.EarnedRuns.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[7], y), t.Walks.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[8], y), t.Strikeouts.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(pxs[9], y), t.Outs > 0 ? t.Whip.ToString("F2") : "—", 12, Palette.InkDim);
+            y += 19f;
+        }
+    }
+}

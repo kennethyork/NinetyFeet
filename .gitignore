@@ -1,0 +1,22 @@
+# Godot
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+*.translation
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+.idea/
+
+# Godot C# generated
+.mono/
+data_*/
+
+# Save data and scratch. A season file is a record of somebody's own game, not source, and
+# committing one means every clone starts inside it.
+save-backup-*.json
+*.csproj.old
