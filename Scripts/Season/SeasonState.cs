@@ -175,6 +175,7 @@ public sealed class SeasonState
         Finances.OpenBooks(this);
         Farm.Stock(this, seed);
         Farm.PlaySeason(this, gamesPerTeam, seed + 211);
+        FarmSeason.Clear();
     }
 
     /// <summary>
@@ -219,8 +220,10 @@ public sealed class SeasonState
         GamesPlayed = 0;
 
         // The affiliates play their own season the moment the calendar turns, so a prospect always
-        // has a current line to be judged on rather than last year's.
+        // has a current line to be judged on rather than last year's. The records start again with
+        // the year, the same as the big club's.
         Farm.PlaySeason(this, gamesPerTeam, LeagueSeed + Year * 211);
+        FarmSeason.Clear();
 
         // A new schedule each year, so the same club does not face the same opponents in the same
         // order every season.
@@ -361,6 +364,11 @@ public sealed class SeasonState
             if (!simulateUserGame && g.Involves(UserTeamId)) continue;
             SimulateGame(g);
         }
+
+        // The affiliates play the same day. The whole organisation moves at once, so a club's
+        // Double-A side has a record that means something by June rather than a table of numbers
+        // that appears from nowhere in October.
+        FarmSeason.PlayDay(this, CurrentDay);
 
         bool wasOpen = CurrentDay <= TradeDeadlineDay;
         CurrentDay++;

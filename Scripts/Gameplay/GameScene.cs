@@ -299,6 +299,13 @@ public partial class GameScene : Node2D
             Crowd = scheduled.Crowd > 0 ? scheduled.Crowd : Season.Attendance.For(g.League, scheduled);
             scheduled.Crowd = Crowd;
         }
+        else if (g.IsFarmGame)
+        {
+            // A minor-league park is small and the crowd is a few thousand on a warm evening.
+            // Playing a Double-A game to a packed forty-one thousand would be the wrong night out.
+            Conditions = new Season.Conditions(Season.Sky.Clear, 76, 0f);
+            Crowd = Mathf.RoundToInt(Season.Attendance.Capacity * 0.12f);
+        }
         else
         {
             Conditions = new Season.Conditions(Season.Sky.Clear, 74, 0f);
@@ -466,6 +473,14 @@ public partial class GameScene : Node2D
         var g = Game.Instance;
         bool fromSeason = g.PendingSeasonGame != null;
         g.PendingSeasonGame = null;
+
+        if (g.ReturnTo is { } back && back != "")
+        {
+            g.ReturnTo = null;
+            g.GoTo(back);
+            return;
+        }
+
         g.GoTo(fromSeason ? "res://Scenes/Season.tscn" : "res://Scenes/MainMenu.tscn");
     }
 
@@ -900,6 +915,20 @@ public partial class GameScene : Node2D
 
         if (Phase == AtBatPhase.PitchSelect && HumanPitching && !Delivering && !_pitchSent)
         {
+            // Online, the stand-in manages his staff over the wire like a person would. Without
+            // this the self-test never issued a pitching change, and the desync that lived in that
+            // path survived every clean run the harness produced.
+            if (Online)
+            {
+                var arm = Situation.FieldingTeam.CurrentPitcher;
+                _pitchCounts.TryGetValue(arm, out int thrown);
+                if (thrown >= CpuBrain.PitchLimit(arm))
+                {
+                    Net.NetLink.I.Send(Net.NetVerb.ChangePitcher);
+                    return;
+                }
+            }
+
             CpuBrain.ChoosePitch(Situation, Situation.FieldingTeam.CurrentPitcher, ref _botRng,
                 out var type, out var aim);
             if (Situation.FieldingTeam.CurrentPitcher.Knows((int)type)) SelectedPitch = type;
@@ -1647,6 +1676,20 @@ public partial class GameScene : Node2D
     private void MaybeChangePitcher()
     {
         var team = Situation.FieldingTeam;
+
+        // Online this is poison, and it was the last thing keeping the two games apart.
+        //
+        // The test is "is a human pitching", and that answer is different on the two machines for
+        // the same club: the side actually running it returns here and keeps its man, while the
+        // side batting against it sees a computer on the mound, runs the bullpen logic, and swaps
+        // the opposing pitcher out on its own. From then on one machine had a fresh reliever and
+        // the other had the starter at eighty-two pitches and completely spent, and every pitch
+        // after that was a different pitch.
+        //
+        // A pitching change is a decision, so online it goes on the wire like every other one and
+        // both machines apply it in the host's order.
+        if (Online) return;
+
         if (HumanPitching) return;
 
         var pitcher = team.CurrentPitcher;
@@ -1710,6 +1753,38 @@ public partial class GameScene : Node2D
         g.LastResultHeadline = Situation.FinalNote;
         g.LastResultLine = $"{Situation.Away.Team.Abbrev} {Situation.AwayScore} — " +
                            $"{Situation.Home.Team.Abbrev} {Situation.HomeScore}";
+
+        // A farm game is a night out, not a fixture. The affiliate's season is simulated whole at
+        // the end of the year, so booking this against the league as well would credit a prospect
+        // twice for the same evening — once for the game you attended and once for the same game
+        // inside the simulation.
+        if (g.IsFarmGame)
+        {
+            g.LastResultHeadline = $"{g.FarmLevelName} — {Situation.FinalNote}";
+
+            // The night you went to counts, and the modelled result it stands in for does not.
+            if (g.FarmReplacing is { } swap)
+            {
+                var level = (Season.Farm.Level)swap.Level;
+                bool home = Situation.Home.Team.Id == swap.TeamId;
+                int mine = home ? Situation.HomeScore : Situation.AwayScore;
+                int theirs = home ? Situation.AwayScore : Situation.HomeScore;
+
+                // Both clubs, or the two sides of the table would stop agreeing about what
+                // happened on the field.
+                Season.FarmSeason.ReplaceResult(swap.TeamId, level,
+                    mine, theirs, swap.Was.Mine, swap.Was.Theirs);
+                Season.FarmSeason.ReplaceResult(swap.OpponentId, level,
+                    theirs, mine, swap.Was.Theirs, swap.Was.Mine);
+
+                g.LastResultLine +=
+                    $"   ·   {Season.FarmSeason.Of(swap.TeamId, level).Text}";
+                if (g.League != null) Season.SaveGame.Save(g.League);
+            }
+
+            g.ClearFarmGame();
+            return;
+        }
 
         // A game played with a collected side pays a purse and is not booked against the league —
         // those men are on real clubs and their season numbers are not yours to write in.

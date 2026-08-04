@@ -42,10 +42,47 @@ public static class Farm
         _ => "High-A",
     };
 
-    /// <summary>How many players each affiliate carries. The lower rungs are wider.</summary>
+    /// <summary>
+    /// How many players each affiliate carries. The lower rungs are wider.
+    ///
+    /// These were 14, 16 and 18, which is enough to simulate a season and not enough to play one:
+    /// a fourteen-man side with five or six arms in it cannot always put nine in the field, and
+    /// twenty-nine of the league's ninety-six affiliates could not. Playing a farm game needs a
+    /// real side, so a real side is what they carry.
+    /// </summary>
     public static int SizeOf(Level level) => level switch
     {
-        Level.TripleA => 14, Level.DoubleA => 16, _ => 18,
+        Level.TripleA => 20, Level.DoubleA => 22, _ => 24,
+    };
+
+    /// <summary>How many of an affiliate's men are arms. The rest are position players.</summary>
+    public static int ArmsAt(Level level) => level switch
+    {
+        Level.TripleA => 7, Level.DoubleA => 8, _ => 9,
+    };
+
+    /// <summary>
+    /// The spot an affiliate most needs filled: any position with nobody in it, then whichever is
+    /// thinnest. Used when stocking a level and when restocking it after the winter, so a farm
+    /// club never drifts into being unable to field nine.
+    /// </summary>
+    public static Data.Position? Missing(List<PlayerData> farm)
+    {
+        foreach (var spot in FieldSpots)
+            if (!farm.Any(p => p.Position == spot))
+                return spot;
+
+        // Nobody is missing outright, so ask who is thinnest on the ground.
+        return farm.Count(p => p.Position != Data.Position.P) < 12
+            ? FieldSpots.OrderBy(s => farm.Count(p => p.Position == s)).First()
+            : null;
+    }
+
+    /// <summary>The eight spots in the field. The designated hitter is not one of them.</summary>
+    private static readonly Data.Position[] FieldSpots =
+    {
+        Data.Position.C, Data.Position.First, Data.Position.Second, Data.Position.Third,
+        Data.Position.Short, Data.Position.Left, Data.Position.Center, Data.Position.Right,
     };
 
     /// <summary>Kept for the many callers that only ever meant Triple-A.</summary>
@@ -101,11 +138,20 @@ public static class Farm
             foreach (var level in Levels)
             {
                 var farm = Of(t.Id, level);
+                int arms = ArmsAt(level);
+
                 for (int i = 0; i < SizeOf(level); i++)
                 {
+                    // Composition is decided rather than left to chance: the arms first, then one
+                    // man at every spot in the field, then whatever else fits as a bench. Rolling
+                    // a position at random left affiliates with four catchers and no shortstop.
+                    Data.Position? want =
+                        i < arms ? Data.Position.P
+                        : i - arms < FieldSpots.Length ? FieldSpots[i - arms]
+                        : null;
+
                     var p = RosterGenerator.Prospect(
-                        200000 + t.Id * 100 + (int)level * 30 + i, ref rng,
-                        i % 4 == 0 ? Data.Position.P : null);
+                        200000 + t.Id * 100 + (int)level * 30 + i, ref rng, want);
 
                     p.ServiceYears = 0;
                     p.Salary = Contracts.Minimum;
@@ -143,6 +189,106 @@ public static class Farm
     /// <summary>How full a rung is, for the farm screen.</summary>
     public static string SpotsText(int teamId, Level level) =>
         $"{Of(teamId, level).Count}/{Spots(level)}";
+
+    /// <summary>
+    /// Assembles an affiliate into a side that can actually take the field.
+    ///
+    /// A farm level is stored as a flat list of men, because until now nothing ever needed it to
+    /// be anything else — the season down there was a statistical one. Playing or watching a game
+    /// needs a real lineup, so this fills each position with the best man who plays it and takes
+    /// whoever is left for the rest, which is what a manager with fourteen players does anyway.
+    ///
+    /// The affiliate carries the parent club's colours and its own name, so a night in Double-A
+    /// still looks like your organisation.
+    /// </summary>
+    public static Roster BuildRoster(int teamId, Level level)
+    {
+        var parent = Teams.Get(teamId);
+        var men = Of(teamId, level);
+        if (men.Count < 10) return null;
+
+        var team = new TeamData
+        {
+            Id = parent.Id,
+            City = parent.City,
+            Nickname = $"{parent.Nickname} ({Name(level)})",
+            Abbrev = parent.Abbrev,
+            League = parent.League,
+            Division = parent.Division,
+            Primary = parent.Primary,
+            Secondary = parent.Secondary,
+            Motto = $"The {Name(level)} club.",
+        };
+
+        var roster = new Roster { Team = team };
+        var taken = new HashSet<PlayerData>();
+
+        // Arms first, so a pitcher is never handed a position in the field.
+        foreach (var arm in men.Where(p => p.Position == Data.Position.P)
+                               .OrderByDescending(p => p.Overall))
+        {
+            arm.Role = roster.Pitchers.Count == 0 ? StaffRole.Starter : StaffRole.Middle;
+            roster.Pitchers.Add(arm);
+            roster.Players.Add(arm);
+            taken.Add(arm);
+        }
+
+        // Then each spot in the field, best natural fit first.
+        foreach (var spot in LineupSpots)
+        {
+            var pick = men.Where(p => !taken.Contains(p) && p.Position != Data.Position.P)
+                          .OrderByDescending(p => (p.Position == spot ? 15 : 0) + p.Overall)
+                          .FirstOrDefault();
+            if (pick == null) continue;
+
+            taken.Add(pick);
+            roster.Starters[spot] = pick;
+            roster.Players.Add(pick);
+            roster.BattingOrder.Add(pick);
+        }
+
+        // Anybody spare is the bench.
+        foreach (var spare in men.Where(p => !taken.Contains(p)))
+            roster.Players.Add(spare);
+
+        if (roster.Pitchers.Count > 0) roster.SetPitcher(roster.Pitchers[0]);
+        return roster.BattingOrder.Count >= 9 && roster.Pitchers.Count >= 1 ? roster : null;
+    }
+
+    /// <summary>The nine spots a farm side has to fill, in the order they are filled.</summary>
+    private static readonly Data.Position[] LineupSpots =
+    {
+        Data.Position.C, Data.Position.First, Data.Position.Second, Data.Position.Third,
+        Data.Position.Short, Data.Position.Left, Data.Position.Center, Data.Position.Right,
+        Data.Position.DH,
+    };
+
+    /// <summary>
+    /// Somebody for an affiliate to play. Another organisation's club at the same rung — a farm
+    /// team plays a farm team, which keeps the standard of play honest at every level.
+    /// </summary>
+    public static (Roster Away, Roster Home, int OpponentId) Fixture(
+        int teamId, Level level, int seed, bool userIsHome)
+    {
+        var rng = new Rng(seed);
+        var mine = BuildRoster(teamId, level);
+        if (mine == null) return (null, null, -1);
+
+        // Walk outwards from a random club until one has a side that can field nine.
+        int start = rng.Range(0, Teams.All.Count);
+        for (int step = 0; step < Teams.All.Count; step++)
+        {
+            int other = (start + step) % Teams.All.Count;
+            if (other == teamId) continue;
+
+            var theirs = BuildRoster(other, level);
+            if (theirs == null) continue;
+
+            return userIsHome ? (theirs, mine, other) : (mine, theirs, other);
+        }
+
+        return (null, null, -1);
+    }
 
     /// <summary>Sends a player down. He keeps his contract; he simply is not on the big club.</summary>
     public static bool SendDown(SeasonState season, int teamId, PlayerData p,
@@ -372,10 +518,15 @@ public static class Farm
                 var farm = Of(t.Id, level);
                 while (farm.Count < SizeOf(level))
                 {
-                    bool needArm = farm.Count(p => p.Position == Data.Position.P) < 5;
+                    // Fill the hole the affiliate actually has. Promotions and call-ups take men
+                    // out unevenly, so a club that keeps restocking on need alone would slowly
+                    // lose the ability to put nine in the field over a long dynasty.
+                    bool needArm = farm.Count(p => p.Position == Data.Position.P) < ArmsAt(level) - 2;
+                    var want = needArm ? Data.Position.P : Missing(farm);
+
                     var p = RosterGenerator.Prospect(
                         300000 + t.Id * 1000 + season.Year * 37 + (int)level * 91 + farm.Count,
-                        ref rng, needArm ? Data.Position.P : null);
+                        ref rng, want);
 
                     p.Salary = Contracts.Minimum;
                     p.ContractYears = 1;

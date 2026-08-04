@@ -66,6 +66,15 @@ public static class SaveGame
         public int Id { get; set; }
         public int[] PlayerIds { get; set; }
         public int[] FarmIds { get; set; }
+
+        /// <summary>The lower two rungs. Absent in a save written before they were stored.</summary>
+        public int[] DoubleAIds { get; set; }
+        public int[] HighAIds { get; set; }
+
+        /// <summary>Each affiliate's record, in level order: Triple-A, Double-A, High-A.</summary>
+        public int[] FarmWins { get; set; }
+        public int[] FarmLosses { get; set; }
+
         public int W { get; set; }
         public int L { get; set; }
         public int RS { get; set; }
@@ -198,6 +207,15 @@ public static class SaveGame
                 Id = team.Id,
                 PlayerIds = roster.Players.Select(p => p.Id).ToArray(),
                 FarmIds = farm.Select(p => p.Id).ToArray(),
+
+                // The lower two rungs were never written down. Farm.Of(id) means Triple-A, so a
+                // save stored that one level and nothing else — and because loading skips
+                // restocking when Triple-A comes back non-empty, Double-A and High-A came back
+                // empty every time. Men developed down there all season and were deleted on load.
+                DoubleAIds = Farm.Of(team.Id, Farm.Level.DoubleA).Select(p => p.Id).ToArray(),
+                HighAIds = Farm.Of(team.Id, Farm.Level.HighA).Select(p => p.Id).ToArray(),
+                FarmWins = FarmSeason.Export(team.Id).Wins,
+                FarmLosses = FarmSeason.Export(team.Id).Losses,
                 W = rec.Wins,
                 L = rec.Losses,
                 RS = rec.RunsScored,
@@ -316,6 +334,16 @@ public static class SaveGame
             foreach (int id in td.FarmIds ?? System.Array.Empty<int>())
                 if (byId.TryGetValue(id, out var p)) farm.Add(p);
 
+            var doubleA = Farm.Of(td.Id, Farm.Level.DoubleA);
+            foreach (int id in td.DoubleAIds ?? System.Array.Empty<int>())
+                if (byId.TryGetValue(id, out var p)) doubleA.Add(p);
+
+            var highA = Farm.Of(td.Id, Farm.Level.HighA);
+            foreach (int id in td.HighAIds ?? System.Array.Empty<int>())
+                if (byId.TryGetValue(id, out var p)) highA.Add(p);
+
+            FarmSeason.Import(td.Id, td.FarmWins, td.FarmLosses);
+
             var rec = season.Book.Record(td.Id);
             rec.Wins = td.W;
             rec.Losses = td.L;
@@ -366,6 +394,44 @@ public static class SaveGame
         {
             Farm.Stock(season, dto.Seed);
             Farm.PlaySeason(season, season.GamesPerTeam, dto.Seed + 211);
+        }
+        else
+        {
+            // A save written while only Triple-A was being stored comes back with the lower two
+            // rungs empty. Checking the whole organisation rather than one level of it means an
+            // existing league repairs itself on load instead of showing two empty affiliates
+            // forever — and any rung short of a fieldable side is topped back up, which matters
+            // now that a farm game has to be able to put nine men out there.
+            var refill = new Core.Rng(dto.Seed * 4409 + season.Year * 17 + 83);
+
+            foreach (var t in Teams.All)
+                foreach (var level in Farm.Levels)
+                {
+                    var farm = Farm.Of(t.Id, level);
+                    int want = Farm.SizeOf(level);
+                    if (farm.Count >= want) continue;
+
+                    while (farm.Count < want)
+                    {
+                        bool needArm =
+                            farm.Count(p => p.Position == Data.Position.P) < Farm.ArmsAt(level) - 2;
+
+                        var p = RosterGenerator.Prospect(
+                            400000 + t.Id * 1000 + (int)level * 91 + farm.Count,
+                            ref refill, needArm ? Data.Position.P : Farm.Missing(farm));
+
+                        p.Salary = Contracts.Minimum;
+                        p.ContractYears = 1;
+                        p.Age = level switch
+                        {
+                            Farm.Level.TripleA => refill.Range(22, 27),
+                            Farm.Level.DoubleA => refill.Range(20, 25),
+                            _ => refill.Range(18, 22),
+                        };
+
+                        farm.Add(p);
+                    }
+                }
         }
 
         // Restore the calendar. A save written before there was one has no day recorded, so the

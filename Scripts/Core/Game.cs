@@ -82,9 +82,46 @@ public partial class Game : Node
     /// </summary>
     public Roster CardClubRoster;
 
+    /// <summary>
+    /// A farm game: two affiliates of the same rung, playing each other.
+    ///
+    /// The lower levels have always simulated — men develop down there and their lines show up in
+    /// the Front Office — but a season is more interesting when you can go and watch the kid you
+    /// drafted actually play, or take the dugout yourself for a night in Double-A. Set by the farm
+    /// screen and cleared when the game ends, so nothing else has to know it exists.
+    /// </summary>
+    public Roster FarmAwayRoster;
+    public Roster FarmHomeRoster;
+
+    /// <summary>Which rung a farm game is being played at, for the banner and the box score.</summary>
+    public string FarmLevelName = "";
+
+    /// <summary>
+    /// The modelled result this farm game is standing in for: whose affiliate, which rung, and the
+    /// score the simulation had already booked. Playing it for real replaces that.
+    /// </summary>
+    public (int TeamId, int OpponentId, int Level, (int Mine, int Theirs) Was)? FarmReplacing;
+
+    public bool IsFarmGame => FarmAwayRoster != null && FarmHomeRoster != null;
+
+    /// <summary>
+    /// Where leaving a game should go back to, when it is not the main menu or the season hub.
+    /// A farm game is started from the Front Office and should end there — being dropped on the
+    /// title screen after watching your Double-A club is a small thing that feels broken.
+    /// </summary>
+    public string ReturnTo;
+
+    public void ClearFarmGame()
+    {
+        FarmAwayRoster = null;
+        FarmHomeRoster = null;
+        FarmLevelName = "";
+        FarmReplacing = null;
+    }
+
     /// <summary>Rosters always come from the league, so trades are reflected in games.</summary>
-    public Roster AwayRoster => CardClubRoster ?? League.RosterFor(AwayTeamId);
-    public Roster HomeRoster => League.RosterFor(HomeTeamId);
+    public Roster AwayRoster => FarmAwayRoster ?? CardClubRoster ?? League.RosterFor(AwayTeamId);
+    public Roster HomeRoster => FarmHomeRoster ?? League.RosterFor(HomeTeamId);
 
     public void NewSeason(int userTeamId, int gamesPerTeam = Season.Schedule.FullSeason)
     {
@@ -218,6 +255,15 @@ public partial class Game : Node
         }
 
         // `--pen [games]` audits how the league's pitching staffs are actually used over a season.
+        // `--farm` checks that every club's three affiliates can actually field a side, which is
+        // what playing or watching a farm game needs and what simulating one never did.
+        if (System.Array.IndexOf(args, "--farm") >= 0)
+        {
+            Season.HeadlessFarm.Audit();
+            GetTree().Quit();
+            return;
+        }
+
         int pen = System.Array.IndexOf(args, "--pen");
         if (pen >= 0)
         {

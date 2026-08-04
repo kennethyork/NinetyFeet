@@ -348,11 +348,36 @@ public partial class FrontOffice : Control
 
         var farm = Farm.Of(_season.UserTeamId, _farmLevel);
 
-        Palette.Text(this, new Vector2(bx + 16f, y),
-            $"big club {roster.Players.Count}/{Development.RosterLimit}  ·  " +
-            $"{Farm.Free(_season.UserTeamId, _farmLevel)} spots free here", 13, Palette.InkDim);
+        // The affiliate's own season: a record, a place in the table, and who it plays tonight.
+        var standing = FarmSeason.Of(_season.UserTeamId, _farmLevel);
+        var fixture = FarmSeason.Today(_season, _season.UserTeamId);
 
-        y += 34f;
+        Palette.Text(this, new Vector2(bx + 16f, y),
+            $"{standing.Text}  ·  {Ordinal(FarmSeason.RankOf(_season.UserTeamId, _farmLevel))} " +
+            $"at this level  ·  {Farm.Free(_season.UserTeamId, _farmLevel)} spots free",
+            13, Palette.InkDim);
+
+        y += 22f;
+
+        if (fixture == null)
+        {
+            Palette.Text(this, new Vector2(40f, y), "No game today — the affiliate is off too.",
+                13, Palette.InkDim);
+        }
+        else
+        {
+            bool home = fixture.HomeId == _season.UserTeamId;
+            var other = Teams.Get(home ? fixture.AwayId : fixture.HomeId);
+            Palette.Text(this, new Vector2(40f, y),
+                $"TONIGHT: {(home ? "vs" : "at")} {other.FullName} ({Farm.Name(_farmLevel)})",
+                13, Palette.Highlight);
+        }
+
+        // Take the dugout at this level, or just go and watch.
+        bool playable = fixture != null && Farm.BuildRoster(_season.UserTeamId, _farmLevel) != null;
+        DrawFarmGameButtons(size, y, playable);
+
+        y += 26f;
         Header(y, "PROSPECT", "POS", "AGE", "OVR", "SCOUTS SAY",
             $"{Farm.Name(_farmLevel).ToUpperInvariant()} LINE", "");
         y += 22f;
@@ -422,6 +447,88 @@ public partial class FrontOffice : Control
     }
 
     /// <summary>
+    /// PLAY and WATCH, for a game at the rung being looked at.
+    ///
+    /// Both do the same thing to the same two sides; the only difference is whether a human is in
+    /// the dugout. Watching matters as much as playing — in a dynasty the point of a farm system
+    /// is the kid you drafted three years ago, and being able to go and see him is the difference
+    /// between a prospect and a row in a table.
+    /// </summary>
+    private void DrawFarmGameButtons(Vector2 size, float y, bool playable)
+    {
+        Button("PLAY A GAME", size.X - 420f, false);
+        Button("WATCH A GAME", size.X - 240f, true);
+
+        void Button(string label, float x, bool watch)
+        {
+            var rect = new Rect2(new Vector2(x, y - 17f), new Vector2(170f, 30f));
+            Palette.Panel3D(this, rect, playable ? Palette.Highlight.Darkened(0.2f) : Palette.Panel);
+            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, label, 12,
+                playable ? Palette.Night : Palette.InkDim);
+
+            if (!playable) return;
+            _clicks.Add(rect, () => StartFarmGame(watch));
+        }
+    }
+
+    /// <summary>
+    /// Puts a farm fixture on and goes to it.
+    ///
+    /// The result is deliberately not booked against the season. The affiliate's year is
+    /// simulated as a whole at the end of the season, and folding one hand-played game into that
+    /// would double-count it — a prospect would get credit for a night you were there and for the
+    /// same night in the simulation. This is a game you go to, not a game that rewrites the books.
+    /// </summary>
+    private void StartFarmGame(bool watch)
+    {
+        var g = Game.Instance;
+
+        // Tonight's actual fixture, not an exhibition. The affiliate travels with the big club, so
+        // the opponent and the home field are the ones on the schedule.
+        var fixture = FarmSeason.Today(_season, _season.UserTeamId);
+        if (fixture == null) { Say("There is no game today."); return; }
+
+        bool home = fixture.HomeId == _season.UserTeamId;
+        int opponentId = home ? fixture.AwayId : fixture.HomeId;
+
+        var mine = Farm.BuildRoster(_season.UserTeamId, _farmLevel);
+        var theirs = Farm.BuildRoster(opponentId, _farmLevel);
+
+        if (mine == null || theirs == null)
+        {
+            Say($"One of the two {Farm.Name(_farmLevel)} sides cannot field nine tonight.");
+            return;
+        }
+
+        var away = home ? theirs : mine;
+        var homeSide = home ? mine : theirs;
+        int opponent = opponentId;
+
+        // The day's result was modelled when the day advanced. Going to the game means taking that
+        // one back out, so attending does not quietly give the affiliate two games.
+        g.FarmReplacing = (_season.UserTeamId, opponentId, (int)_farmLevel,
+            FarmSeason.ModelledResult(_season, _season.UserTeamId, opponentId, _farmLevel,
+                _season.CurrentDay, home));
+
+        g.PendingSeasonGame = null;
+        g.CardClubRoster = null;
+        g.ReturnTo = "res://Scenes/FrontOffice.tscn";
+        g.FarmAwayRoster = away;
+        g.FarmHomeRoster = homeSide;
+        g.FarmLevelName = Farm.Name(_farmLevel);
+        g.AwayTeamId = home ? opponent : _season.UserTeamId;
+        g.HomeTeamId = home ? _season.UserTeamId : opponent;
+
+        // Watching is a computer game with nobody's hands on it; playing puts you in your own
+        // dugout whichever side of the fixture your affiliate is on.
+        g.Mode = watch ? ControlMode.CpuVsCpu
+               : home ? ControlMode.CpuVsPlayer     // your affiliate bats in the bottom
+               : ControlMode.PlayerVsCpu;           // and in the top when it is on the road
+
+        g.GoTo("res://Scenes/Game.tscn");
+    }
+
+    /// <summary>
     /// The two small buttons that move a prospect one rung, in either direction.
     ///
     /// Calling a man straight up from High-A is not how an organisation is run — you push him to
@@ -457,6 +564,13 @@ public partial class FrontOffice : Control
                     : $"{target.Name} could not be moved.");
             });
         }
+    }
+
+    /// <summary>"1st", "2nd", "23rd" — for where an affiliate sits in its table.</summary>
+    private static string Ordinal(int n)
+    {
+        if (n % 100 is >= 11 and <= 13) return $"{n}th";
+        return (n % 10) switch { 1 => $"{n}st", 2 => $"{n}nd", 3 => $"{n}rd", _ => $"{n}th" };
     }
 
     private string MinorLine(PlayerData p)
