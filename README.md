@@ -85,6 +85,13 @@ winter; loyalty and morale decide what he will re-sign for. None of it touches h
 — a league whose run environment moved with how happy everybody was would be a league whose
 calibration could not be trusted.
 
+**Your clubs** — any of the thirty-two can be renamed and recoloured, from Settings. What can be
+edited stops at the name, the abbreviation and the two colours: a club's league, division and
+playing biases are what make the thirty-two different from one another as opponents, and letting
+somebody hand his own club a pitching bias would turn a customisation screen into a cheat menu.
+Overrides live in their own file rather than being written over the built-in list, so a club can
+always be put back exactly as it shipped and nothing is ever lost.
+
 **The inbox** — the pitching coach on a workload nobody else can see, the hitting coach on a man who
 cannot handle left-handers, the bench coach on somebody who has had enough, the owner on what he
 expects. Everyone writing is reading real state; nothing is invented to have something to say.
@@ -251,6 +258,7 @@ godot471cs --headless --path . -- --careermode 40  # whole careers, played end t
 godot471cs --headless --path . -- --boxes 20       # box scores must add up to the season book
 godot471cs --headless --path . -- --defence 4000   # what each fielding alignment actually does
 godot471cs --headless --path . -- --people 4       # is personality a mechanic or a label?
+godot471cs --headless --path . -- --clubs          # the club editor renames and nothing else
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40

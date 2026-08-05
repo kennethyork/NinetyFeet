@@ -92,6 +92,18 @@ public partial class SettingsScreen : Control
             g.ManagerOnly ? "You manage; games are simulated." : "You play your club's games.", ref y,
             () => g.ManagerOnly = !g.ManagerOnly);
 
+        // --- Your league ---
+        y += 14f;
+        Section("YOUR LEAGUE", ref y);
+
+        int edited = 0;
+        for (int i = 0; i < Data.Teams.All.Count; i++)
+            if (Data.TeamEdits.For(i) != null) edited++;
+
+        Row("Clubs", edited == 0 ? "As they shipped" : $"{edited} edited",
+            "Rename and recolour any of the thirty-two. Nothing here changes how a club plays.",
+            ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
+
         // --- Sound ---
         y += 14f;
         Section("SOUND", ref y);

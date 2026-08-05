@@ -445,8 +445,18 @@ public sealed class GameSituation
 
     public bool RecordOut(int count = 1)
     {
-        OutsRecorded += count;
-        Outs += count;
+        // Only the outs that actually fit in the half inning are recorded.
+        //
+        // Outs itself was already clamped to three, so the rules were never wrong — but the tally
+        // was not, and the tally is what the audit reads. A double play turned with two already
+        // away booked two outs into a half inning that had room for one, and the half came out at
+        // four. The pitcher's innings had the same clamp applied at CompleteBattedBall and this
+        // did not, which is how the two disagreed.
+        int room = Math.Max(0, 3 - Outs);
+        int taken = Math.Min(count, room);
+
+        OutsRecorded += taken;
+        Outs += taken;
         if (Outs < 3) return false;
         Outs = 3;
         EndHalfInning();

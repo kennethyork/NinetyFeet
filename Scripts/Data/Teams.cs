@@ -15,7 +15,30 @@ public static class Teams
 {
     private static TeamData[] _all;
 
-    public static IReadOnlyList<TeamData> All => _all ??= Build();
+    public static IReadOnlyList<TeamData> All
+    {
+        get
+        {
+            if (_all != null) return _all;
+
+            // Built first, then anything the player has renamed or recoloured is laid over the
+            // top. The built-in list stays the source of truth, so a club can always be put back.
+            _all = Build();
+            TeamEdits.ApplyAll();
+            return _all;
+        }
+    }
+
+    /// <summary>
+    /// Throws the clubs away so they are built again from source. Used when an edit is undone —
+    /// the overrides are applied over the originals rather than into them, so the only way back
+    /// is to start from the originals.
+    /// </summary>
+    public static void Rebuild()
+    {
+        _all = null;
+        _ = All;
+    }
 
     public static TeamData Get(int id) => All[id];
 

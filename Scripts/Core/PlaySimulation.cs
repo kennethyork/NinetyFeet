@@ -755,6 +755,13 @@ public sealed class PlaySimulation
         foreach (var r in Runners)
         {
             if (r.IsOut || r.Scored || r.Held) continue;
+
+            // Nothing is retired once the half inning is full. Every other place that records an
+            // out checks this and the throw did not, so a relay that beat a runner to the bag with
+            // two already away booked a third and a fourth out into the same half — rare enough
+            // that it took a shifted random stream to turn up in a forty-game audit.
+            if (_sit.Outs + _outsRecorded >= 3) break;
+
             int runnerTargetBag = r.ToBase > 3 ? 0 : r.ToBase;
             if (runnerTargetBag != bag) continue;
 

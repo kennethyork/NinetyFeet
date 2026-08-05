@@ -164,6 +164,12 @@ public partial class Game : Node
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--nolegends") >= 0)
             Data.RosterGenerator.IncludeLegends = false;
 
+        // Renamed and recoloured clubs, read before anything asks for the club list. A harness
+        // never sees them: an audit that prints club abbreviations should print the ones in the
+        // source, not whatever this machine's owner has called his team.
+        Data.TeamEdits.Enabled = !IsVerificationRun();
+        Data.TeamEdits.Load();
+
         // Pick up a season in progress, or start a fresh league.
         //
         // A verification run must never do this. Loading a save rebuilds every roster from the
@@ -193,7 +199,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs",
     };
 
     private static bool IsVerificationRun()
@@ -300,6 +306,14 @@ public partial class Game : Node
             int pa = 60000;
             if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
             PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--clubs` checks the club editor renames a club and touches nothing else.
+        if (System.Array.IndexOf(args, "--clubs") >= 0)
+        {
+            Data.TeamEditAudit.Run();
             GetTree().Quit();
             return;
         }
