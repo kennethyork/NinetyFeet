@@ -71,6 +71,30 @@ public partial class BattingView : Node2D
     /// the flight, so it looked hittable roughly a full second before it actually was, and every
     /// swing came in hopelessly early.
     /// </summary>
+    /// <summary>
+    /// How far along its screen journey the ball is, at progress <paramref name="t"/>.
+    ///
+    /// True one-over-distance perspective is what a camera behind the plate would see, and it made
+    /// the game close to unplayable. Measured, it put the ball at 11% of its screen travel halfway
+    /// through the flight, 34% at four-fifths, and 54% at nine-tenths — so it crossed nearly half
+    /// the screen and doubled in size inside the last hundred and forty milliseconds, which is
+    /// exactly the moment a hitter has to decide.
+    ///
+    /// A hitter sees a small dot hang almost still for a second and then explode past him. He
+    /// cannot track it, cannot put the bat on it, and cannot time it, and every one of those reads
+    /// as a different complaint about hitting when it is one cause.
+    ///
+    /// Real hitters cope with this because they have two eyes, depth, and a lifetime of reading a
+    /// release point. Through a flat screen it is simply unfair, so the curve is flattened toward
+    /// linear. The ball still accelerates toward you — it still reads as coming — but it does most
+    /// of its travelling where you can see it happen.
+    ///
+    /// This is a view-side change only. The swing is resolved against the pitch's crossing point
+    /// and the progress at which the bat came through, never against a screen position, so no
+    /// calibrated rate moves by a thousandth.
+    /// </summary>
+    private const float PerspectiveRealism = 0.34f;
+
     private static float Perspective(float t)
     {
         float far = FieldGeometry.MoundDistance + CameraSetback;
@@ -79,7 +103,12 @@ public partial class BattingView : Node2D
 
         float invFar = 1f / far;
         float invNear = 1f / near;
-        return Mathf.Clamp((1f / dist - invFar) / (invNear - invFar), 0f, 1.5f);
+        float trueP = Mathf.Clamp((1f / dist - invFar) / (invNear - invFar), 0f, 1.5f);
+
+        // Blend toward a straight line. Both ends stay pinned — the ball still leaves the hand at
+        // the mound and still arrives at the plate exactly on time — only the middle is readable.
+        float linear = Mathf.Clamp(t, 0f, 1.35f);
+        return Mathf.Lerp(linear, trueP, PerspectiveRealism);
     }
 
     public override void _Process(double delta) => _time += (float)delta;
@@ -478,15 +507,13 @@ public partial class BattingView : Node2D
         Vector2 platePoint = pitch.PositionAt(t);
         Vector2 target = ToScreen(platePoint);
 
-        // Where the pitch is going to cross, plus an approach ring that shrinks onto it and
-        // reaches the ball's own size exactly when the swing should go. Watching a bar at the
-        // bottom of the screen while tracking the ball is the thing that made hitting feel
-        // unfair; this puts the timing cue on the ball itself.
+        // Where the pitch is going to cross. Faint, and only a mark — it says where to put the bat,
+        // not when to swing.
         if (Scene.HumanBatting && t > 0.20f && t < 1.30f)
         {
             Vector2 mark = ToScreen(pitch.CrossPoint);
             float fade = Mathf.Clamp((t - 0.20f) / 0.25f, 0f, 1f);
-            DrawArc(mark, 17f, 0f, Mathf.Tau, 22, new Color(1f, 1f, 1f, fade * 0.30f), 1.6f);
+            DrawArc(mark, 15f, 0f, Mathf.Tau, 22, new Color(1f, 1f, 1f, fade * 0.26f), 1.4f);
         }
 
         // Both the position and the apparent size follow 1 / distance, so the ball reads as
@@ -494,19 +521,35 @@ public partial class BattingView : Node2D
         Vector2 release = new(GetViewportRect().Size.X * 0.5f, GetViewportRect().Size.Y * 0.385f);
         float persp = Perspective(t);
         Vector2 at = release.Lerp(target, persp);
-        float radius = Mathf.Lerp(2.5f, 17f, persp);
 
-        // A faint trail helps read the break.
-        for (int i = 1; i <= 4; i++)
+        // The ball used to leave the hand at two and a half pixels across, against a crowd, a
+        // scoreboard and a grass pattern. That is not a ball you can pick up, and no amount of
+        // timing help fixes a pitch you never saw. It starts twice that size now.
+        float radius = Mathf.Lerp(5f, 17f, persp);
+
+        // The trail. Longer and far more visible than it was — this is what makes the break
+        // readable, and reading the break is the whole skill.
+        for (int i = 1; i <= 7; i++)
         {
-            float tt = Mathf.Max(0f, t - i * 0.045f);
+            float tt = Mathf.Max(0f, t - i * 0.040f);
             float trailP = Perspective(tt);
             Vector2 trailAt = release.Lerp(ToScreen(pitch.PositionAt(tt)), trailP);
-            DrawCircle(trailAt, Mathf.Lerp(2.5f, 17f, trailP) * 0.72f,
-                new Color(1f, 1f, 1f, 0.10f * (5 - i)));
+            DrawCircle(trailAt, Mathf.Lerp(5f, 17f, trailP) * 0.66f,
+                new Color(1f, 1f, 1f, 0.34f * (8 - i) / 7f));
         }
 
+        // An outline, so the ball reads against grass, dirt, crowd and scoreboard alike.
+        DrawCircle(at, radius + 2f, new Color(0.06f, 0.07f, 0.09f, 0.85f));
         DrawCircle(at, radius, Palette.Ball);
+
+        // No ring. It was tried and it is not wanted, and on reflection it was the wrong answer to
+        // the right problem: a countdown drawn on the ball tells you when to swing without ever
+        // teaching you to read a pitch, which is the opposite of what "harder, like The Show"
+        // means. The Show has no such thing either.
+        //
+        // The timing has to be carried by the pitch itself — a ball you can actually see, with a
+        // trail long enough to show the break — and by the bracket closing on the reticle. That is
+        // what the work above is for.
 
         // Seams coloured by pitch type. Reading the spin out of the pitcher's hand is a real
         // skill, and this is how a video game makes it legible.
@@ -611,14 +654,22 @@ public partial class BattingView : Node2D
             ? Mathf.Lerp(r * 2.7f, r, Mathf.Clamp(t, 0f, 1f))
             : r;
 
-        float arm = r * 0.46f;
+        // The bracket. Thicker and darker-backed than it was: a two-pixel line in the club's trim
+        // colour over a sunlit outfield is genuinely hard to find, and "aiming is fiddly" is what
+        // that looks like from the other side of the screen.
+        float arm = r * 0.5f;
         for (int i = 0; i < 4; i++)
         {
             float sx = (i & 1) == 0 ? -1f : 1f;
             float sy = (i & 2) == 0 ? -1f : 1f;
             var corner = at + new Vector2(sx * closeR * Wide, sy * closeR);
-            DrawLine(corner, corner + new Vector2(-sx * arm, 0f), live, onTime ? 3f : 2.2f);
-            DrawLine(corner, corner + new Vector2(0f, -sy * arm), live, onTime ? 3f : 2.2f);
+
+            var shadow = new Color(0f, 0f, 0f, 0.55f);
+            DrawLine(corner, corner + new Vector2(-sx * arm, 0f), shadow, onTime ? 5.6f : 4.6f);
+            DrawLine(corner, corner + new Vector2(0f, -sy * arm), shadow, onTime ? 5.6f : 4.6f);
+
+            DrawLine(corner, corner + new Vector2(-sx * arm, 0f), live, onTime ? 3.4f : 2.6f);
+            DrawLine(corner, corner + new Vector2(0f, -sy * arm), live, onTime ? 3.4f : 2.6f);
         }
 
         // The full reach: where the bat touches the ball at all. This is the ring difficulty
