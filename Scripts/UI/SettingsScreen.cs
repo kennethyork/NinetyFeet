@@ -100,6 +100,12 @@ public partial class SettingsScreen : Control
         for (int i = 0; i < Data.Teams.All.Count; i++)
             if (Data.TeamEdits.For(i) != null) edited++;
 
+        bool dh = Settings.UseDesignatedHitter();
+        Row("Designated hitter", dh ? "On" : "Off",
+            dh ? "Nine hitters; the pitcher does not bat."
+               : "The pitcher bats ninth, and taking him out costs you the spot.",
+            ref y, () => Settings.SaveDesignatedHitter(!dh));
+
         int po = Settings.PlayoffLength();
         Row("Playoffs", $"Best of {po}, then {Mathf.Min(7, po + 2)}",
             "How long October is. The best club wins a seven far more often than it wins a three.",

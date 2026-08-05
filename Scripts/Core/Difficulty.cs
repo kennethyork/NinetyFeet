@@ -167,6 +167,25 @@ public static class Settings
     }
 
     /// <summary>
+    /// Whether the designated hitter is in force. On by default, as it is everywhere in the real
+    /// game now, but a league that wants the pitcher to bat can have it.
+    /// </summary>
+    public static bool UseDesignatedHitter()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return true;
+        return (bool)cfg.GetValue("game", "dh", true);
+    }
+
+    public static void SaveDesignatedHitter(bool on)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "dh", on);
+        cfg.Save(Path);
+    }
+
+    /// <summary>
     /// Games in the first playoff round. The later rounds run two longer, capped at seven, which
     /// is how a real bracket is shaped — the further you go the more the format asks of you.
     /// </summary>

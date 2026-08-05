@@ -74,6 +74,35 @@ public sealed class Roster
     {
         UsedArms.Clear();
         if (CurrentPitcher != null) UsedArms.Add(CurrentPitcher);
+        ApplyDesignatedHitterRule();
+    }
+
+    /// <summary>
+    /// Puts the pitcher in the order, or the designated hitter, depending on the league's rule.
+    ///
+    /// Applied per game rather than baked into the roster, which is what makes the rule a setting
+    /// at all: nobody is added or removed, the ninth spot simply belongs to a different man. And
+    /// the hard part was already built — SetPitcher has always handed a reliever the outgoing
+    /// pitcher's place in the order, because leagues that predate the designated hitter needed it.
+    /// </summary>
+    private void ApplyDesignatedHitterRule()
+    {
+        if (BattingOrder.Count == 0 || CurrentPitcher == null) return;
+
+        bool dhOn = Core.Settings.UseDesignatedHitter();
+        Starters.TryGetValue(Position.DH, out var dh);
+
+        if (dhOn)
+        {
+            // The pitcher gives the spot back. Only ever true after a game played without the DH.
+            int arm = BattingOrder.IndexOf(CurrentPitcher);
+            if (arm >= 0 && dh != null) BattingOrder[arm] = dh;
+            return;
+        }
+
+        if (dh == null) return;
+        int spot = BattingOrder.IndexOf(dh);
+        if (spot >= 0) BattingOrder[spot] = CurrentPitcher;
     }
 
     /// <summary>

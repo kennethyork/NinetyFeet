@@ -104,7 +104,7 @@ public sealed class PlayoffBracket
 
         Series.Add(new PlayoffSeries { Round = "AL Championship", BestOf = late });
         Series.Add(new PlayoffSeries { Round = "NL Championship", BestOf = late });
-        Series.Add(new PlayoffSeries { Round = "Sandlot Series", BestOf = late });
+        Series.Add(new PlayoffSeries { Round = "The Ninety Feet Series", BestOf = late });
     }
 
     /// <summary>Feeds completed series into the next round and crowns a champion at the end.</summary>

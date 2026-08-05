@@ -85,6 +85,11 @@ winter; loyalty and morale decide what he will re-sign for. None of it touches h
 — a league whose run environment moved with how happy everybody was would be a league whose
 calibration could not be trusted.
 
+**The designated hitter** — on or off, in Settings. Applied per game rather than baked into a
+roster, so nobody is added or removed and the ninth spot simply belongs to a different man.
+Measured with it off: scoring falls from −4.4% against the real rate to −10.5% and strikeouts rise,
+which is what a pitcher batting ninth does to a league.
+
 **The playoff format** — best of 3, 5 or 7 in the first round, with the later rounds two longer
 and capped at seven. A short October is a different competition from a long one: the best club wins
 a seven far more often than it wins a three, and which of those you want is a league rule rather
