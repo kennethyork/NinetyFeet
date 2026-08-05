@@ -14,6 +14,12 @@ public static class RosterGenerator
     public const int DefaultLeagueSeed = 1994;
 
     /// <summary>
+    /// Where written players' identifiers start. Far above any club's range, which is
+    /// team.Id * 100 plus the man's place in the roster and so never exceeds 3,199.
+    /// </summary>
+    public const int LegendIdBase = 900_000;
+
+    /// <summary>
     /// Test hook: `--nolegends` builds the league without the written kids, so their effect on
     /// the league's run environment can be measured rather than guessed at.
     /// </summary>
@@ -200,11 +206,15 @@ public static class RosterGenerator
         // men in their prime, and veterans on the way down.
 
         // --- Thirteen pitchers: a five-man rotation and an eight-man bullpen. ---
+        // Every man's identifier is his place in this sequence, so it has to be counted here and
+        // not worked out from anything that might stand still.
+        int ordinal = 0;
+
         for (int i = 0; i < StaffShape.Length; i++)
         {
             var role = StaffShape[i];
             bool reliever = role != StaffRole.Starter;
-            var p = NewPlayer(ref rng, team, Position.P, usedNames, usedNumbers);
+            var p = NewPlayer(ref rng, team, Position.P, usedNames, usedNumbers, ordinal: ordinal++);
             p.Role = role;
 
             // Aces get the best stuff. A closer is a one-inning ace — the best pure arm on the
@@ -280,7 +290,7 @@ public static class RosterGenerator
         // --- Nine in the lineup: eight in the field and the designated hitter. ---
         foreach (var pos in LineupPositions)
         {
-            var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers);
+            var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers, ordinal: ordinal++);
             ApplyPositionProfile(ref rng, p, team, starter: true);
             roster.Starters[pos] = p;
             roster.Players.Add(p);
@@ -289,7 +299,7 @@ public static class RosterGenerator
         // --- Four off the bench, covering behind the plate, the infield and the outfield. ---
         foreach (var pos in BenchShape)
         {
-            var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers);
+            var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers, ordinal: ordinal++);
             ApplyPositionProfile(ref rng, p, team, starter: false);
             roster.Players.Add(p);
         }
@@ -299,7 +309,13 @@ public static class RosterGenerator
         // learn who plays where the way you would with a real league.
         if (IncludeLegends)
         foreach (int legendId in Legends.ForTeam(team.Id))
-            InsertLegend(roster, Legends.Make(legendId, team.Id * 100 + 90 + legendId), usedNumbers);
+            // Written players are numbered in a space of their own, well clear of every club's.
+            //
+            // This was team.Id * 100 + 90 + legendId, and there are ninety-six written players —
+            // so any legendId above nine ran straight over the top of the next club's range and
+            // handed a named kid the identity of a generated one. Forty-nine of eight hundred and
+            // sixty-nine players were sharing an id with somebody else because of it.
+            InsertLegend(roster, Legends.Make(legendId, LegendIdBase + legendId), usedNumbers);
 
 
         // --- Batting order: best contact/power up top, nine real hitters. ---
@@ -564,9 +580,13 @@ public static class RosterGenerator
         return (first, origin.Last[lastIndex]);
     }
 
+    /// <param name="ordinal">
+    /// This man's place in the order his club was built in, and the thing his identifier is made
+    /// from. It has to be passed in rather than inferred.
+    /// </param>
     private static PlayerData NewPlayer(
         ref Rng rng, TeamData team, Position pos,
-        HashSet<string> usedNames, HashSet<int> usedNumbers, long? slot = null)
+        HashSet<string> usedNames, HashSet<int> usedNumbers, long? slot = null, int ordinal = -1)
     {
         // Names are handed out by slot rather than drawn at random. Rejection sampling against a
         // per-team set let the same man appear on two different clubs — three duplicates across
@@ -586,7 +606,19 @@ public static class RosterGenerator
         var made = new PlayerData
         {
             // Unique across the league and stable for saves; a trade never changes it.
-            Id = team.Id * 100 + usedNames.Count,
+            //
+            // This was team.Id * 100 + usedNames.Count, and usedNames is a set: when a club drew a
+            // name it already had, Add returned false, the count did not move, and the next man
+            // was handed the identifier of the one before him. Two different players, one id.
+            //
+            // It is not only a save bug, though that is where it surfaced — --determinism caught a
+            // first baseman coming back from a reload as a designated hitter. The stat book, the
+            // box scores, the game logs and the splits are all keyed by player, so a collision
+            // merges two men's careers wherever it happens.
+            //
+            // The ordinal is passed in now. Inferring an identifier from a set that is allowed not
+            // to grow was the whole mistake.
+            Id = team.Id * 100 + (ordinal >= 0 ? ordinal : usedNames.Count),
             FirstName = first,
             LastName = last,
             Number = number,

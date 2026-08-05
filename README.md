@@ -59,15 +59,23 @@ netcode seeing nothing because both are behaving perfectly.
 **That check currently fails, and it found a real bug on the way.** Injuries and pitcher workload
 were never written to the save at all: a man on the shelf came back healthy on reload and every arm
 came back fresh however hard it had just been used, which also quietly reset the workload the
-pitching coach reads before he writes to you. Fixed. Two further causes are found and named, and neither is fixed yet:
+pitching coach reads before he writes to you. Fixed. **Player ids used to collide, and that is fixed.** Two causes, both of them the same mistake in
+different clothes. An id was `team.Id * 100 + usedNames.Count`, and `usedNames` is a set — so a
+club that drew a name it already had did not grow the count, and handed the next man the identity
+of the one before him. And written players were numbered `team.Id * 100 + 90 + legendId` with
+ninety-six of them, which ran straight over the top of the next club's range. Forty-nine of 869
+players were sharing an identity with somebody else. `--unique` now checks ids as well as names and
+faces, and reads zero.
 
-- **Player ids collide.** The diff shows one man coming back as a completely different player under
-  the same id — `pos2 con9 pow6` against `pos9 con7 pow7`. Ids are handed out as
-  `team.Id * 100 + usedNames.Count`, and `--unique` checks that no two players share a name or a
-  face but has never checked that no two share an id. Everything keyed by identity is affected by
-  this, not only the save.
-- **A pitcher's staff role does not survive a reload** — `role1` comes back as `role0` — which
-  changes his overall, because a reliever is not judged on how long he can go.
+That was never only a save bug: the stat book, the box scores, the game logs and the splits are all
+keyed by player, so a collision merged two men's careers wherever it happened.
+
+**One cause remains and is not fixed.** Loading a league calls `TradeEngine.Rebuild`, which
+recomputes every pitcher's staff role from his ratings — while roster generation assigns roles by
+the order arms are built in. So a starter comes back a long man, which moves his overall, because a
+reliever is not judged on how long he can go. The honest fix is to make generation call `Rebuild`
+too, so one function decides staff structure everywhere; it wants a calibration pass behind it,
+since a pitcher's role feeds his overall and the bullpen's usage.
 
 **Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
 replication. Both peers build the identical league and trade only what each player decides; the

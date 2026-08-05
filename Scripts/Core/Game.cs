@@ -515,6 +515,7 @@ public partial class Game : Node
         {
             var names = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>();
             var looks = new System.Collections.Generic.Dictionary<int, int>();
+            var ids = new System.Collections.Generic.Dictionary<int, int>();
             int total = 0;
             foreach (var t in Data.Teams.All)
                 foreach (var p in Data.RosterGenerator.For(t).Players)
@@ -523,12 +524,21 @@ public partial class Game : Node
                     if (!names.TryGetValue(p.Name, out var list)) names[p.Name] = list = new System.Collections.Generic.List<string>();
                     list.Add(t.Abbrev);
                     looks[p.LookSeed] = (looks.TryGetValue(p.LookSeed, out int lc) ? lc : 0) + 1;
+                    ids[p.Id] = (ids.TryGetValue(p.Id, out int ic) ? ic : 0) + 1;
                 }
 
             var dupNames = names.Where(kv => kv.Value.Count > 1).ToList();
             int dupLooks = looks.Count(kv => kv.Value > 1);
+
+            // Identifiers were never checked, and that is exactly where the collision was: a club
+            // that drew a name it already had handed the next man the same id, because the id was
+            // the count of a set that had not grown. Two players, one identity — and the stat
+            // book, the box scores, the game logs and the splits are all keyed by player.
+            int dupIds = ids.Count(kv => kv.Value > 1);
+
             GD.Print($"\n=== UNIQUENESS — {total} players across 32 clubs ===");
-            GD.Print($"duplicate names: {dupNames.Count}   duplicate look seeds: {dupLooks}");
+            GD.Print($"duplicate names: {dupNames.Count}   duplicate look seeds: {dupLooks}   " +
+                     $"duplicate ids: {dupIds}");
             foreach (var kv in dupNames.Take(8))
                 GD.Print($"  {kv.Key} appears on {string.Join(", ", kv.Value)}");
             GetTree().Quit();
