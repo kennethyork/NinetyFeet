@@ -20,6 +20,16 @@ public partial class TradeScreen : Control
     private int _myCursor;
     private int _theirCursor;
 
+    /// <summary>
+    /// How far each pane is scrolled.
+    ///
+    /// The lists drew every man from the first, and a club carries twenty-six to twenty-nine while
+    /// about twenty-one rows fit. The rest were drawn outside the panel, over the offer summary —
+    /// and their click targets went with them, so there were invisible rows you could tag by
+    /// clicking the wrong part of the screen.
+    /// </summary>
+    private int _myScroll, _theirScroll;
+
     private readonly HashSet<PlayerData> _iGive = new();
     private readonly HashSet<PlayerData> _iGet = new();
 
@@ -36,10 +46,27 @@ public partial class TradeScreen : Control
         SetAnchorsPreset(LayoutPreset.FullRect);
         _season = Game.Instance.League;
         _partnerId = _season.UserTeamId == 0 ? 1 : 0;
+
+        // The Control swallows mouse events at its default filter, so nothing would be clickable.
+        MouseFilter = MouseFilterEnum.Ignore;
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // The wheel scrolls whichever pane the pointer is over, which is the one you mean.
+        if (@event is InputEventMouseButton { Pressed: true } wheel &&
+            wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            int by = wheel.ButtonIndex == MouseButton.WheelDown ? 3 : -3;
+            if (wheel.Position.X < GetViewportRect().Size.X * 0.5f)
+                _myScroll = Mathf.Max(0, _myScroll + by);
+            else
+                _theirScroll = Mathf.Max(0, _theirScroll + by);
+
+            QueueRedraw();
+            return;
+        }
+
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             if (_clicks.Click(mb.Position)) QueueRedraw();
@@ -51,7 +78,7 @@ public partial class TradeScreen : Control
         switch (key.PhysicalKeycode)
         {
             case Key.Escape:
-                Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+                Leave();
                 return;
 
             case Key.Tab:
@@ -188,16 +215,16 @@ public partial class TradeScreen : Control
         _clicks.Add(prev, () => StepPartner(-1));
         _clicks.Add(next, () => StepPartner(1));
 
-        Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+        Palette.BackButton(this, size, _clicks, Leave);
 
         float listTop = 108f;
         float listW = (size.X - 120f) / 2f;
 
         DrawRosterList(new Vector2(40f, listTop), listW, size.Y - 250f, mine, MyRoster,
-            _myCursor, _iGive, _focus == Focus.MyRoster, "YOU GIVE");
+            _myCursor, _iGive, _focus == Focus.MyRoster, "YOU GIVE", ref _myScroll);
 
         DrawRosterList(new Vector2(80f + listW, listTop), listW, size.Y - 250f, theirs, TheirRoster,
-            _theirCursor, _iGet, _focus == Focus.TheirRoster, "YOU GET");
+            _theirCursor, _iGet, _focus == Focus.TheirRoster, "YOU GET", ref _theirScroll);
 
         DrawOfferSummary(size);
 
@@ -207,8 +234,13 @@ public partial class TradeScreen : Control
             13, Palette.InkDim);
     }
 
+    /// <summary>Back to the season hub this was opened from, not the title screen.</summary>
+    private void Leave() => Game.Instance.GoTo(Game.Instance.League != null
+        ? "res://Scenes/Season.tscn"
+        : "res://Scenes/MainMenu.tscn");
+
     private void DrawRosterList(Vector2 at, float w, float h, TeamData team, Roster roster,
-        int cursor, HashSet<PlayerData> tagged, bool focused, string caption)
+        int cursor, HashSet<PlayerData> tagged, bool focused, string caption, ref int scroll)
     {
         var panel = new Rect2(at, new Vector2(w, h));
         Palette.Panel3D(this, panel, Palette.Panel);
@@ -226,7 +258,24 @@ public partial class TradeScreen : Control
         Palette.Text(this, new Vector2(at.X + w - 100f, y), "VALUE", 11, Palette.Highlight);
         y += 18f;
 
-        for (int i = 0; i < roster.Players.Count; i++)
+        // Only what fits inside the panel, and the pane the keys are driving follows its cursor so
+        // Up and Down cannot walk a man off the bottom.
+        int fits = Mathf.Max(4, (int)((at.Y + h - 14f - y) / 19f));
+        if (focused)
+        {
+            if (cursor < scroll) scroll = cursor;
+            else if (cursor >= scroll + fits) scroll = cursor - fits + 1;
+        }
+        scroll = Mathf.Clamp(scroll, 0, Mathf.Max(0, roster.Players.Count - fits));
+
+        // In the club's colour bar, where there is room. At y+54 it printed on top of the OVR and
+        // VALUE headers eight pixels below it.
+        if (roster.Players.Count > fits)
+            Palette.Text(this, new Vector2(at.X + w - 96f, at.Y + 26f),
+                $"{scroll + 1}–{Mathf.Min(scroll + fits, roster.Players.Count)} " +
+                $"of {roster.Players.Count}", 11, team.TextOnPrimary);
+
+        for (int i = scroll; i < roster.Players.Count && i < scroll + fits; i++)
         {
             var p = roster.Players[i];
             bool on = focused && i == cursor;
