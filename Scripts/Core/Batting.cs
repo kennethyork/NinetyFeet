@@ -39,12 +39,17 @@ public readonly struct SwingProfile
     {
         // A contact swing covers far more of the zone but does not drive the ball.
         SwingType.Contact => new SwingProfile(1.34f, 1.26f, 0.87f, -3f),
-        // A little more of the zone covered, a little less damage — not a different swing.
-        // Mild on purpose, and it has to stay that way. Widening it to 1.30 with the exit
-        // velocity cut to 0.86 to compensate was tried: strikeouts fell 3%, but BABIP went to
-        // .314 and hits rose 19%. Weak contact in this model still finds grass, so trading a
-        // strikeout for a softly struck ball is not the bargain it looks like.
-        SwingType.Protect => new SwingProfile(1.13f, 1.10f, 0.95f, -1f),
+        // Shortening up with two strikes: more of the zone covered, less damage done.
+        //
+        // This was held deliberately mild, and the note explaining why said that widening it sent
+        // BABIP to .314 and hits up 19% — "weak contact in this model still finds grass, so
+        // trading a strikeout for a softly struck ball is not the bargain it looks like".
+        //
+        // That was true of the model it was written against, where nothing was ever hit on the
+        // ground and the infield recorded 0.6 outs a game. It is not true now: a ball fought off
+        // with two strikes goes down at a low angle and gets fielded, which is exactly what
+        // happens in a real game. The bargain is now the one it looks like.
+        SwingType.Protect => new SwingProfile(1.22f, 1.16f, 0.92f, -1f),
         // A power swing is all or nothing: a small barrel, but it leaves in a hurry.
         SwingType.Power => new SwingProfile(0.70f, 0.80f, 1.13f, 4f),
         _ => new SwingProfile(1f, 1f, 1f, 0f),
@@ -389,7 +394,7 @@ public static class SwingResolver
         // in play were right, so what needed taking off was the top of the range — the difference
         // between a ball that clears the fence and one caught on the track — not the weak contact,
         // which was landing exactly where it should.
-        float mph = (48.5f + power * 8f + squared * 66.5f + (rng.Bell() - 0.5f) * 15f) * profile.Exit;
+        float mph = (47.2f + power * 8f + squared * 69.7f + (rng.Bell() - 0.5f) * 15f) * profile.Exit;
         if (batter.Special == Special.MoonShot && squared > 0.7f) mph *= 1.10f;
         // Gap power: line drives in the 8-to-28 degree band really carry.
         if (batter.Special == Special.GapPower && launch is > 8f and < 28f) mph *= 1.14f;

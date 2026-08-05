@@ -269,20 +269,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.30 | 8.79 | −5.6% |
-| Hits | 16.86 | 16.39 | +2.9% |
-| Doubles | 3.03 | 3.20 | −5.4% |
-| Triples | 0.26 | 0.29 | −9.4% |
-| Home runs | 2.09 | 2.24 | −6.5% |
-| Walks | 5.89 | 6.15 | −4.3% |
-| Strikeouts | 19.25 | 16.96 | **+13.5%** |
-| Stolen bases | 1.45 | 1.49 | −2.4% |
-| Caught stealing | 0.35 | 0.51 | −32.2% |
-| Hit by pitch | 0.84 | 0.79 | +6.0% |
-| Wild pitches | 0.59 | 0.76 | −21.8% |
-| Sacrifice flies | 0.47 | 0.79 | −40.7% |
+| Runs | 8.87 | 8.79 | +0.9% |
+| Hits | 17.73 | 16.39 | +8.2% |
+| Doubles | 3.46 | 3.20 | +8.0% |
+| Triples | 0.22 | 0.29 | −24.1% |
+| Home runs | 2.31 | 2.24 | +3.3% |
+| Walks | 5.71 | 6.15 | −7.2% |
+| Strikeouts | 17.37 | 16.96 | +2.4% |
+| Stolen bases | 1.49 | 1.49 | −0.3% |
+| Caught stealing | 0.34 | 0.51 | −33.9% |
+| Hit by pitch | 0.86 | 0.79 | +8.9% |
+| Wild pitches | 0.69 | 0.76 | −9.0% |
+| Sacrifice flies | 0.44 | 0.79 | −43.9% |
 | Sacrifice bunts | 0.00 | 0.19 | −100% |
-| Grounded into DP | 1.31 | 1.44 | −9.1% |
+| Grounded into DP | 1.39 | 1.44 | −3.4% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -328,22 +328,28 @@ infield was never broken. It had nothing to field.
 
 Rebuilding the batted-ball distribution meant re-deriving the whole offensive calibration, since
 every number in the table above had been tuned around a defence that could not record a ground
-out. Strikeouts are the one that has not come back: at +13.5% they are worse than the +6.6% before
-this work, and that is the next thing to fix.
+out. Six measured passes brought it back: runs +0.9%, home runs +3.3%, strikeouts +2.4%.
 
-### The harness does not play the same game the season does
+The strikeouts came back from the two-strike swing. Its profile had been held deliberately mild,
+with a note explaining that widening it sent BABIP to .314 because "weak contact in this model
+still finds grass". That was true of a model where nothing was hit on the ground and the infield
+recorded 0.6 outs a game; it is not true of one where a ball fought off with two strikes goes down
+at a low angle and gets fielded. The note was right when it was written and wrong afterwards,
+which is the ordinary way a comment goes stale.
 
-Found while checking box scores, and not yet resolved. `--sim` plays every game in neutral
-conditions — it sets the ballpark but never calls `FieldGeometry.SetConditions`, so there is no
-wind and no temperature. `SeasonState.SimulateGame` does set them, from `Weather.For`. The
-calibration table above is therefore measured under conditions a real season never plays in.
+### The harness plays in weather now
 
-A club's box scores over a fortnight came out around 11 hits a game against the 8.2 the harness
-reports, which is a large enough gap to be worth chasing rather than filing under sampling. It has
-not been chased: making `--sim` sample weather would move every number in the table at once, and
-that is a deliberate re-calibration rather than a fix to slip in.
+`--sim` used to set the ballpark and never call `SetConditions`, so every number above was measured
+in still, neutral air while a real season was played in wind and heat. The two were not describing
+the same game, and it showed: a club's box scores over a fortnight came out around 11 hits a game
+against the 8.2 the harness was reporting. It now samples the same summer temperature curve and
+the same mostly-gentle wind that `Weather.For` gives a real date, so the calibration table above is
+measured against the game the season actually plays.
 
-Other known gaps: caught stealing is a third low, so runners succeed at 81% against a real 75%. Caught stealing is a third
+Other known gaps: hits and doubles run about 8% high while runs are right, so the run environment
+is correct but a little too much of it arrives on contact. Caught stealing is a third low, so
+runners succeed at 81% against a real 75%. Sacrifice flies are 44% low and the computer never lays
+down a sacrifice bunt at all. Caught stealing is a third
 low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
 unlike everything else in that file, and are flagged there as needing a refetch.

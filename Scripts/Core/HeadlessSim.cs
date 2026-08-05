@@ -656,6 +656,22 @@ public static class HeadlessSim
 
         FieldGeometry.SetStadium(Stadiums.For(homeTeam));
 
+        // And the weather, which the harness did not play in.
+        //
+        // SeasonState.SimulateGame sets conditions from Weather.For and this did not, so every
+        // number the calibration table reported was measured in still, neutral air while a real
+        // season was played in wind and heat. The two were not describing the same game — a
+        // club's box scores over a fortnight came out around 11 hits a game against the 8.2 the
+        // harness was reporting.
+        //
+        // Sampled with the same shape Weather.For uses: a summer temperature curve, and wind that
+        // is mostly gentle and blows in as often as out.
+        var sky = new Rng(seed * 6151 + 17);
+        float summer = sky.NextFloat();
+        FieldGeometry.SetConditions(
+            (sky.Bell() - 0.5f) * 44f,
+            Mathf.RoundToInt(Mathf.Lerp(48f, 88f, summer) + sky.Range(-9f, 9f)));
+
         var pitchCounts = new Dictionary<PlayerData, int>();
         sit.HalfInningChanged += () => report.Innings++;
 
