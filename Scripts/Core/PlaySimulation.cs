@@ -24,13 +24,24 @@ public sealed class FielderAgent
     /// <summary>Blocks re-rolling the same fielding chance every frame while the ball sits nearby.</summary>
     public float PickupCooldown;
 
-    /// <summary>How close he has to get to make the play. This is the single biggest lever on
-    /// batting average on balls in play, so it is tuned rather than guessed.</summary>
+    /// <summary>
+    /// How close he has to get to make the play. This is the single biggest lever on batting
+    /// average on balls in play, so it is tuned rather than guessed.
+    ///
+    /// Came down from 6.9 when the league went light after the infield learned to throw. It is
+    /// the right lever for a uniform shortfall precisely because it does not touch home runs — a
+    /// ball over the fence is not caught by anybody — so it lifts hits, doubles and runs together
+    /// while leaving power where it was measured. The bat was tried three times for this and
+    /// overshot home runs past +20% every time.
+    ///
+    /// 6.18 was tried and read worse than 6.45 on a 350-game sample, which is a reminder that
+    /// differences of a point or two here are inside the noise and should not be chased.
+    /// </summary>
     public float CatchRadius => Player.Special switch
     {
         Special.VacuumGlove => 13.44f,
         Special.Backstop => 9.6f,     // nothing squeaks past him
-        _ => 6.9f,
+        _ => 6.45f,
     };
 
     public float ThrowSpeed =>

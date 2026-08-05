@@ -276,20 +276,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.17 | 8.79 | −7.0% |
-| Hits | 15.11 | 16.39 | −7.8% |
-| Doubles | 2.91 | 3.20 | −9.0% |
-| Triples | 0.30 | 0.29 | +4.4% |
-| Home runs | 2.16 | 2.24 | −3.6% |
-| Walks | 5.49 | 6.15 | −10.7% |
-| Strikeouts | 16.55 | 16.96 | −2.4% |
-| Stolen bases | 1.28 | 1.49 | −13.9% |
-| Caught stealing | 0.28 | 0.51 | −44.5% |
-| Hit by pitch | 0.81 | 0.79 | +3.1% |
-| Wild pitches | 0.55 | 0.76 | −27.8% |
-| Sacrifice flies | 0.35 | 0.79 | −56.2% |
-| Sacrifice bunts | 0.14 | 0.19 | −24.8% |
-| Grounded into DP | 1.56 | 1.44 | +8.1% |
+| Runs | 8.40 | 8.79 | −4.4% |
+| Hits | 15.61 | 16.39 | −4.8% |
+| Doubles | 3.06 | 3.20 | −4.4% |
+| Triples | 0.28 | 0.29 | −3.4% |
+| Home runs | 2.17 | 2.24 | −3.2% |
+| Walks | 5.63 | 6.15 | −8.4% |
+| Strikeouts | 17.06 | 16.96 | +0.6% |
+| Stolen bases | 1.30 | 1.49 | −12.8% |
+| Caught stealing | 0.31 | 0.51 | −38.9% |
+| Hit by pitch | 0.82 | 0.79 | +4.2% |
+| Wild pitches | 0.53 | 0.76 | −29.7% |
+| Sacrifice flies | 0.33 | 0.79 | −58.8% |
+| Sacrifice bunts | 0.16 | 0.19 | −15.8% |
+| Grounded into DP | 1.67 | 1.44 | +15.9% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -383,10 +383,13 @@ league's totals are. Every throw option had to clear a time margin first, and wh
 simply declined. He now throws at the lead forced runner anyway and the race decides it, since a
 runner who reaches the bag before the ball is off the list by the time it arrives.
 
-That made the defence about ten per cent better and the league is currently light across the board
-by six to eight per cent because of it. Both bat levers were tried to bring it back and both send
-home runs past +20%, so it is left where the measurement puts it rather than papered over. **The
-run environment is the open item.**
+That made the defence about ten per cent better and left the league light across the board. It was
+brought back with the fielders' catch radius rather than the bat — the right lever for a uniform
+shortfall precisely because a ball over the fence is not caught by anybody, so it lifts hits,
+doubles and runs together and leaves power where it was measured. The bat was tried three times for
+this and overshot home runs past +20% every time.
+
+Everything now sits inside five per cent except the walks, the steal game and the sacrifice fly.
 
 Run scoring drifted to +8.4% across the gameplay fixes and was brought back to +3.4% on the
 baserunning side rather than by detuning the bat — the defence now attempts a throw with a tenth of
