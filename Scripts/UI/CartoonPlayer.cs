@@ -270,7 +270,12 @@ public static class CartoonPlayer
     private static void DrawLegs(CanvasItem c, Vector2 hip, Vector2 feet, float s, float facing,
         Pose pose, TeamData team, float time, int seed, float phase = 0f)
     {
-        float stride = pose == Pose.Run ? Mathf.Sin(time * 12f) * 11f * s : 0f;
+        // A run cycle driven by the clock made every man on the field run at the same cadence,
+        // whatever his speed — a catcher lumbering to first and a burner stealing second moved
+        // their legs at exactly the same rate. The caller passes a phase derived from how far he
+        // has actually travelled, so the cycle belongs to the runner rather than to the frame.
+        float beat = phase > 0f ? phase : time * 12f;
+        float stride = pose == Pose.Run ? Mathf.Sin(beat) * 11f * s : 0f;
         float spread = pose is Pose.Stance or Pose.Field ? 9f * s : 6f * s;
 
         // A delivery: the lead leg lifts, then strides out toward the plate.
@@ -503,8 +508,10 @@ public static class CartoonPlayer
         Pose.Windup => (shoulder + new Vector2(-facing * 5f * s, 9f * s + Mathf.Sin(time * 2.2f) * 1.5f * s),
                         shoulder + new Vector2(-facing * 11f * s, 9f * s)),
         Pose.Pitch => PitchHands(shoulder, s, facing, motionPhase),
-        Pose.Run => (shoulder + new Vector2(Mathf.Sin(time * 12f) * 18f * s, 6f * s),
-                     shoulder + new Vector2(-Mathf.Sin(time * 12f) * 18f * s, 6f * s)),
+        Pose.Run => (shoulder + new Vector2(Mathf.Sin(motionPhase > 0f ? motionPhase : time * 12f)
+                                           * 18f * s, 6f * s),
+                     shoulder + new Vector2(-Mathf.Sin(motionPhase > 0f ? motionPhase : time * 12f)
+                                           * 18f * s, 6f * s)),
         Pose.Field => (shoulder + new Vector2(-16f * s, 16f * s),
                        shoulder + new Vector2(16f * s, 16f * s)),
         Pose.Cheer => (shoulder + new Vector2(-20f * s, -26f * s),

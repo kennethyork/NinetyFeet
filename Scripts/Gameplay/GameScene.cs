@@ -260,6 +260,10 @@ public partial class GameScene : Node2D
 
     private readonly Dictionary<PlayerData, int> _pitchCounts = new();
 
+    /// <summary>How many this arm has thrown tonight, for the between-innings card.</summary>
+    public int PitchesThrownBy(PlayerData arm) =>
+        arm != null && _pitchCounts.TryGetValue(arm, out int n) ? n : 0;
+
     /// <summary>Signature moves, spent as charges rather than applied passively.</summary>
     public readonly PowerUpLedger PowerUps = new();
 
@@ -1885,8 +1889,12 @@ public partial class GameScene : Node2D
             _pendingHalfBanner = null;
             _resultCameFromPlay = false;
             MaybeChangePitcher();
-            // Just long enough to register that the side was retired.
-            SetPhase(AtBatPhase.HalfBreak, 1.1f);
+
+            // Long enough to actually read the between-innings card. At 1.1 seconds it was a
+            // blink — barely enough to register that the side had been retired, let alone to see
+            // who is due up and what the man on the mound has thrown. A broadcast takes a beat
+            // here, and the beat is doing real work now that there is something in it.
+            SetPhase(AtBatPhase.HalfBreak, 2.6f);
             return;
         }
 

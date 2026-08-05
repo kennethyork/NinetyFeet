@@ -26,7 +26,7 @@ public partial class ControlsScreen : Control
         ("", "V", "Mound visit — settle him. Five a game; the sixth is a change"),
         ("", "I", "Put him on intentionally"),
 
-        ("MANAGING AT THE PLATE", "G", "Send the runner"),
+        ("MANAGING AT THE PLATE", "G / left stick click", "STEAL — send the runner"),
         ("", "H", "Pinch hit — only before the first pitch of an at-bat"),
 
         ("IN THE FIELD", "1 2 3 4", "Throw to first, second, third, home"),

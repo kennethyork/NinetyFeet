@@ -31,6 +31,8 @@ public partial class Hud : Node2D
             DrawBanner(size, Scene.BannerText);
         }
 
+        if (Scene.Phase == AtBatPhase.HalfBreak) DrawBetweenInnings(size);
+
         if (Scene.Phase == AtBatPhase.Over)
         {
             Palette.TextCentered(this, new Vector2(size.X * 0.5f, size.Y * 0.72f),
@@ -366,6 +368,58 @@ public partial class Hud : Node2D
 
         if (left == 0)
             Palette.Text(this, at + new Vector2(0f, 26f), "none left", 9, Palette.Warning);
+    }
+
+    /// <summary>
+    /// The card a broadcast throws up between innings: who is coming, who is on the mound, and
+    /// what he has done so far.
+    ///
+    /// A televised game never cuts from the third out straight to the next pitch, and neither
+    /// should this. It also does real work — the half inning is exactly when a manager wants to
+    /// know what the man on the mound has thrown and who is due up, and until now that meant
+    /// leaving the game to go and look.
+    /// </summary>
+    private void DrawBetweenInnings(Vector2 size)
+    {
+        var s = Scene.Situation;
+        var arm = s.FieldingTeam.CurrentPitcher;
+
+        var card = new Rect2(new Vector2(size.X * 0.5f - 300f, size.Y * 0.60f),
+            new Vector2(600f, 128f));
+        DrawRect(card, new Color(0.04f, 0.06f, 0.09f, 0.88f));
+        DrawRect(new Rect2(card.Position, new Vector2(card.Size.X, 3f)), Palette.Highlight);
+
+        Palette.Text(this, card.Position + new Vector2(20f, 30f),
+            $"{s.BattingTeam.Team.FullName.ToUpperInvariant()} BATTING", 16, Palette.Highlight);
+
+        // The three due up, which is the thing a viewer actually wants at a half inning.
+        var order = s.BattingTeam.BattingOrder;
+        if (order.Count > 0)
+        {
+            string due = "";
+            for (int i = 0; i < 3 && i < order.Count; i++)
+            {
+                var man = order[(s.BattingTeam.LineupSpot + i) % order.Count];
+                due += (i > 0 ? "   ·   " : "") + man.ShortName;
+            }
+            Palette.Text(this, card.Position + new Vector2(20f, 54f), $"DUE UP   {due}", 14,
+                Palette.Ink);
+        }
+
+        if (arm != null)
+        {
+            var line = s.Stats.Pitching(arm);
+            Palette.Text(this, card.Position + new Vector2(20f, 86f),
+                $"ON THE MOUND   {arm.Name}", 14, Palette.Ink);
+            Palette.Text(this, card.Position + new Vector2(20f, 108f),
+                $"{line.InningsText} IP   {line.Strikeouts} K   {line.Walks} BB   " +
+                $"{line.EarnedRuns} ER   {Scene.PitchesThrownBy(arm)} pitches",
+                13, Palette.InkDim);
+        }
+
+        Palette.Text(this, card.Position + new Vector2(card.Size.X - 150f, 30f),
+            $"{s.Away.Team.Abbrev} {s.AwayScore}   {s.Home.Team.Abbrev} {s.HomeScore}",
+            18, Palette.Ink);
     }
 
     private void DrawPowerUpChip(Vector2 size, Data.PlayerData who)
