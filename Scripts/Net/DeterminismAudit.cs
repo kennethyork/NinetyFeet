@@ -59,6 +59,7 @@ public static class DeterminismAudit
         {
             GD.Print($"\n  {days} days, identical every single day.");
             GD.Print($"  final fingerprint {fa:X16} over {a.GamesPlayed} games played.");
+            SurvivesASave(a, fa);
             GD.Print("\n  The season is replayable from its seed, which is what an online league");
             GD.Print("  needs: two machines can hold the same league and exchange only what the");
             GD.Print("  humans decide. The remaining work is routing those decisions through the");
@@ -74,5 +75,53 @@ public static class DeterminismAudit
         GD.Print("\n  Something in the simulation is reading state that is not in the seed. Until");
         GD.Print("  that is found, an online league cannot work — the two sides would drift apart");
         GD.Print("  on their own with nobody touching anything.");
+    }
+
+    /// <summary>
+    /// And it has to survive being put down and picked up again.
+    ///
+    /// Two machines agreeing while both stay running is not enough for a league: people quit, and
+    /// they come back. If a league's fingerprint changes across a save and a load — a stat that
+    /// is not written out, a roster that comes back in a different order, a field defaulted rather
+    /// than restored — then the two sides diverge the moment one of them closes the game, and
+    /// nothing in the netcode would ever catch it, because both machines would be behaving
+    /// perfectly. It is the quietest way this feature could fail.
+    /// </summary>
+    private static void SurvivesASave(SeasonState league, ulong before)
+    {
+        const int Scratch = 3;      // the fourth slot, which the slot audit also leaves alone
+
+        if (SaveGame.Occupied(Scratch))
+        {
+            GD.Print("\n  slot 4 is in use, so the save round trip was not tested.");
+            return;
+        }
+
+        int was = SaveGame.Slot;
+        SaveGame.Slot = Scratch;
+        SaveGame.Save(league);
+
+        var back = SaveGame.Load();
+        ulong after = LeagueFingerprint.Of(back);
+
+        string path = SaveGame.PathFor(Scratch);
+        if (FileAccess.FileExists(path))
+            DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+        SaveGame.Slot = was;
+
+        GD.Print($"\n  after a save and a load:  {after:X16}   " +
+                 $"{(after == before ? "match" : "CHANGED")}");
+
+        if (after == before)
+        {
+            GD.Print("  A league can be put down and picked up without moving, so a player");
+            GD.Print("  quitting for the night does not silently split an online league in two.");
+            return;
+        }
+
+        GD.Print("  The league is not the same after a round trip through its own save file.");
+        GD.Print("  Two machines would drift apart the moment one of them closed the game, and");
+        GD.Print("  the netcode would never see it — both sides would be behaving perfectly.");
+        GD.Print(LeagueFingerprint.Diff(league, back));
     }
 }

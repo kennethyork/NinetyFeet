@@ -121,6 +121,20 @@ public static class SaveGame
         /// <summary>Work ethic, loyalty, poise, morale. Absent in a save written before them.</summary>
         public int[] Who { get; set; }
 
+        /// <summary>
+        /// Days out, days of rest, and pitches thrown lately. None of this was ever written down.
+        ///
+        /// A man on the shelf came back healthy the moment the game was reloaded, and every arm
+        /// came back fresh however hard it had just been used — which also silently reset the
+        /// workload the pitching coach reads before he writes to you. Found by the online-league
+        /// determinism check, which noticed a league was not the same after a round trip through
+        /// its own save file.
+        /// </summary>
+        public int[] Hurt { get; set; }
+
+        /// <summary>What is wrong with him, if anything.</summary>
+        public string Ail { get; set; }
+
         public int[] Bat { get; set; }     // batting counters
         public int[] Pit { get; set; }     // pitching counters
         public int[] Car { get; set; }     // career batting, then career pitching
@@ -719,6 +733,8 @@ public static class SaveGame
             Car = Pack(book.CareerBatting(p), book.CareerPitching(p)),
             Min = book.HasMinorLine(p) ? Pack(book.MinorBatting(p), book.MinorPitching(p)) : null,
             Who = new[] { p.WorkEthic, p.Loyalty, p.Poise, p.Morale },
+            Hurt = new[] { p.DaysOut, p.RestDays, p.RecentPitches },
+            Ail = p.Injury,
             Bat = PackBatting(b),
             Pit = PackPitching(t),
         };
@@ -810,6 +826,13 @@ public static class SaveGame
         LegendId = d.Legend - 1,
         Salary = d.Sal, ContractYears = d.CYr, ServiceYears = d.Svc,
         Role = (StaffRole)Mathf.Clamp(d.Role, 0, 4),
+
+        // A save written before injuries were stored has no array here, and a player from one
+        // comes back healthy and rested — which is what every save did until now.
+        DaysOut = d.Hurt is { Length: 3 } ? Mathf.Max(0, d.Hurt[0]) : 0,
+        RestDays = d.Hurt is { Length: 3 } ? Mathf.Clamp(d.Hurt[1], 0, 9) : 3,
+        RecentPitches = d.Hurt is { Length: 3 } ? Mathf.Max(0, d.Hurt[2]) : 0,
+        Injury = d.Ail ?? "",
     };
 
     private static void ApplyStats(StatBook book, PlayerData p, PlayerDto d)

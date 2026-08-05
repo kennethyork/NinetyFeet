@@ -28,6 +28,15 @@ public static class LeagueFingerprint
     private const ulong Offset = 14695981039346656037;
     private const ulong Prime = 1099511628211;
 
+    /// <summary>One man's numbers, for saying what differs rather than that something does.</summary>
+    private static string Line(SeasonState s, Data.PlayerData p)
+    {
+        var b = s.Book.Batting(p);
+        var t = s.Book.Pitching(p);
+        return $"{b.AtBats}/{b.Hits}/{b.HomeRuns}/{b.Walks}/{b.Strikeouts}" +
+               $" {t.Outs}/{t.EarnedRuns}/{t.Strikeouts}";
+    }
+
     private static ulong Fold(ulong hash, long value)
     {
         unchecked
@@ -110,7 +119,40 @@ public static class LeagueFingerprint
             shown++;
         }
 
-        return found.Length == 0 ? "    identical on standings; the difference is in a player line"
+        if (found.Length > 0) return found.ToString().TrimEnd();
+
+        // Standings agree, so walk the rosters and name the first man who does not.
+        foreach (var team in Teams.All.OrderBy(t => t.Id))
+        {
+            var ra = a.RosterFor(team.Id).Players.OrderBy(p => p.Id).ToList();
+            var rb = b.RosterFor(team.Id).Players.OrderBy(p => p.Id).ToList();
+
+            if (ra.Count != rb.Count)
+            {
+                found.AppendLine($"    {team.Abbrev} carries {ra.Count} men against {rb.Count}");
+                if (++shown >= limit) break;
+                continue;
+            }
+
+            for (int i = 0; i < ra.Count && shown < limit; i++)
+            {
+                var pa = ra[i];
+                var pb = rb[i];
+
+                string why =
+                    pa.Id != pb.Id ? $"different man ({pa.Id} vs {pb.Id})"
+                    : pa.Overall != pb.Overall ? $"overall {pa.Overall} vs {pb.Overall}"
+                    : pa.DaysOut != pb.DaysOut ? $"days out {pa.DaysOut} vs {pb.DaysOut}"
+                    : Line(a, pa) != Line(b, pb) ? $"line {Line(a, pa)} vs {Line(b, pb)}"
+                    : null;
+
+                if (why == null) continue;
+                found.AppendLine($"    {team.Abbrev} {pa.Name}: {why}");
+                shown++;
+            }
+        }
+
+        return found.Length == 0 ? "    no difference found, which should not be possible"
                                  : found.ToString().TrimEnd();
     }
 }

@@ -49,9 +49,19 @@ while a drift on the third of April costs you the season and you find out in Aug
 sides disagree about who is in first place.
 
 `--determinism` builds two leagues from one seed, advances both a day at a time and fingerprints
-each after every day. Forty days, 576 games, identical every single day. So two machines can hold
-the same league; what remains is routing human decisions through the sequencer netplay already has,
-and comparing that fingerprint daily so a drift is caught on the day it happens.
+each after every day. Forty days, 576 games, identical every single day.
+
+It then puts one of them through its own save file and reads it back, because two machines agreeing
+while both stay running is not enough — people quit and come back, and if a league is not the same
+after a round trip the two sides split apart the moment one of them closes the game, with the
+netcode seeing nothing because both are behaving perfectly.
+
+**That check currently fails, and it found a real bug on the way.** Injuries and pitcher workload
+were never written to the save at all: a man on the shelf came back healthy on reload and every arm
+came back fresh however hard it had just been used, which also quietly reset the workload the
+pitching coach reads before he writes to you. Fixed. A second cause remains — the same player comes
+back with a different `Overall`, in both directions, which means a rating is not round-tripping.
+The diff names the men it happens to, so it is a short hunt rather than a search.
 
 **Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
 replication. Both peers build the identical league and trade only what each player decides; the
