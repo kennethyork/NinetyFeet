@@ -379,9 +379,32 @@ public partial class BattingView : Node2D
             ? BallScreenPos()
             : new Vector2(size.X * 0.5f, size.Y * 0.40f);
 
-        CartoonPlayer.Draw(this, batterAt, BatterScale, -sign,
+        // The bat swings where you aimed.
+        //
+        // It used to swing at one fixed height whatever the pitch: the barrel crossed the plate 88
+        // pixels below the middle of the strike zone, clipping the bottom eleven per cent of it and
+        // nothing else. A letter-high fastball passed a hundred and fifty pixels over the bat. The
+        // simulation said contact, the picture showed the bat missing by a foot, and "every swing,
+        // no contact with the ball" was a correct description of what was on screen.
+        //
+        // Measured in unscaled units, negative being up, and clamped so he stays a hitter rather
+        // than a man swinging at his own shoelaces or over his head.
+        // The hitter is drawn at about a quarter of life size against the zone — his shoulders sit
+        // below the bottom of it — so his arms alone cannot cover a letter-high pitch however far
+        // they reach. Splitting the correction is what a cartoonist would do anyway: he rises onto
+        // his toes for one upstairs and drops into it for one at the knees, and his hands do the
+        // rest. Neither half has to be extreme, which keeps him looking like a hitter.
+        float aimScreenY = ToScreen(Scene.BatCursor).Y;
+        float need = aimScreenY - (batterAt.Y - 107f);
+
+        float bodyLift = Mathf.Clamp(need * 0.42f, -74f, 52f);
+        float swingAim = Mathf.Clamp((need - bodyLift) / BatterScale, -78f, 46f);
+
+        var stand = batterAt + new Vector2(0f, swinging ? bodyLift : 0f);
+
+        CartoonPlayer.Draw(this, stand, BatterScale, -sign,
             swinging ? Pose.Swing : Pose.Stance, batTeam, batter, _time,
-            withBat: true, motionPhase: Scene.SwingPhase, lookAt: watching);
+            withBat: true, motionPhase: Scene.SwingPhase, lookAt: watching, swingAim: swingAim);
 
         // The catcher is nearest the camera: cropped by the bottom edge, framing the shot.
         var catcher = Scene.Situation.FieldingTeam.Fielder(Data.Position.C);
@@ -540,7 +563,19 @@ public partial class BattingView : Node2D
         // The ball used to leave the hand at two and a half pixels across, against a crowd, a
         // scoreboard and a grass pattern. That is not a ball you can pick up, and no amount of
         // timing help fixes a pitch you never saw. It starts twice that size now.
-        float radius = Mathf.Lerp(5f, 17f, persp);
+        //
+        // And it stops growing at the plate. It used to keep swelling for another four hundred
+        // milliseconds after the moment to swing — 17 pixels at contact, 21 by the time it reached
+        // the catcher — so the instant the ball *looked* like it had arrived, biggest and closest,
+        // was about three hundred milliseconds after the instant it actually had. A hitter timing
+        // his swing to the picture was late every single time and could not see why.
+        //
+        // Past the plate it is a ball being caught, not a ball still coming: it eases back and
+        // fades into the mitt, so the largest the ball ever gets is the moment to hit it.
+        float grow = Mathf.Min(persp, 1f);
+        float past = Mathf.Clamp(t - 1f, 0f, 0.3f) / 0.3f;
+        float radius = Mathf.Lerp(5f, 17f, grow) * Mathf.Lerp(1f, 0.78f, past);
+        float ballAlpha = Mathf.Lerp(1f, 0.25f, past);
 
         // The trail. Longer and far more visible than it was — this is what makes the break
         // readable, and reading the break is the whole skill.
@@ -554,8 +589,9 @@ public partial class BattingView : Node2D
         }
 
         // An outline, so the ball reads against grass, dirt, crowd and scoreboard alike.
-        DrawCircle(at, radius + 2f, new Color(0.06f, 0.07f, 0.09f, 0.85f));
-        DrawCircle(at, radius, Palette.Ball);
+        DrawCircle(at, radius + 2f, new Color(0.06f, 0.07f, 0.09f, 0.85f * ballAlpha));
+        DrawCircle(at, radius,
+            new Color(Palette.Ball.R, Palette.Ball.G, Palette.Ball.B, ballAlpha));
 
         // No ring. It was tried and it is not wanted, and on reflection it was the wrong answer to
         // the right problem: a countdown drawn on the ball tells you when to swing without ever

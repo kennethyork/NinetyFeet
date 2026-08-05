@@ -209,7 +209,7 @@ public static class CartoonPlayer
     /// </param>
     public static void Draw(CanvasItem c, Vector2 feet, float scale, float facing,
         Pose pose, TeamData team, PlayerData player, float time, bool withBat = false,
-        float motionPhase = 0f, Vector2? lookAt = null)
+        float motionPhase = 0f, Vector2? lookAt = null, float swingAim = 0f)
     {
         // A named kid gets the look he was written with; everyone else gets one from his seed.
         var look = player is { LegendId: >= 0 }
@@ -246,7 +246,8 @@ public static class CartoonPlayer
         DrawTorso(c, shoulder, hip, s, look, team, player);
 
         // The bat goes on before the hands so the fingers close over the handle.
-        var (backHand, frontHand) = HandPositions(shoulder, s, facing, pose, look, time, motionPhase);
+        var (backHand, frontHand) = HandPositions(shoulder, s, facing, pose, look, time,
+            motionPhase, swingAim);
         if (withBat) DrawBatInHands(c, backHand, frontHand, s, facing, pose, motionPhase);
 
         DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
@@ -461,15 +462,26 @@ public static class CartoonPlayer
     }
 
     /// <summary>Where the hands are at a given point in the swing.</summary>
+    /// <param name="aim">
+    /// How far up or down, in unscaled units, the barrel should pass — so the bat swings where the
+    /// hitter aimed rather than always at the same height.
+    ///
+    /// Without this the barrel crossed the plate 88 pixels below the middle of the strike zone,
+    /// every swing, whatever the pitch. It clipped the bottom eleven per cent of the zone and
+    /// nothing else, so a letter-high fastball passed a hundred and fifty pixels over the bat. The
+    /// swing connected in the simulation and visibly missed by a foot, which is precisely the
+    /// complaint that the bat never touches the ball. It was true.
+    /// </param>
     private static (Vector2 Back, Vector2 Front) SwingHands(Vector2 shoulder, float s, float facing,
-        float phase)
+        float phase, float aim = 0f)
     {
         float e = SwingEase(phase);
 
         // The hands travel from cocked behind the ear, down through the zone, and out front.
+        // Only the working part of the swing tracks the aim; the load starts where it starts.
         Vector2 cocked = shoulder + new Vector2(-facing * 19f * s, -19f * s);
-        Vector2 contact = shoulder + new Vector2(facing * 20f * s, 2f * s);
-        Vector2 finish = shoulder + new Vector2(facing * 30f * s, -14f * s);
+        Vector2 contact = shoulder + new Vector2(facing * 20f * s, (2f + aim) * s);
+        Vector2 finish = shoulder + new Vector2(facing * 30f * s, (-14f + aim * 0.7f) * s);
 
         Vector2 grip = e < 0.72f
             ? cocked.Lerp(contact, e / 0.72f)
@@ -480,10 +492,10 @@ public static class CartoonPlayer
 
     private static (Vector2 Back, Vector2 Front) HandPositions(
         Vector2 shoulder, float s, float facing, Pose pose, Look look, float time,
-        float motionPhase = 0f) => pose switch
+        float motionPhase = 0f, float swingAim = 0f) => pose switch
     {
         // Batting poses keep both hands close together, because they are gripping one bat.
-        Pose.Swing => SwingHands(shoulder, s, facing, motionPhase),
+        Pose.Swing => SwingHands(shoulder, s, facing, motionPhase, swingAim),
         Pose.Stance => (shoulder + new Vector2(-facing * 17f * s, -17f * s),
                         shoulder + new Vector2(-facing * 11f * s, -10f * s)),
 

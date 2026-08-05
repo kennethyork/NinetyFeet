@@ -88,7 +88,13 @@ public partial class GameScene : Node2D
     {
         var batter = Situation?.Batter;
         if (batter == null) return 0.1f;
-        float w = (0.048f + batter.Contact / 10f * 0.040f) * TimingAssist * SwingProfile.For(type).Window;
+
+        // Taken from the resolver's own expression rather than a second copy of it. These had
+        // drifted apart — the screen drew a window 21% narrower than the one a swing was actually
+        // judged against for a weak hitter — and an indicator that disagrees with the rule is the
+        // exact thing this game keeps promising not to ship.
+        float w = (0.066f + batter.Contact / 10f * 0.022f)
+                  * TimingAssist * SwingProfile.For(type).Window;
         if (batter.Special == Data.Special.ContactMaster) w *= 1.4f;
         return w;
     }
@@ -1458,6 +1464,15 @@ public partial class GameScene : Node2D
             LastSwingResult = result;
             LastSwingType = type;
             SwingFeedbackTimer = 1.3f;
+
+            // Every human swing, with the numbers that decided it. Reasoning about why hitting
+            // feels wrong from a synthetic model of a hitter has produced four wrong diagnoses;
+            // this is the actual swing a person actually took.
+            GD.Print($"[swing] at={atProgress:F3} timing={ball.TimingNorm:+0.00;-0.00;0.00} " +
+                     $"cursor=({cursor.X:F2},{cursor.Y:F2}) " +
+                     $"cross=({CurrentPitch.CrossPoint.X:F2},{CurrentPitch.CrossPoint.Y:F2}) " +
+                     $"miss=({ball.MissX:+0.00;-0.00;0.00},{ball.MissY:+0.00;-0.00;0.00}) " +
+                     $"strike={CurrentPitch.IsStrike} {SwingProfile.Label(type)} -> {result}");
         }
 
         switch (result)

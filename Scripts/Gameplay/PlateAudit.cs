@@ -30,6 +30,75 @@ public static class PlateAudit
         Trackability();
         Windows();
         SwingFeel();
+        CanItBeHit();
+    }
+
+    /// <summary>
+    /// The question nobody had ever asked: does a perfect swing connect?
+    ///
+    /// Everything else here measures how readable the pitch is. None of it matters if putting the
+    /// bat exactly on the ball at exactly the right instant does not produce contact — and after a
+    /// report of missing on every single swing, that is the first thing to establish rather than
+    /// the last.
+    ///
+    /// Three hitters, played three ways, against real pitches from real arms.
+    /// </summary>
+    private static void CanItBeHit()
+    {
+        GD.Print("\n-- can it actually be hit --");
+
+        var league = RosterGenerator.For(Teams.All[0]);
+        var arm = RosterGenerator.For(Teams.All[1]).Pitchers[0];
+        var rng = new Rng(4242);
+
+        foreach (var label in new[] { "perfect", "5% late", "half a barrel off", "chasing the ball" })
+        {
+            int swings = 0, miss = 0, foul = 0, play = 0;
+            float mph = 0f;
+
+            for (int i = 0; i < 4000; i++)
+            {
+                var batter = league.BattingOrder[i % league.BattingOrder.Count];
+                CpuBrain.ChoosePitch(new GameSituation(), arm, ref rng, out var type, out var aim);
+                var pitch = PitchFactory.Create(arm, type, aim, 0f, ref rng,
+                    DifficultyTuning.For(Difficulty.Pro).HumanCommand,
+                    DifficultyTuning.For(Difficulty.Pro).PitchSpeed);
+
+                // Where the bat goes, and when.
+                Vector2 cursor = pitch.CrossPoint;
+                float at = 1f;
+
+                switch (label)
+                {
+                    case "5% late": at = 1.05f; break;
+                    case "half a barrel off":
+                        cursor += new Vector2(0f,
+                            SwingResolver.SquareUpRadius(batter, SwingType.Normal) * 0.5f);
+                        break;
+                    case "chasing the ball":
+                        // The bat put where the ball *appears* to be a tenth of a second before
+                        // it lands, which is what a person watching the ball naturally does.
+                        cursor = pitch.PositionAt(0.90f);
+                        break;
+                }
+
+                swings++;
+                var result = SwingResolver.Resolve(batter, pitch, at, cursor, ref rng,
+                    out var ball, GameScene.OnlineBatAssist, SwingType.Normal,
+                    GameScene.OnlineTimingAssist);
+
+                if (result == SwingResult.Miss) miss++;
+                else if (result == SwingResult.Foul) foul++;
+                else { play++; mph += ball.ExitVelocity / 1.46667f; }
+            }
+
+            GD.Print($"     {label,-20} whiff {miss * 100f / swings,5:F1}%   " +
+                     $"foul {foul * 100f / swings,5:F1}%   in play {play * 100f / swings,5:F1}%   " +
+                     $"avg {(play > 0 ? mph / play : 0f),5:F0} mph");
+        }
+
+        GD.Print("\n  a perfect swing must be close to zero whiffs. If it is not, hitting is not " +
+                 "a skill\n  problem, it is a broken mechanic.");
     }
 
     /// <summary>
@@ -117,14 +186,34 @@ public static class PlateAudit
                  "three quarters of its\n   travelling inside the last quarter second, which is " +
                  "why it could not be tracked)");
 
-        GD.Print("\n  screen position through the flight:");
+        GD.Print("\n  screen position and apparent size through the flight:");
         GD.Print("     flight    on screen    ball size    ms to go");
-        foreach (float t in new[] { 0f, 0.25f, 0.5f, 0.7f, 0.85f, 0.95f, 1f })
+
+        float biggest = 0f, biggestAt = 0f;
+        foreach (float t in new[] { 0f, 0.25f, 0.5f, 0.7f, 0.85f, 0.95f, 1f, 1.1f, 1.2f, 1.3f })
         {
             float p = BattingView.Perspective(t);
-            GD.Print($"     {t * 100,5:F0}%      {p * 100,5:F0}%       {5f + 12f * p,5:F1}px    " +
-                     $"{(1f - t) * flight * 1000f,5:F0}");
+            float rad = BallRadius(t, p);
+            if (rad > biggest) { biggest = rad; biggestAt = t; }
+
+            GD.Print($"     {t * 100,5:F0}%      {p * 100,5:F0}%       {rad,5:F1}px    " +
+                     $"{(1f - t) * flight * 1000f,5:F0}{(Mathf.Abs(t - 1f) < 0.001f ? "   <- swing here" : "")}");
         }
+
+        // The moment the ball looks like it has arrived has to be the moment it has.
+        GD.Print($"\n  ball is largest at {biggestAt * 100:F0}% of the flight " +
+                 $"({(biggestAt - 1f) * flight * 1000f:+0;-0;0} ms relative to the plate)");
+        GD.Print(Mathf.Abs(biggestAt - 1f) < 0.02f
+            ? "  VERDICT: biggest is contact. Swinging at what you see is swinging on time."
+            : "  VERDICT: FAILED — the ball peaks after the plate, so watching it makes you late.");
+    }
+
+    /// <summary>Mirrors the radius curve in BattingView.DrawBall.</summary>
+    private static float BallRadius(float t, float persp)
+    {
+        float grow = Mathf.Min(persp, 1f);
+        float past = Mathf.Clamp(t - 1f, 0f, 0.3f) / 0.3f;
+        return Mathf.Lerp(5f, 17f, grow) * Mathf.Lerp(1f, 0.78f, past);
     }
 
     // -----------------------------------------------------------------------
