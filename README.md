@@ -59,9 +59,15 @@ netcode seeing nothing because both are behaving perfectly.
 **That check currently fails, and it found a real bug on the way.** Injuries and pitcher workload
 were never written to the save at all: a man on the shelf came back healthy on reload and every arm
 came back fresh however hard it had just been used, which also quietly reset the workload the
-pitching coach reads before he writes to you. Fixed. A second cause remains — the same player comes
-back with a different `Overall`, in both directions, which means a rating is not round-tripping.
-The diff names the men it happens to, so it is a short hunt rather than a search.
+pitching coach reads before he writes to you. Fixed. Two further causes are found and named, and neither is fixed yet:
+
+- **Player ids collide.** The diff shows one man coming back as a completely different player under
+  the same id — `pos2 con9 pow6` against `pos9 con7 pow7`. Ids are handed out as
+  `team.Id * 100 + usedNames.Count`, and `--unique` checks that no two players share a name or a
+  face but has never checked that no two share an id. Everything keyed by identity is affected by
+  this, not only the save.
+- **A pitcher's staff role does not survive a reload** — `role1` comes back as `role0` — which
+  changes his overall, because a reliever is not judged on how long he can go.
 
 **Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
 replication. Both peers build the identical league and trade only what each player decides; the

@@ -28,6 +28,10 @@ public static class LeagueFingerprint
     private const ulong Offset = 14695981039346656037;
     private const ulong Prime = 1099511628211;
 
+    private static string Ratings(Data.PlayerData p) =>
+        $"pos{(int)p.Position} role{(int)p.Role} con{p.Contact} pow{p.Power} spd{p.Speed} " +
+        $"fld{p.Fielding} arm{p.Arm} pp{p.PitchPower} pc{p.PitchControl} sta{p.Stamina}";
+
     /// <summary>One man's numbers, for saying what differs rather than that something does.</summary>
     private static string Line(SeasonState s, Data.PlayerData p)
     {
@@ -141,7 +145,8 @@ public static class LeagueFingerprint
 
                 string why =
                     pa.Id != pb.Id ? $"different man ({pa.Id} vs {pb.Id})"
-                    : pa.Overall != pb.Overall ? $"overall {pa.Overall} vs {pb.Overall}"
+                    : pa.Overall != pb.Overall ? $"overall {pa.Overall} vs {pb.Overall}  " +
+                        $"[{Ratings(pa)}] vs [{Ratings(pb)}]"
                     : pa.DaysOut != pb.DaysOut ? $"days out {pa.DaysOut} vs {pb.DaysOut}"
                     : Line(a, pa) != Line(b, pb) ? $"line {Line(a, pa)} vs {Line(b, pb)}"
                     : null;
