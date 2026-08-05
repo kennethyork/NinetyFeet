@@ -100,6 +100,12 @@ public partial class SettingsScreen : Control
         for (int i = 0; i < Data.Teams.All.Count; i++)
             if (Data.TeamEdits.For(i) != null) edited++;
 
+        int po = Settings.PlayoffLength();
+        Row("Playoffs", $"Best of {po}, then {Mathf.Min(7, po + 2)}",
+            "How long October is. The best club wins a seven far more often than it wins a three.",
+            ref y,
+            () => Settings.SavePlayoffLength(po == 3 ? 5 : po == 5 ? 7 : 3));
+
         Row("League", $"Slot {Season.SaveGame.Slot + 1} of {Season.SaveGame.Slots}",
             Season.SaveGame.Describe(Season.SaveGame.Slot) +
             "  ·  click to move to the next one; the one you leave is saved first",

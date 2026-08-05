@@ -91,14 +91,20 @@ public sealed class PlayoffBracket
         if (al.Count < 4 || nl.Count < 4) return;
 
         // Round one: one hosts four, two hosts three, in each league.
-        Series.Add(new PlayoffSeries { Round = "AL Semifinal", HighSeedId = al[0], LowSeedId = al[3], BestOf = 5 });
-        Series.Add(new PlayoffSeries { Round = "AL Semifinal", HighSeedId = al[1], LowSeedId = al[2], BestOf = 5 });
-        Series.Add(new PlayoffSeries { Round = "NL Semifinal", HighSeedId = nl[0], LowSeedId = nl[3], BestOf = 5 });
-        Series.Add(new PlayoffSeries { Round = "NL Semifinal", HighSeedId = nl[1], LowSeedId = nl[2], BestOf = 5 });
+        // How long the rounds are is the league's rule, not the game's. A short October is a
+        // different competition from a long one — the best club wins a seven far more often than
+        // it wins a three — and which of those you want is a decision worth handing over.
+        int early = Core.Settings.PlayoffLength();
+        int late = early + 2 > 7 ? 7 : early + 2;
 
-        Series.Add(new PlayoffSeries { Round = "AL Championship", BestOf = 7 });
-        Series.Add(new PlayoffSeries { Round = "NL Championship", BestOf = 7 });
-        Series.Add(new PlayoffSeries { Round = "Sandlot Series", BestOf = 7 });
+        Series.Add(new PlayoffSeries { Round = "AL Semifinal", HighSeedId = al[0], LowSeedId = al[3], BestOf = early });
+        Series.Add(new PlayoffSeries { Round = "AL Semifinal", HighSeedId = al[1], LowSeedId = al[2], BestOf = early });
+        Series.Add(new PlayoffSeries { Round = "NL Semifinal", HighSeedId = nl[0], LowSeedId = nl[3], BestOf = early });
+        Series.Add(new PlayoffSeries { Round = "NL Semifinal", HighSeedId = nl[1], LowSeedId = nl[2], BestOf = early });
+
+        Series.Add(new PlayoffSeries { Round = "AL Championship", BestOf = late });
+        Series.Add(new PlayoffSeries { Round = "NL Championship", BestOf = late });
+        Series.Add(new PlayoffSeries { Round = "Sandlot Series", BestOf = late });
     }
 
     /// <summary>Feeds completed series into the next round and crowns a champion at the end.</summary>

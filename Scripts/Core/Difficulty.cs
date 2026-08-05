@@ -166,6 +166,26 @@ public static class Settings
         cfg.Save(Path);
     }
 
+    /// <summary>
+    /// Games in the first playoff round. The later rounds run two longer, capped at seven, which
+    /// is how a real bracket is shaped — the further you go the more the format asks of you.
+    /// </summary>
+    public static int PlayoffLength()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return 5;
+        int v = (int)cfg.GetValue("game", "playofflength", 5);
+        return v is 3 or 5 or 7 ? v : 5;
+    }
+
+    public static void SavePlayoffLength(int games)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "playofflength", games is 3 or 5 or 7 ? games : 5);
+        cfg.Save(Path);
+    }
+
     /// <summary>Whether the first-game help card has been dismissed.</summary>
     public static bool LoadSeenHelp()
     {

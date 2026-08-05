@@ -85,6 +85,11 @@ winter; loyalty and morale decide what he will re-sign for. None of it touches h
 — a league whose run environment moved with how happy everybody was would be a league whose
 calibration could not be trusted.
 
+**The playoff format** — best of 3, 5 or 7 in the first round, with the later rounds two longer
+and capped at seven. A short October is a different competition from a long one: the best club wins
+a seven far more often than it wins a three, and which of those you want is a league rule rather
+than the game's.
+
 **Four leagues at once** — there was one. A single `season.json`, so a dynasty you had run for ten
 seasons was the only league that could exist, and starting a fresh one to try something meant
 destroying it. Slots are chosen in Settings and the league you leave is written out first, because
