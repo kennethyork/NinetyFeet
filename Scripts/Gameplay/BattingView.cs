@@ -19,7 +19,24 @@ public partial class BattingView : Node2D
     // The hitter's framing. These three numbers have to stay in step with the bat length in
     // CartoonPlayer.DrawBat: the swung bat must actually sweep through the strike zone, or the
     // whole view reads as if you cannot reach the ball.
-    private const float BatterScale = 1.55f;
+    /// <summary>
+    /// How big the hitter is drawn.
+    ///
+    /// Measured against the camera geometry, a six-foot man at the plate — nine feet from the lens
+    /// — should stand 624 pixels tall. He was 152. So did the catcher, who is nearer still and
+    /// ought to be larger than the frame. The pitcher, sixty feet away, was the only one close to
+    /// right. Everyone in the foreground read as a figurine placed beside an enormous floating
+    /// strike zone, which is most of why the view does not look like baseball.
+    ///
+    /// It is not taken all the way to 624. This camera is zoomed far tighter than a television one
+    /// — the strike zone is 27% of the frame here against a small fraction of it on a broadcast —
+    /// so a literally correct hitter would bury the zone that the whole game is aimed at. This is
+    /// as large as he goes without covering the thing you are trying to hit.
+    /// </summary>
+    private const float BatterScale = 2.6f;
+
+    /// <summary>How much wider the batter's box is than it was, to match him.</summary>
+    private const float BoxGrowth = BatterScale / 1.55f;
 
     /// <summary>
     /// The chalked batter's box, in screen space. The hitter's standing position is derived from
@@ -32,10 +49,10 @@ public partial class BattingView : Node2D
         Vector2 plate = ToScreen(new Vector2(0f, Pitch.ZoneBottom - 0.55f));
         return new[]
         {
-            plate + new Vector2(side * 62f, -18f),
-            plate + new Vector2(side * 158f, -18f),
-            plate + new Vector2(side * 196f, 74f),
-            plate + new Vector2(side * 70f, 74f),
+            plate + new Vector2(side * 62f * BoxGrowth, -18f * BoxGrowth),
+            plate + new Vector2(side * 158f * BoxGrowth, -18f * BoxGrowth),
+            plate + new Vector2(side * 196f * BoxGrowth, 74f * BoxGrowth),
+            plate + new Vector2(side * 70f * BoxGrowth, 74f * BoxGrowth),
         };
     }
 
@@ -93,7 +110,12 @@ public partial class BattingView : Node2D
     /// and the progress at which the bat came through, never against a screen position, so no
     /// calibrated rate moves by a thousandth.
     /// </summary>
-    private const float PerspectiveRealism = 0.34f;
+    /// Set from real swings rather than argument. At 0.34 the logged swings came in at 0.66,
+    /// 0.77, 0.82, 0.89 and 0.96 of the flight — early every time, with the placement dead on —
+    /// which is precisely the failure the original note here warned about: flattened too far, the
+    /// ball looks hittable long before it is. At 1.0 it could not be tracked at all. This sits
+    /// between, and it is a number to keep measuring rather than to argue about.
+    private const float PerspectiveRealism = 0.55f;
 
     public static float Perspective(float t)
     {
@@ -347,7 +369,10 @@ public partial class BattingView : Node2D
         var pose = Scene.Phase == AtBatPhase.PitchSelect && !Scene.Delivering
             ? Pose.Windup : Pose.Pitch;
         // He is looking in at the plate, which from this camera is straight down the screen.
-        CartoonPlayer.Draw(this, feet, 0.60f, -1f, pose, team, pitcher, _time,
+        // 0.82 rather than 0.60: a six-foot man sixty and a half feet away, seen from nine feet
+        // behind the plate, measures 81 pixels. He was 59. Unlike the foreground figures this one
+        // can just be made correct, because at that distance correct is also small.
+        CartoonPlayer.Draw(this, feet, 0.82f, -1f, pose, team, pitcher, _time,
             motionPhase: Scene.DeliveryPhase,
             lookAt: new Vector2(size.X * 0.5f, size.Y * 0.92f));
 
@@ -395,7 +420,7 @@ public partial class BattingView : Node2D
         // his toes for one upstairs and drops into it for one at the knees, and his hands do the
         // rest. Neither half has to be extreme, which keeps him looking like a hitter.
         float aimScreenY = ToScreen(Scene.BatCursor).Y;
-        float need = aimScreenY - (batterAt.Y - 107f);
+        float need = aimScreenY - (batterAt.Y - 68f * BatterScale);
 
         float bodyLift = Mathf.Clamp(need * 0.42f, -74f, 52f);
         float swingAim = Mathf.Clamp((need - bodyLift) / BatterScale, -78f, 46f);
@@ -409,7 +434,7 @@ public partial class BattingView : Node2D
         // The catcher is nearest the camera: cropped by the bottom edge, framing the shot.
         var catcher = Scene.Situation.FieldingTeam.Fielder(Data.Position.C);
         // Far enough down that only his head and shoulders show, framing the bottom of the shot.
-        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 112f), 1.55f, 1f,
+        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 210f), 3.0f, 1f,
             Pose.Field, fieldTeam, catcher, _time,
             lookAt: Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
                 ? BallScreenPos()
@@ -696,7 +721,14 @@ public partial class BattingView : Node2D
             onTime = Mathf.Abs(t - 1f) <= Scene.TimingWindowSeconds(type) / pitch.FlightTime;
         }
 
-        var live = onTime ? new Color(0.42f, 1f, 0.52f) : tint;
+        // The only timing cue on screen, so it had better be unmissable. The logged swings were
+        // early every single time with the placement dead on, which says the hitter is reading
+        // the ball and getting nothing back about when. Green is not enough on its own when your
+        // eyes are on the ball, so the bracket pulses as well — peripheral vision picks up a
+        // change in brightness far better than a change in hue.
+        var live = onTime
+            ? new Color(0.42f, 1f, 0.52f).Lightened(0.25f * Mathf.Abs(Mathf.Sin(_time * 22f)))
+            : tint;
 
         // The bracket itself is the timing cue: it starts wide and closes onto the sweet spot,
         // arriving exactly at contact. No ring, no circle — the shape you are already watching
