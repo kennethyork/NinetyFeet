@@ -326,5 +326,59 @@ public partial class TeamEditor : Control
         Palette.TextCentered(this, revert.Position + revert.Size * 0.5f, "PUT IT BACK", 13,
             edited ? Palette.Ink : Palette.InkDim);
         if (edited) _clicks.Add(revert, () => { Revert(); QueueRedraw(); });
+
+        DrawNames(size);
     }
+
+    /// <summary>
+    /// The players' names, which are a file rather than a screen.
+    ///
+    /// Eight hundred and thirty-two men is not something anybody is going to type into a text box
+    /// one at a time, so the work happens in a text editor and this offers the two things that
+    /// cannot: somewhere to get a blank file with every slot labelled, and a way to put it onto a
+    /// league that already exists. Reading the file only affects leagues built afterwards, which
+    /// on its own would be useless to anybody four seasons into a dynasty.
+    /// </summary>
+    private void DrawNames(Vector2 size)
+    {
+        float y = 578f;
+        Palette.Text(this, new Vector2(40f, y), "PLAYER NAMES", 13, Palette.Highlight);
+        Palette.Text(this, new Vector2(160f, y), Rosters.Status(), 13, Palette.InkDim);
+
+        var write = new Rect2(new Vector2(40f, y + 12f), new Vector2(190f, 34f));
+        Palette.Panel3D(this, write, Palette.Panel);
+        Palette.TextCentered(this, write.Position + write.Size * 0.5f,
+            Rosters.Exists() ? "FILE ALREADY THERE" : "WRITE A BLANK FILE", 12,
+            Rosters.Exists() ? Palette.InkDim : Palette.Ink);
+
+        if (!Rosters.Exists())
+            _clicks.Add(write, () =>
+            {
+                Say(Rosters.WriteTemplate());
+                Rosters.Load();
+                QueueRedraw();
+            });
+
+        var apply = new Rect2(new Vector2(242f, y + 12f), new Vector2(210f, 34f));
+        bool can = Rosters.Any && Game.Instance.League != null;
+        Palette.Panel3D(this, apply, can ? Palette.Panel : Palette.Panel.Darkened(0.3f));
+        Palette.TextCentered(this, apply.Position + apply.Size * 0.5f, "APPLY TO THIS LEAGUE", 12,
+            can ? Palette.Ink : Palette.InkDim);
+
+        if (can)
+            _clicks.Add(apply, () =>
+            {
+                Rosters.Load();
+                int n = Rosters.Apply(Game.Instance.League);
+                Game.Instance.SaveLeague();
+                Say(n == 0
+                    ? "Nobody was renamed — every man already has the name in the file."
+                    : $"{n} players renamed. Box scores already written keep the old names.");
+                QueueRedraw();
+            });
+
+        Palette.Text(this, new Vector2(464f, y + 34f),
+            ProjectSettings.GlobalizePath(Rosters.Path), 11, Palette.InkDim);
+    }
+
 }

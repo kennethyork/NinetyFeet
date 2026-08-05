@@ -134,6 +134,20 @@ public partial class SettingsScreen : Control
                : "The pitcher bats ninth, and taking him out costs you the spot.",
             ref y, () => Settings.SaveDesignatedHitter(!dh));
 
+        bool written = Settings.UseWrittenPlayers();
+        Row("Written players", written ? "In the league" : "Left out",
+            written
+                ? "Ninety-six hand-written kids, three to a club, each taking a slot from a"
+                  + " generated man. Turn them off if you are supplying your own names."
+                : "Every man is generated, so a roster file fills every slot on a club."
+                  + "  ·  a new league only; this one is already built",
+            ref y, () => Settings.SaveWrittenPlayers(!written));
+
+        Row("Player names", Data.Rosters.Status(),
+            "Your own names, from a text file. Write a blank one from the club editor, fill it"
+            + " in, then start a new league — or apply it to this one from the same screen.",
+            ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
+
         int po = Settings.PlayoffLength();
         Row("Playoffs", $"Best of {po}, then {Mathf.Min(7, po + 2)}",
             "How long October is. The best club wins a seven far more often than it wins a three.",

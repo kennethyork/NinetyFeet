@@ -249,6 +249,31 @@ public static class Settings
     }
 
     /// <summary>
+    /// Whether the written players are seeded onto the clubs.
+    ///
+    /// On by default: ninety-six hand-written kids with faces and biographies, three to a club,
+    /// and they are a good part of what the league is. Off matters to one person in particular —
+    /// somebody supplying his own names. A written player displaces the generated man in his slot,
+    /// so three names in every section of a roster file are quietly spent on men who keep their
+    /// own names, and the ace you typed on line one may simply not be there.
+    ///
+    /// Only read when a league is built, so turning it over does nothing to one already running.
+    /// </summary>
+    public static bool UseWrittenPlayers()
+    {
+        var cfg = new ConfigFile();
+        return cfg.Load(Path) != Error.Ok || (bool)cfg.GetValue("game", "legends", true);
+    }
+
+    public static void SaveWrittenPlayers(bool on)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "legends", on);
+        cfg.Save(Path);
+    }
+
+    /// <summary>
     /// Games in the first playoff round. The later rounds run two longer, capped at seven, which
     /// is how a real bracket is shaped — the further you go the more the format asks of you.
     /// </summary>

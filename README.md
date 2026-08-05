@@ -37,6 +37,24 @@ club's games or simulate them.
 **Dynasty** — the same, carried across years: development, ageing, retirement, the draft, free
 agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
 
+**Your own names.** The clubs could always be renamed and recoloured; the men in them could not,
+and no screen anywhere wrote a player's name. So a league could be made to look like one you follow
+while every man in it stayed invented. `user://rosters.txt` is a plain text file — a club per
+section, a man per line — and the generator uses it in place of the names it would have drawn. Write
+a blank one with every slot labelled from the club editor or `--names-template`, fill in as much as
+you like (a club, or nine men of one, is fine), and either start a new league or apply it to the one
+you are already running.
+
+Nothing is shipped in it. The file lives in your own directory and the repository contains no names
+but its own.
+
+One thing to know before you start typing: sixteen of every club's twenty-seven men are written
+players — 512 across the league, with faces and biographies — and a written player takes a generated
+man's slot outright, so names aimed at those slots are never used. **Settings → Written players**
+turns them off, and then every slot on a club is one a file can name. `--names` reports exactly which
+of your names landed and which did not, because starting a league and reading one roster screen tells
+you nothing about the other thirty-one.
+
 **The Collection** — packs, a market, and a club built out of cards you own. Cards can be spent to
 sign a player into your actual season, and he *transfers* rather than being copied: there is one of
 everybody in this league and that stays true.
@@ -361,6 +379,8 @@ godot471cs --headless --path . -- --clubs          # the club editor renames and
 godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
 godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
+godot471cs --headless --path . -- --names          # what your own roster file actually did
+godot471cs --headless --path . -- --names-template # write a blank one to fill in
 godot471cs --headless --path . -- --league 45      # two owners, one league, results crossing
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40

@@ -596,6 +596,17 @@ public static class RosterGenerator
         var (first, last) = slot.HasValue
             ? NameForSlot(slot.Value)
             : SlotName(team.Id, usedNames.Count);
+
+        // And then whatever the player has supplied, which wins. His file is keyed by the man's
+        // place in the club rather than by the name he was about to be given, so it is stable
+        // against every one of these pools changing — and a section he has not filled in, or has
+        // filled in only halfway, leaves the rest exactly as generated.
+        if (!slot.HasValue && ordinal >= 0 && Rosters.For(team.Id, ordinal) is { } mine)
+        {
+            if (mine.First != null) first = mine.First;
+            last = mine.Last;
+        }
+
         string full = $"{first} {last}";
         usedNames.Add(full);
 

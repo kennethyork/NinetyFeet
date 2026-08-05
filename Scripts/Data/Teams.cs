@@ -14,6 +14,7 @@ namespace SandlotSlugfest.Data;
 public static class Teams
 {
     private static TeamData[] _all;
+    private static (string Abbrev, string FullName)[] _shipped;
 
     public static IReadOnlyList<TeamData> All
     {
@@ -24,6 +25,12 @@ public static class Teams
             // Built first, then anything the player has renamed or recoloured is laid over the
             // top. The built-in list stays the source of truth, so a club can always be put back.
             _all = Build();
+
+            // What each club shipped as, kept before the overrides go on. A file written against
+            // the original names — the roster template prints them — has to keep working after its
+            // author renames the clubs, which is the order most people will do the two jobs in.
+            _shipped = System.Array.ConvertAll(_all, t => (t.Abbrev, t.FullName));
+
             TeamEdits.ApplyAll();
             return _all;
         }
@@ -41,6 +48,19 @@ public static class Teams
     }
 
     public static TeamData Get(int id) => All[id];
+
+    /// <summary>The abbreviation and name a club shipped with, whatever it has since been called.</summary>
+    public static string OriginalAbbrev(int id)
+    {
+        _ = All;
+        return id >= 0 && _shipped != null && id < _shipped.Length ? _shipped[id].Abbrev : null;
+    }
+
+    public static string OriginalName(int id)
+    {
+        _ = All;
+        return id >= 0 && _shipped != null && id < _shipped.Length ? _shipped[id].FullName : null;
+    }
 
     public static IEnumerable<TeamData> In(League league, Division division) =>
         All.Where(t => t.League == league && t.Division == division);

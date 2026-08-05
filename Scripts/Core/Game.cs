@@ -209,11 +209,23 @@ public partial class Game : Node
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--nolegends") >= 0)
             Data.RosterGenerator.IncludeLegends = false;
 
+        // And the same choice from Settings, which is where somebody supplying his own names will
+        // look for it. A harness keeps the written players whatever this machine is set to: they
+        // are part of the league as it ships, and half the calibration was measured with them in.
+        else if (!IsVerificationRun() && !Settings.UseWrittenPlayers())
+            Data.RosterGenerator.IncludeLegends = false;
+
         // Renamed and recoloured clubs, read before anything asks for the club list. A harness
         // never sees them: an audit that prints club abbreviations should print the ones in the
         // source, not whatever this machine's owner has called his team.
         Data.TeamEdits.Enabled = !IsVerificationRun();
         Data.TeamEdits.Load();
+
+        // The player's own names, read here for the same reason and with the same rule: a harness
+        // measures the game as it ships, not as this machine's owner has renamed it. Loaded after
+        // the club edits, because a section can be headed with a club's new name.
+        Data.Rosters.Enabled = !IsVerificationRun();
+        Data.Rosters.Load();
 
         // Which of the four leagues was last open. Read before anything tries to load one.
         if (!IsVerificationRun()) SaveGame.RestoreSlot();
@@ -247,7 +259,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template",
 
         // The two-process league test builds its own shared league and must never read this
         // machine's save — both halves of it would otherwise start from whatever season happens
@@ -421,6 +433,22 @@ public partial class Game : Node
             int days = 45;
             if (lg + 1 < args.Length && int.TryParse(args[lg + 1], out int ld)) days = ld;
             Net.LeagueAudit.Run(Mathf.Clamp(days, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--names` reports what the player's own roster file did, and `--names-template` writes
+        // a blank one. The only harness that deliberately reads that file; every other turns it off.
+        if (System.Array.IndexOf(args, "--names-template") >= 0)
+        {
+            Data.RosterAudit.Template();
+            GetTree().Quit();
+            return;
+        }
+
+        if (System.Array.IndexOf(args, "--names") >= 0)
+        {
+            Data.RosterAudit.Run();
             GetTree().Quit();
             return;
         }
