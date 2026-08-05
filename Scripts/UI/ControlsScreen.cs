@@ -12,7 +12,7 @@ public partial class ControlsScreen : Control
         ("", "Right click / F / Y", "Power swing — smaller barrel, more damage"),
         ("", "Middle click / C / X", "Contact swing — bigger barrel, less power"),
         ("", "B / left bumper", "Bunt"),
-        ("", "Arrow keys / WASD", "Aim without a mouse"),
+        ("", "WASD / arrows", "Aim without a mouse (left arrow is the steal sign)"),
         ("", "(either device)", "Whichever you touch takes the reticle and keeps it"),
         ("", "Q / E", "Hold runners / send runners"),
         ("", "R", "Challenge the call (2026 automated ball-strike rule)"),
@@ -26,7 +26,7 @@ public partial class ControlsScreen : Control
         ("", "V", "Mound visit — settle him. Five a game; the sixth is a change"),
         ("", "I", "Put him on intentionally"),
 
-        ("MANAGING AT THE PLATE", "G / left stick click", "STEAL — send the runner"),
+        ("MANAGING AT THE PLATE", "Left arrow / G", "STEAL — send the runner"),
         ("", "H", "Pinch hit — only before the first pitch of an at-bat"),
 
         ("IN THE FIELD", "1 2 3 4", "Throw to first, second, third, home"),

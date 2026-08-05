@@ -245,7 +245,7 @@ public partial class Hud : Node2D
         var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(310f, 26f));
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.Text(this, rect.Position + new Vector2(10f, 18f),
-            $"G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+            $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
     }
 
     private void DrawBaseDiamond(Vector2 center, GameSituation s)

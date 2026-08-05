@@ -58,7 +58,10 @@ public static class InputActions
     {
         Bind(AimUp, Key.W, Key.Up);
         Bind(AimDown, Key.S, Key.Down);
-        Bind(AimLeft, Key.A, Key.Left);
+        // The left arrow is the steal sign, so it cannot also aim. WASD still aims in full, and
+        // the other three arrows are untouched — binding one key to two live actions would have
+        // sent the runner every time somebody nudged the bat inside.
+        Bind(AimLeft, Key.A);
         Bind(AimRight, Key.D, Key.Right);
         Bind(Action, Key.Space);
         Bind(SwingPower, Key.F);
@@ -114,7 +117,7 @@ public static class InputActions
         BindPad(PowerUp, JoyButton.RightShoulder);
 
         // The manager's keys sit under the left hand, away from the swing.
-        Bind(Steal, Key.G);
+        Bind(Steal, Key.G, Key.Left);
         Bind(PinchHit, Key.H);
         Bind(ChangePitcher, Key.P);
         Bind(MoundVisit, Key.V);
