@@ -317,6 +317,17 @@ public partial class GameScene : Node2D
 
         Situation.Start(away, home, g.Innings);
 
+        // A moment starts somewhere other than the top of the first. Nothing in the rules is
+        // special-cased for it — the situation is simply forced, and then played out for real.
+        if (g.PendingMoment is { } moment)
+        {
+            Moments.Apply(moment, Situation);
+            _momentRunsAtStart = Moments.MyScore(moment, Situation);
+            _momentTheirsAtStart = Moments.TheirScore(moment, Situation);
+            _momentOuts = 0;
+            _momentHit = false;
+        }
+
         _field = new FieldView { Scene = this, Visible = false };
         AddChild(_field);
         _batting = new BattingView { Scene = this };
@@ -1433,6 +1444,7 @@ public partial class GameScene : Node2D
                     Narrator.Instance?.Say(VoiceLine.Strikeout, 3);
                     Narrator.Instance?.SayName(Situation.Batter);
                     Narrator.Instance?.Colour(ColourLine.CStrikeout, 0.45f);
+                    JudgeMoment(1, false);
                 }
                 else Narrator.Instance?.Say(VoiceLine.SwingMiss);
                 ShowResult("Swing and a miss.");
@@ -1520,6 +1532,7 @@ public partial class GameScene : Node2D
                 Narrator.Instance?.Say(VoiceLine.Strikeout, 3);
                 Narrator.Instance?.SayName(Situation.Batter);
                 Narrator.Instance?.Colour(ColourLine.CStrikeout, 0.45f);
+                JudgeMoment(1, false);
             }
             else Narrator.Instance?.Say(VoiceLine.CalledStrike);
             ShowResult("Called strike.");
@@ -1650,6 +1663,8 @@ public partial class GameScene : Node2D
         ShowResult(string.IsNullOrEmpty(outcome.Description) ? "The play is over." : outcome.Description,
             fromPlay: true);
 
+        JudgeMoment(outcome.Outs, outcome.IsHit);
+
         // Was that worth another look? The bar is deliberately high — a replay of a routine ground
         // ball is an interruption, not a replay. Online it is off entirely: one machine pausing to
         // watch something again while the other plays on is a desync waiting to happen.
@@ -1663,6 +1678,53 @@ public partial class GameScene : Node2D
 
     /// <summary>The replay that will roll once the live call has finished, if there is one.</summary>
     private string _replayPending;
+
+    // --- The moment in progress, if this is one. ---
+    private int _momentRunsAtStart, _momentTheirsAtStart, _momentOuts;
+    private bool _momentHit;
+
+    /// <summary>
+    /// Checks a moment against what has just happened, and ends it the instant it is decided.
+    ///
+    /// A moment that keeps going after its question has been answered is not a moment, it is a
+    /// short game — so the walk-off ends on the run crossing, not at the end of the inning.
+    /// </summary>
+    private void JudgeMoment(int outsMade, bool wasHit)
+    {
+        var g = Game.Instance;
+        if (g.PendingMoment is not { } moment) return;
+
+        _momentOuts += outsMade;
+        if (wasHit) _momentHit = true;
+
+        var verdict = Moments.Judge(moment, Situation, _momentRunsAtStart, _momentTheirsAtStart,
+            _momentOuts, _momentHit);
+        if (verdict == Moments.Verdict.Running) return;
+
+        if (verdict == Moments.Verdict.Won)
+        {
+            int coins = moment.Coins;
+            Cards.Collection.Load();
+            Cards.Collection.Earn(coins);
+            if (moment.Pack >= 0) Cards.Collection.Stash(moment.Pack);
+            Cards.Program.BookGame(true, 1, 0);
+            Cards.Collection.Save();
+
+            g.LastResultHeadline = $"{moment.Name} — done.";
+            g.LastResultLine = moment.Pack >= 0
+                ? $"{Cards.Market.Coins(coins)} and a {Cards.Market.Packs[moment.Pack].Name}."
+                : $"{Cards.Market.Coins(coins)} earned.";
+            CrowdSound(Sound.CrowdCheer, 0.9f);
+        }
+        else
+        {
+            g.LastResultHeadline = $"{moment.Name} — not this time.";
+            g.LastResultLine = moment.GoalText;
+        }
+
+        g.PendingMoment = null;
+        Situation.EndNow();
+    }
 
     /// <summary>The broadcast's replay: what it recorded and how it is shown.</summary>
     public readonly ReplayDirector Replay = new();
@@ -1883,6 +1945,29 @@ public partial class GameScene : Node2D
         // the end of the year, so booking this against the league as well would credit a prospect
         // twice for the same evening — once for the game you attended and once for the same game
         // inside the simulation.
+        // A career game books one man's line and nothing else. The rest of the box score belongs
+        // to nobody — these are affiliates playing an exhibition as far as the league is concerned.
+        if (g.CareerPlayer is { } me)
+        {
+            var career = Season.CareerState.Load();
+            if (career != null)
+            {
+                Season.CareerEngine.BookGame(career, Situation.Stats.Batting(me));
+                career.Save();
+
+                var line = Situation.Stats.Batting(me);
+                g.LastResultHeadline = $"{me.Name} — {line.Hits} for {line.AtBats}";
+                g.LastResultLine =
+                    $"{Situation.Away.Team.Abbrev} {Situation.AwayScore} — " +
+                    $"{Situation.Home.Team.Abbrev} {Situation.HomeScore}" +
+                    (line.HomeRuns > 0 ? $"   ·   {line.HomeRuns} home run(s)" : "");
+            }
+
+            g.CareerPlayer = null;
+            g.ClearFarmGame();
+            return;
+        }
+
         if (g.IsFarmGame)
         {
             g.LastResultHeadline = $"{g.FarmLevelName} — {Situation.FinalNote}";

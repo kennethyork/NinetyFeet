@@ -12,7 +12,8 @@ public partial class MainMenu : Control
         // Two ways to run a club, named so the difference is obvious before you commit:
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
-        "Season", "Dynasty", "The Collection", "Exhibition Game", "Settings", "Controls", "Quit",
+        "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game",
+        "Settings", "Controls", "Quit",
     };
     private int _selected;
     private float _time;
@@ -137,23 +138,35 @@ public partial class MainMenu : Control
                 Game.Instance.GoTo("res://Scenes/ClubSelect.tscn");
                 break;
             case 2:
+                // One player, from the bottom of somebody's farm system to wherever he gets to.
+                Game.Instance.PendingSeasonGame = null;
+                Game.Instance.CardClubRoster = null;
+                Game.Instance.GoTo("res://Scenes/Career.tscn");
+                break;
+            case 3:
+                // One situation, ninety seconds.
+                Game.Instance.PendingSeasonGame = null;
+                Game.Instance.CardClubRoster = null;
+                Game.Instance.GoTo("res://Scenes/Moments.tscn");
+                break;
+            case 4:
                 // Collect players, build a side out of them, take it out.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Cards.tscn");
                 break;
-            case 3:
+            case 5:
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
-            case 4:
+            case 6:
                 Game.Instance.GoTo("res://Scenes/Settings.tscn");
                 break;
-            case 5:
+            case 7:
                 Game.Instance.GoTo("res://Scenes/Controls.tscn");
                 break;
-            case 6:
+            case 8:
                 GetTree().Quit();
                 break;
         }

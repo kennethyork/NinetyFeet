@@ -409,6 +409,12 @@ public sealed class GameSituation
             Finish($"Walk-off! {Home.Team.FullName} win {HomeScore}–{AwayScore}.");
     }
 
+    /// <summary>
+    /// Stops the game where it stands. Used by a moment, which is decided the instant its question
+    /// is answered rather than at the end of the inning — a walk-off ends on the run crossing.
+    /// </summary>
+    public void EndNow(string note = "") => Finish(note);
+
     private void Finish(string note)
     {
         IsOver = true;

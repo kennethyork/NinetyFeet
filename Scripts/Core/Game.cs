@@ -111,6 +111,18 @@ public partial class Game : Node
     /// </summary>
     public string ReturnTo;
 
+    /// <summary>
+    /// A moment about to be played: one scripted situation rather than a whole game. Cleared when
+    /// it resolves.
+    /// </summary>
+    public Gameplay.Moment PendingMoment;
+
+    /// <summary>
+    /// The man whose career this is, when a career game is being played. The game books his line
+    /// against it when it ends, so a career is built out of at-bats you actually took.
+    /// </summary>
+    public Data.PlayerData CareerPlayer;
+
     public void ClearFarmGame()
     {
         FarmAwayRoster = null;
