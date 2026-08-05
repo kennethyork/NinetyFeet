@@ -136,6 +136,33 @@ public static class Inbox
                 season.CurrentDay, season.Year, tired.Name);
         }
 
+        // --- The hitting coach, on a man who cannot handle one side. ---
+        // He reads the splits, which is the only place a platoon problem is visible. Nobody could
+        // write this before, because nothing recorded which hand was on the mound.
+        foreach (var p in roster.BattingOrder)
+        {
+            var splits = season.Book.Splits;
+            if (!splits.HasBatting(p)) continue;
+
+            var good = splits.Batting(p).Peek(Stats.Split.VsRight);
+            var bad = splits.Batting(p).Peek(Stats.Split.VsLeft);
+            if (good == null || bad == null) continue;
+
+            // Enough at-bats on both sides to mean something, and a gap worth acting on.
+            if (good.AtBats < 40 || bad.AtBats < 25) continue;
+            if (good.Average - bad.Average < 0.090f) continue;
+
+            Post(Sender.Hitting, $"{p.ShortName} cannot see left-handers",
+                $"{p.Name} is hitting {Stats.BattingLine.Rate(good.Average)} against right-handed " +
+                $"pitching and {Stats.BattingLine.Rate(bad.Average)} against left, over " +
+                $"{bad.AtBats} at-bats.\n\n" +
+                "That is not a slump, it is a hole, and the other clubs have the same numbers we " +
+                "do. Expect to see a left-hander every time he comes up late in a close one.\n\n" +
+                "I can work on it. I would also take a right-handed bat on the bench.",
+                season.CurrentDay, season.Year, p.Name);
+            break;      // one of these a season is a note; five is noise
+        }
+
         // --- The bench coach on the infirmary. ---
         var hurt = roster.Players.Where(p => p.IsInjured).ToList();
         if (hurt.Count >= 3)
