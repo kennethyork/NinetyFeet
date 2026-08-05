@@ -379,6 +379,7 @@ godot471cs --headless --path . -- --clubs          # the club editor renames and
 godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
 godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
+godot471cs --headless --path . -- --talent        # written players against generated ones
 godot471cs --headless --path . -- --names          # what your own roster file actually did
 godot471cs --headless --path . -- --names-template # write a blank one to fill in
 godot471cs --headless --path . -- --league 45      # two owners, one league, results crossing
@@ -389,24 +390,57 @@ godot471cs --headless --path . -- --netleague join 127.0.0.1 --days 60 --minutes
 godot471cs --path . -- --shot /tmp/shots 1.5 8 --scene res://Scenes/Season.tscn
 ```
 
-Current `--sim 350`, both clubs combined per game:
+Current `--sim 400`, both clubs combined per game. The second column of differences is the same
+league with the written players turned off — the configuration somebody importing his own names
+has to use, since a written player takes a generated man's slot.
 
-| | Ninety Feet | MLB 2024 | |
-| --- | --- | --- | --- |
-| Runs | 8.40 | 8.79 | −4.4% |
-| Hits | 15.61 | 16.39 | −4.8% |
-| Doubles | 3.06 | 3.20 | −4.4% |
-| Triples | 0.28 | 0.29 | −3.4% |
-| Home runs | 2.17 | 2.24 | −3.2% |
-| Walks | 5.63 | 6.15 | −8.4% |
-| Strikeouts | 17.06 | 16.96 | +0.6% |
-| Stolen bases | 1.30 | 1.49 | −12.8% |
-| Caught stealing | 0.31 | 0.51 | −38.9% |
-| Hit by pitch | 0.82 | 0.79 | +4.2% |
-| Wild pitches | 0.53 | 0.76 | −29.7% |
-| Sacrifice flies | 0.33 | 0.79 | −58.8% |
-| Sacrifice bunts | 0.16 | 0.19 | −15.8% |
-| Grounded into DP | 1.67 | 1.44 | +15.9% |
+| | Ninety Feet | MLB 2024 | | without written |
+| --- | --- | --- | --- | --- |
+| Runs | 8.39 | 8.79 | −4.6% | −5.2% |
+| Hits | 15.50 | 16.39 | −5.4% | −5.7% |
+| Doubles | 3.06 | 3.20 | −4.5% | −15.2% |
+| Triples | 0.28 | 0.29 | −4.3% | −35.3% |
+| Home runs | 2.18 | 2.24 | −2.7% | +1.3% |
+| Walks | 5.67 | 6.15 | −7.8% | −3.6% |
+| Strikeouts | 17.07 | 16.96 | +0.6% | −3.2% |
+| Stolen bases | 1.32 | 1.49 | −11.4% | −18.5% |
+| Caught stealing | 0.27 | 0.51 | −47.1% | −37.7% |
+| Hit by pitch | 0.76 | 0.79 | −3.5% | −2.2% |
+| Wild pitches | 0.54 | 0.76 | −28.6% | −25.7% |
+| Sacrifice flies | 0.35 | 0.79 | −56.0% | −49.1% |
+| Sacrifice bunts | 0.15 | 0.19 | −21.1% | −10.5% |
+| Grounded into DP | 1.63 | 1.44 | +13.4% | +23.3% |
+
+**The calibration had been resting on the written cast, and nobody knew.** Turning the written
+players off used to move run scoring from four percent under the majors to twelve — the same
+simulation, the same park, eight percent of the league's offence gone. Sixteen of every club's
+twenty-seven men are hand written, so the calibration had never once measured the generator on its
+own; it had always measured a league that was three-fifths authored.
+
+`--talent` was built to find out why, and every rating on it pointed the wrong way. Without the
+written players the lineups that actually play are *better* — contact +0.25, power +0.57 — and the
+rotations *worse*. On ratings alone the league should have scored more, not eight percent less.
+
+It was the specials. `ApplyPositionProfile` decided whether a man's signature was his bat or his
+glove by asking `Fielding + Arm > Contact + Power`, and asked it *after* the positional shaping had
+run. The two sums are generated around the same centre, so on its own the question is fair — but
+the shaping hands a catcher +2 arm, a shortstop +2 fielding, a second baseman +1 fielding and −2
+power, every one of them right about baseball and every one of them tilting the scales. Up the
+middle the answer was "glove" almost regardless of the man, and catchers, shortstops, second
+basemen and centre fielders essentially never drew a bat special at all.
+
+The league it produced carried 18.8% bat specials against the written cast's 39.9%, and 27.4% glove
+ones against 17.0%. ContactMaster widens the sweet spot by a third; VacuumGlove more than doubles a
+fielder's catch radius. Asking the question before the shaping — the switch consumes no randomness,
+so every other draw in the league is untouched — closes the run gap from 8.4 points to 0.6.
+
+What is left is the doubles and triples in the last column, and they are left on purpose. A margin
+was tried, requiring a man to be *clearly* a glove player before his signature became his glove.
+It moved the league without improving it: triples came up from 35% light to 16%, doubles went from
+15% down to 19%, hits from 6% to 9%, strikeouts from 3% to 7%, and runs did not move at all.
+Trading glove specials for bat ones is not simply pro-offence — MoonShot lifts the ball to where it
+is caught, SprayHitter puts more of it in play. So it was reverted and the shortfall written down
+instead: a league without the written players scores the same and hits for less extra base.
 
 Current `--platoon 400000`, batting average by matchup:
 

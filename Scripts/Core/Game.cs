@@ -259,7 +259,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent",
 
         // The two-process league test builds its own shared league and must never read this
         // machine's save — both halves of it would otherwise start from whatever season happens
@@ -433,6 +433,15 @@ public partial class Game : Node
             int days = 45;
             if (lg + 1 < args.Length && int.TryParse(args[lg + 1], out int ld)) days = ld;
             Net.LeagueAudit.Run(Mathf.Clamp(days, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--talent` puts the written players and the generated ones side by side, rating by
+        // rating. Asked because turning the written players off moved run scoring by eight percent.
+        if (System.Array.IndexOf(args, "--talent") >= 0)
+        {
+            Data.TalentAudit.Run();
             GetTree().Quit();
             return;
         }

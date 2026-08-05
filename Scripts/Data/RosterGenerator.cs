@@ -400,6 +400,47 @@ public static class RosterGenerator
         p.PitchControl = Clamp(Rate(ref rng, 2.0f, 1.0f));
         p.Stamina = Clamp(Rate(ref rng, 5.0f, 2.0f));
 
+        // Which kind of man he is, decided before his position has its say.
+        //
+        // This used to sit at the bottom of the method, after the positional shaping below, and
+        // asked `Fielding + Arm > Contact + Power`. The two sums are generated around the same
+        // centre — 10.4 each — so on its own that is a fair question about the individual. The
+        // shaping is what breaks it: a catcher is handed +2 arm and +1 fielding, a shortstop +2
+        // fielding and +1 arm and -1 power, a second baseman +1 fielding and -2 power. Every one
+        // of those is right about baseball and every one of them tilts the test, so the answer for
+        // an up-the-middle player was "glove" almost regardless of who he was. Across the nine the
+        // shaping favours the glove by four points, and catchers, shortstops, second basemen and
+        // centre fielders essentially never drew a bat special at all.
+        //
+        // The league it produced carried 18.8% bat specials and 27.4% glove ones. The written cast
+        // — which the calibration was measured against, being three-fifths of it — carries 39.9%
+        // and 17.0%. ContactMaster widens the sweet spot by a third and VacuumGlove more than
+        // doubles a fielder's catch radius, so that inversion is worth about eight percent of the
+        // league's run scoring, and it was invisible for as long as the written players were there
+        // to mask it. Found by turning them off for somebody importing his own names.
+        //
+        // Asked before the shaping, it is a question about the man: his archetype still points a
+        // glove wizard at a glove special, which was always the intent. The switch below consumes
+        // no randomness, so moving this above it leaves every other draw in the league untouched.
+        // The bare inequality, and it stays bare.
+        //
+        // A margin was tried here — requiring a man to be clearly a glove player, by two points,
+        // before his signature became his glove — on the reasoning that the written cast splits
+        // seventy-thirty toward the bat and this splits fifty-fifty. It moved the league without
+        // improving it: triples came up from thirty-five percent light to sixteen, and doubles
+        // went from fifteen down to nineteen, hits from six to nine and strikeouts from three to
+        // seven, for no change at all in runs. Trading glove specials for bat ones is not simply
+        // pro-offence — MoonShot lifts the ball to where it is caught and SprayHitter puts more of
+        // it in play — so the swap gives with one hand and takes with the other.
+        //
+        // Left as it is, and the shortfall in doubles that a league without written players still
+        // carries is written down rather than tuned at.
+        if (rng.Chance(starter ? 0.45f : 0.15f))
+        {
+            bool glove = p.Fielding + p.Arm > p.Contact + p.Power;
+            p.Special = rng.Pick(glove ? GloveSpecials : HitterSpecials);
+        }
+
         // Positional shape: up the middle is fast and slick, the corners hit for power.
         switch (p.Position)
         {
@@ -448,12 +489,6 @@ public static class RosterGenerator
                 p.Speed = Clamp(p.Speed - 2);
                 p.Fielding = Clamp(p.Fielding - 2);
                 break;
-        }
-
-        if (rng.Chance(starter ? 0.45f : 0.15f))
-        {
-            bool glove = p.Fielding + p.Arm > p.Contact + p.Power;
-            p.Special = rng.Pick(glove ? GloveSpecials : HitterSpecials);
         }
     }
 
