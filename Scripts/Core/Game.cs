@@ -223,7 +223,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism",
     };
 
     private static bool IsVerificationRun()
@@ -343,6 +343,18 @@ public partial class Game : Node
             int balls = 3000;
             if (inf + 1 < args.Length && int.TryParse(args[inf + 1], out int ib)) balls = ib;
             InfieldAudit.Run(Mathf.Clamp(balls, 200, 60000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--determinism [days]` runs two leagues from one seed side by side and fingerprints
+        // both every day. An online league is only possible if they never disagree.
+        int det = System.Array.IndexOf(args, "--determinism");
+        if (det >= 0)
+        {
+            int days = 45;
+            if (det + 1 < args.Length && int.TryParse(args[det + 1], out int dd)) days = dd;
+            Net.DeterminismAudit.Run(Mathf.Clamp(days, 1, 200));
             GetTree().Quit();
             return;
         }

@@ -41,6 +41,18 @@ agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
 sign a player into your actual season, and he *transfers* rather than being copied: there is one of
 everybody in this league and that stays true.
 
+**Online leagues are possible, and this is the proof.** Netplay works by having both machines
+build the identical game from a shared seed and exchange only what each human decides. The same
+trick generalises to a whole season — but only if a season is replayable, and a season-long desync
+is far nastier than a game-long one: inside a game it costs you the game and you see it at once,
+while a drift on the third of April costs you the season and you find out in August when the two
+sides disagree about who is in first place.
+
+`--determinism` builds two leagues from one seed, advances both a day at a time and fingerprints
+each after every day. Forty days, 576 games, identical every single day. So two machines can hold
+the same league; what remains is routing human decisions through the sequencer netplay already has,
+and comparing that fingerprint daily so a drift is caught on the day it happens.
+
 **Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
 replication. Both peers build the identical league and trade only what each player decides; the
 host is a sequencer, not the simulation.
@@ -276,6 +288,7 @@ godot471cs --headless --path . -- --defence 4000   # what each fielding alignmen
 godot471cs --headless --path . -- --people 4       # is personality a mechanic or a label?
 godot471cs --headless --path . -- --clubs          # the club editor renames and nothing else
 godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
+godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40
