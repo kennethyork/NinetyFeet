@@ -41,12 +41,28 @@ agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
 sign a player into your actual season, and he *transfers* rather than being copied: there is one of
 everybody in this league and that stays true.
 
-**Online leagues are possible, and this is the proof.** Netplay works by having both machines
-build the identical game from a shared seed and exchange only what each human decides. The same
-trick generalises to a whole season — but only if a season is replayable, and a season-long desync
-is far nastier than a game-long one: inside a game it costs you the game and you see it at once,
-while a drift on the third of April costs you the season and you find out in August when the two
-sides disagree about who is in first place.
+**Online** — one ballgame, or a whole season two people run together. Both are reached from
+**Online** on the title screen. Until now neither was: the netcode was finished and proven and the
+only thing that could open a socket was a headless self-test on the command line.
+
+**A shared season.** Each of you runs a club in the same league. Every game neither of you is
+playing is simulated by both machines from the fixture's own seed and lands on the same score to
+the last run, so a season costs a few kilobytes a day rather than a stream of standings. The games
+you play cannot be re-derived by anyone else, so those travel as packets. The day is a barrier:
+neither calendar turns until both owners have finished with it, and every night both machines
+fingerprint the entire league and compare, so a disagreement is caught on the day it happens
+rather than in August. The one fixture nobody plays is the two of you against each other — both
+machines settle that from the seed, because a result one of you produced by hand is a result the
+other cannot have.
+
+A shared league is never written to disk. It belongs to two people and only half of it is on this
+machine, so saving it would put a season nobody can resume into a slot somebody cares about.
+
+Netplay works by having both machines build the identical game from a shared seed and exchange only
+what each human decides. The same trick generalises to a whole season — but only if a season is
+replayable, and a season-long desync is far nastier than a game-long one: inside a game it costs
+you the game and you see it at once, while a drift on the third of April costs you the season and
+you find out in August when the two sides disagree about who is in first place.
 
 `--determinism` builds two leagues from one seed, advances both a day at a time and fingerprints
 each after every day. Forty days, 576 games, identical every single day.
@@ -57,7 +73,23 @@ after a round trip the two sides split apart the moment one of them closes the g
 netcode seeing nothing because both are behaving perfectly. Forty days match, and so does the
 league after a save and a load.
 
-**Getting there found three real bugs.** Injuries and pitcher workload
+`--league` then runs the real arrangement in one process: two owners, one league, each playing his
+own club's games from a seed the league itself would never use — a result neither machine could
+work out for itself — and posting it to the other. Forty-five days, 76 games posted across, 656
+played, identical every day.
+
+`--netleague` runs the same thing over an actual socket, two processes, because none of what only
+exists once there are two of them can be reasoned about from one side: that the terms agree before
+either builds a league, that a packet survives being marshalled, that a day-done message cannot
+overtake the ballgame it refers to, and that the fingerprints actually arrive and get compared.
+Sixty days, 864 games, both sides finishing on `F8EFDA3B020C90DB`.
+
+Neither audit is allowed to pass quietly on a case it did not reach. The first version picked the
+two owners as clubs 0 and 1 and ran sixty days without them ever meeting, so the one fixture that
+behaves differently went untested while the run reported success — both now choose the second owner
+as whoever the first plays on opening day, and both print how many times the two met.
+
+**Getting there found four real bugs.** Injuries and pitcher workload
 were never written to the save at all: a man on the shelf came back healthy on reload and every arm
 came back fresh however hard it had just been used, which also quietly reset the workload the
 pitching coach reads before he writes to you. Fixed. **Player ids used to collide, and that is fixed.** Two causes, both of them the same mistake in
@@ -67,6 +99,15 @@ of the one before him. And written players were numbered `team.Id * 100 + 90 + l
 ninety-six of them, which ran straight over the top of the next club's range. Forty-nine of 869
 players were sharing an identity with somebody else. `--unique` now checks ids as well as names and
 faces, and reads zero.
+
+**The lineup card was never saved.** Found by widening the league fingerprint to cover it — a
+pinch hitter is permanent, so two machines holding identical players with identical statistics
+could still be sending out different nines, and a checksum that cannot see that would call an
+already-broken league healthy. The moment the fingerprint could see the card, a save round trip
+stopped matching: loading a league rebuilt every club from its player list and let the trade engine
+work the nine out again from ratings. A pinch hitter who stayed in, a man moved up to leadoff, a
+bench player covering an injury — all of it undone by closing the game. Fixed, and the round trip
+matches again.
 
 That was never only a save bug: the stat book, the box scores, the game logs and the splits are all
 keyed by player, so a collision merged two men's careers wherever it happened.
@@ -320,8 +361,11 @@ godot471cs --headless --path . -- --clubs          # the club editor renames and
 godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
 godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
+godot471cs --headless --path . -- --league 45      # two owners, one league, results crossing
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40
+godot471cs --headless --path . -- --netleague host --days 60 --minutes 7
+godot471cs --headless --path . -- --netleague join 127.0.0.1 --days 60 --minutes 7
 godot471cs --path . -- --shot /tmp/shots 1.5 8 --scene res://Scenes/Season.tscn
 ```
 

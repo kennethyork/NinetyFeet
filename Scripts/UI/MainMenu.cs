@@ -13,7 +13,9 @@ public partial class MainMenu : Control
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
         "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game",
-        "Settings", "Controls", "Quit",
+        // Online was reachable only from the command line, by a headless self-test. All of it
+        // worked and none of it was in the game.
+        "Online", "Settings", "Controls", "Quit",
     };
     private int _selected;
     private float _time;
@@ -24,27 +26,47 @@ public partial class MainMenu : Control
     private static readonly PlayerData Batter = Legends.Make(1, 9001);    // Marcus Okafor, slugger
     private static readonly PlayerData Pitcher = Legends.Make(34, 9002);  // Dmitri Sokolov, buzz cut
 
-    /// <summary>Vertical layout, derived from the viewport so nine entries always fit.</summary>
+    /// <summary>Where the painted sign ends, which is the ceiling the menu board must not cross.</summary>
+    private static float SignBottom(Vector2 size) => size.Y * 0.235f + 71f;
+
+    /// <summary>
+    /// Vertical layout, derived from the viewport so every entry fits.
+    ///
+    /// This used to work from a starting position and correct downwards, with a floor of 34% of
+    /// the height standing in for "below the sign". That floor was a guess, and adding a tenth
+    /// entry proved it wrong at every window size — the board climbed until it was painted across
+    /// the bottom half of the word FEET.
+    ///
+    /// Written the other way round now: the band between the bottom of the sign and the bottom of
+    /// the window is measured, and the spacing is tightened until the entries fit inside it. The
+    /// list can then grow without anybody having to remember to re-tune a constant.
+    /// </summary>
     private (float Top, float Step) MenuLayout()
     {
         Vector2 size = GetViewportRect().Size;
-        float step = Mathf.Clamp(size.Y * 0.058f, 22f, 42f);
-        float top = size.Y * 0.475f;
 
-        // With eleven entries a short window cannot fit them at full spacing. Tighten the step
-        // before moving the board, or the overflow correction drags it up over the title sign.
-        float available = size.Y - 84f - size.Y * 0.34f;
-        float needed = (_items.Length - 1) * step;
-        if (needed > available) step = Mathf.Max(18f, available / (_items.Length - 1));
+        int gaps = Mathf.Max(1, _items.Length - 1);
+        float step = Mathf.Clamp(size.Y * 0.058f, 20f, 42f);
 
-        // The old screen hard-coded 46px steps from the middle, which ran "Controls" and "Quit"
-        // clean off the bottom of a short window.
-        float overflow = top + (_items.Length - 1) * step - (size.Y - 84f);
-        if (overflow > 0f) top -= overflow;
+        // The board is padded above the first entry and below the last by the same amount, so the
+        // room the entries themselves get is the band less two paddings.
+        float bandTop = SignBottom(size) + 6f;
+        float bandBottom = size.Y - 40f;
 
-        // Never climb above the sign, whatever the window shape.
-        top = Mathf.Max(top, size.Y * 0.34f);
-        return (top, step);
+        float padY = step * 0.72f;
+        float available = bandBottom - bandTop - padY * 2f;
+
+        if (gaps * step > available)
+        {
+            step = Mathf.Max(15f, available / gaps);
+            padY = step * 0.72f;
+            available = bandBottom - bandTop - padY * 2f;
+        }
+
+        // Anything left over goes above and below evenly, so a tall window centres the board in
+        // the grass rather than jamming it under the sign.
+        float slack = Mathf.Max(0f, available - gaps * step);
+        return (bandTop + padY + slack * 0.5f, step);
     }
 
     public override void _Ready()
@@ -161,12 +183,18 @@ public partial class MainMenu : Control
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
             case 6:
-                Game.Instance.GoTo("res://Scenes/Settings.tscn");
+                // Host or join: one ballgame, or a whole season the two of you share.
+                Game.Instance.PendingSeasonGame = null;
+                Game.Instance.CardClubRoster = null;
+                Game.Instance.GoTo("res://Scenes/Online.tscn");
                 break;
             case 7:
-                Game.Instance.GoTo("res://Scenes/Controls.tscn");
+                Game.Instance.GoTo("res://Scenes/Settings.tscn");
                 break;
             case 8:
+                Game.Instance.GoTo("res://Scenes/Controls.tscn");
+                break;
+            case 9:
                 GetTree().Quit();
                 break;
         }

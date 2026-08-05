@@ -2339,7 +2339,15 @@ public partial class GameScene : Node2D
 
         // A scheduled season game is booked against its slot; a one-off exhibition just adds
         // its numbers to the record book.
-        if (g.PendingSeasonGame != null)
+        if (g.PendingSeasonGame != null && Net.NetLeague.I.Active)
+        {
+            // In a shared league the game goes to the other owner before it goes into the book,
+            // and the calendar does not move — it belongs to both of them, and it turns over when
+            // both have finished with it.
+            Net.NetLeague.I.Finished(g.PendingSeasonGame, Situation);
+            Net.NetLeague.I.DoneWithToday();
+        }
+        else if (g.PendingSeasonGame != null)
         {
             g.League.RecordUserGame(g.PendingSeasonGame, Situation);
             g.League.BeginPlayoffsIfReady();

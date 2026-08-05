@@ -142,7 +142,31 @@ public partial class Game : Node
         SaveGame.Save(League);
     }
 
-    public void SaveLeague() => SaveGame.Save(League);
+    /// <summary>
+    /// Takes a league built somewhere other than a save file — at present, one shared with another
+    /// player. It replaces whatever is open without writing over it.
+    /// </summary>
+    public void AdoptLeague(SeasonState league)
+    {
+        if (league == null) return;
+        if (League != null && !Net.NetLeague.I.Active) SaveGame.Save(League);
+        League = league;
+        LeagueSeed = league.LeagueSeed;
+    }
+
+    /// <summary>
+    /// A shared league is never written to disk.
+    ///
+    /// It belongs to two people and only half of it is on this machine — a saved copy would be a
+    /// season that cannot be resumed, sitting in one of four slots that already hold leagues
+    /// somebody cares about. Every screen calls this, so the guard lives here rather than in each
+    /// of them, where the one that got forgotten would silently eat a dynasty.
+    /// </summary>
+    public void SaveLeague()
+    {
+        if (Net.NetLeague.I.Active) return;
+        SaveGame.Save(League);
+    }
 
     /// <summary>
     /// Puts the current league away and opens another slot, building a fresh one if that slot is
@@ -223,7 +247,12 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league",
+
+        // The two-process league test builds its own shared league and must never read this
+        // machine's save — both halves of it would otherwise start from whatever season happens
+        // to be sitting on disk, which is not the same season on the two machines.
+        "--netleague",
     };
 
     private static bool IsVerificationRun()
@@ -303,6 +332,30 @@ public partial class Game : Node
             return;
         }
 
+        // `--netleague host|join [address] [port] [--days N]` runs one side of a shared season with
+        // no hands on it. The model is already proved in one process by --league; this is the wire.
+        int netleague = System.Array.IndexOf(args, "--netleague");
+        if (netleague >= 0 && netleague + 1 < args.Length)
+        {
+            bool host = args[netleague + 1] == "host";
+            var test = new Net.NetLeagueTest { IsHost = host };
+
+            int at = netleague + 2;
+            if (!host && at < args.Length && args[at].Contains('.')) test.Address = args[at++];
+            if (at < args.Length && int.TryParse(args[at], out int lport)) test.Port = lport;
+
+            int dd = System.Array.IndexOf(args, "--days");
+            if (dd >= 0 && dd + 1 < args.Length && int.TryParse(args[dd + 1], out int nd))
+                test.Days = Mathf.Clamp(nd, 1, 200);
+
+            int lmins = System.Array.IndexOf(args, "--minutes");
+            if (lmins >= 0 && lmins + 1 < args.Length && int.TryParse(args[lmins + 1], out int lm))
+                test.Timeout = Mathf.Clamp(lm, 1, 120) * 60f;
+
+            AddChild(test);
+            return;
+        }
+
         // `--pen [games]` audits how the league's pitching staffs are actually used over a season.
         // `--careermode [n]` plays whole careers out, end to end.
         int cm = System.Array.IndexOf(args, "--careermode");
@@ -355,6 +408,19 @@ public partial class Game : Node
             int days = 45;
             if (det + 1 < args.Length && int.TryParse(args[det + 1], out int dd)) days = dd;
             Net.DeterminismAudit.Run(Mathf.Clamp(days, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--league [days]` runs a shared dynasty: two owners, one league, each playing his own
+        // club's games and posting the result to the other. --determinism proves two idle leagues
+        // stay identical; this proves they stay identical while two people are using them.
+        int lg = System.Array.IndexOf(args, "--league");
+        if (lg >= 0)
+        {
+            int days = 45;
+            if (lg + 1 < args.Length && int.TryParse(args[lg + 1], out int ld)) days = ld;
+            Net.LeagueAudit.Run(Mathf.Clamp(days, 1, 200));
             GetTree().Quit();
             return;
         }
@@ -954,6 +1020,10 @@ public partial class Game : Node
 
         int sceneArg = System.Array.IndexOf(args, "--scene");
         if (sceneArg >= 0 && sceneArg + 1 < args.Length) runner.Scene = args[sceneArg + 1];
+
+        int afterArg = System.Array.IndexOf(args, "--after");
+        if (afterArg >= 0 && afterArg + 1 < args.Length && float.TryParse(args[afterArg + 1], out float wait))
+            runner.StartAfter = Mathf.Clamp(wait, 0f, 120f);
 
         // Lets a capture run pick the matchup, so different ballparks can be compared.
         int homeArg = System.Array.IndexOf(args, "--home");

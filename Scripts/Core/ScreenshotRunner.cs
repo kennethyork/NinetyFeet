@@ -31,10 +31,23 @@ public partial class ScreenshotRunner : Node
     /// <summary>Set by `--bat`: capture from the human hitter's point of view.</summary>
     public bool HumanBats;
 
+    /// <summary>
+    /// Seconds to wait before navigating. Some screens cannot be captured the instant the game
+    /// starts because what they draw does not exist yet — a shared league needs its second owner
+    /// to connect first, and going there early captures the offline season instead.
+    /// </summary>
+    public float StartAfter;
+
     public override void _Process(double delta)
     {
         if (!_started)
         {
+            if (StartAfter > 0f)
+            {
+                StartAfter -= (float)delta;
+                return;
+            }
+
             _started = true;
             // `--bat` captures the human hitting view, which is the only way to see the
             // reticle — a CPU-versus-CPU capture never draws it.

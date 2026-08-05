@@ -66,11 +66,12 @@ public static class DeterminismAudit
             // different and the drift test would then be reporting that instead of its own nudge.
             NoticesADrift(a, b);
             SurvivesASave(a, fa);
-            GD.Print("\n  The season is replayable from its seed, which is what an online league");
-            GD.Print("  needs: two machines can hold the same league and exchange only what the");
-            GD.Print("  humans decide. The remaining work is routing those decisions through the");
-            GD.Print("  sequencer netplay already has, and comparing this number every day so a");
-            GD.Print("  drift is caught on the day it happens rather than in August.");
+            GD.Print("\n  The season is replayable from its seed, which is the floor an online");
+            GD.Print("  league stands on: two machines can hold the same league and exchange only");
+            GD.Print("  what the humans decide.");
+            GD.Print("\n  This is the idle case, and it is the easy half. --league adds the two");
+            GD.Print("  people: games each of them plays by hand, which the other machine cannot");
+            GD.Print("  derive and has to be sent. --netleague runs that over a real socket.");
             return;
         }
 

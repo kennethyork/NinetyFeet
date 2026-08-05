@@ -145,6 +145,11 @@ public partial class NetLink : Node
         _inbox.Clear();
         _applied = 0;
         _nextSequence = 0;
+
+        // The shared season goes with the socket. Leaving it running against a closed link would
+        // give the owner a league that looks live and can never turn another page.
+        LeagueMode = false;
+        NetLeague.I.End();
         Changed?.Invoke();
     }
 
@@ -233,6 +238,7 @@ public partial class NetLink : Node
 
     private void TryStart()
     {
+        if (LeagueMode) { TryStartLeague(); return; }
         if (!IsHost || !LocalReady || !RemoteReady || State != LinkState.Connected) return;
 
         _inbox.Clear();
@@ -407,7 +413,147 @@ public partial class NetLink : Node
 
     private long? _localLeague;
     private long? _remoteLeague;
-    private int _reportedDay = -1;
+    /// <summary>The day each side stamped its last report with. -2 means "nothing outstanding",
+    /// which has to be distinguishable from day -1, the check made before a ball is thrown.</summary>
+    private int _reportedDay = -2;
+    private int _remoteDay = -2;
+
+    // -----------------------------------------------------------------------
+    // The two things a shared season sends
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// A game this owner played, for the other machine to write into its own league.
+    ///
+    /// It does not go through the sequencer. The sequencer exists to settle the order of decisions
+    /// that could race each other inside one ballgame; these are whole finished games belonging to
+    /// two different clubs on two different fields, and there is no order between them to get
+    /// wrong. The season book adds, so it does not care which arrives first.
+    /// </summary>
+    public void PostGameResult(int[] packet)
+    {
+        if (!IsOnline || packet == null) return;
+        Rpc(MethodName.ReceiveGameResult, packet);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveGameResult(int[] packet) => NetLeague.I.ReceiveGame(packet);
+
+    /// <summary>
+    /// This owner has finished with a day.
+    ///
+    /// Sent after the day's packets, and it matters that it is: ENet's default channel is reliable
+    /// and ordered, so a peer's "I am done with Tuesday" cannot overtake the ballgame he played on
+    /// Tuesday. Without that guarantee the other machine could turn the page on a day it had not
+    /// yet been told about, and the two leagues would part company on the spot.
+    /// </summary>
+    public void PostDayDone(int day)
+    {
+        if (!IsOnline) return;
+        Rpc(MethodName.ReceiveDayDone, day);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveDayDone(int day) => NetLeague.I.RemoteFinished(day);
+
+    /// <summary>
+    /// The terms of a shared season, as against a single match: the league's seed, which club each
+    /// side is holding, how long the year is. The host settles them and the guest is told.
+    /// </summary>
+    public int LeagueGames { get; private set; } = Season.Schedule.FullSeason;
+    public bool LeagueMode { get; private set; }
+
+    public void SetLeagueTerms(int seed, int hostClubId, int guestClubId, int gamesPerTeam, int innings)
+    {
+        if (!IsHost) return;
+
+        MatchSeed = seed;
+        HomeTeamId = hostClubId;
+        AwayTeamId = guestClubId;
+        Innings = innings;
+        LeagueGames = gamesPerTeam;
+        LeagueMode = true;
+
+        if (State is LinkState.Connected or LinkState.Playing)
+            Rpc(MethodName.ReceiveLeagueTerms, seed, hostClubId, guestClubId, gamesPerTeam, innings);
+        Changed?.Invoke();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveLeagueTerms(int seed, int hostClubId, int guestClubId,
+        int gamesPerTeam, int innings)
+    {
+        MatchSeed = seed;
+        HomeTeamId = hostClubId;
+        AwayTeamId = guestClubId;
+        Innings = innings;
+        LeagueGames = gamesPerTeam;
+        LeagueMode = true;
+        Changed?.Invoke();
+    }
+
+    /// <summary>The club this machine's owner runs, and the other one's.</summary>
+    public int LocalClubId => IsHost ? HomeTeamId : AwayTeamId;
+    public int RemoteClubId => IsHost ? AwayTeamId : HomeTeamId;
+
+    /// <summary>
+    /// The guest naming his club. The host owns the terms and re-issues them, so both sides end up
+    /// holding one agreed set rather than each holding its own half of one.
+    /// </summary>
+    public void ChooseClub(int clubId)
+    {
+        if (IsHost)
+        {
+            HomeTeamId = clubId;
+            if (IsOnline) Rpc(MethodName.ReceiveLeagueTerms, MatchSeed, HomeTeamId, AwayTeamId,
+                LeagueGames, Innings);
+            Changed?.Invoke();
+            return;
+        }
+
+        AwayTeamId = clubId;
+        if (IsOnline) RpcId(1, MethodName.ReceiveGuestClub, clubId);
+        Changed?.Invoke();
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveGuestClub(int clubId)
+    {
+        if (!IsHost) return;
+        AwayTeamId = clubId;
+        Rpc(MethodName.ReceiveLeagueTerms, MatchSeed, HomeTeamId, AwayTeamId, LeagueGames, Innings);
+        Changed?.Invoke();
+    }
+
+    /// <summary>
+    /// Opens the shared season on both machines at once.
+    ///
+    /// Deliberately not <see cref="ReceiveStart"/>. That one puts the link into Playing, which is
+    /// how the game scene knows a ballgame is running over the wire — and in a shared league it is
+    /// not. Each owner plays his own club's games alone on his own machine, against opponents the
+    /// other side is simulating, and only the finished results cross. Reusing the match start would
+    /// have every one of those games think there was a second human in it.
+    /// </summary>
+    public event System.Action LeagueStarted;
+
+    private void TryStartLeague()
+    {
+        if (!IsHost || !LocalReady || !RemoteReady || State != LinkState.Connected) return;
+        Rpc(MethodName.ReceiveLeagueStart);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = true,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveLeagueStart()
+    {
+        Status = "The league is open.";
+        Changed?.Invoke();
+        LeagueStarted?.Invoke();
+    }
 
     /// <summary>Sends this machine's fingerprint of the whole league for a given day.</summary>
     public void ReportLeagueDay(int day, ulong fingerprint)
@@ -417,31 +563,43 @@ public partial class NetLink : Node
         _reportedDay = day;
         _localLeague = unchecked((long)fingerprint);
         Rpc(MethodName.ReceiveLeagueDay, day, _localLeague.Value);
-        CompareLeague(day);
+        CompareLeague();
     }
 
     [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
          TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
     private void ReceiveLeagueDay(int day, long fingerprint)
     {
-        // A day arriving out of step is itself a disagreement worth catching.
-        if (_reportedDay >= 0 && day != _reportedDay)
-        {
-            DriftedOnDay = System.Math.Min(day, _reportedDay);
-            Status = $"The two leagues are on different days ({_reportedDay} and {day}).";
-            Changed?.Invoke();
-            return;
-        }
-
+        _remoteDay = day;
         _remoteLeague = fingerprint;
-        CompareLeague(day);
+        CompareLeague();
     }
 
-    private void CompareLeague(int day)
+    /// <summary>
+    /// Compares the two fingerprints once both have arrived.
+    ///
+    /// The day each side stamped its report with is checked rather than assumed. Either report can
+    /// arrive first, so taking the day from whichever one turned up would happily compare this
+    /// machine's Tuesday against the other's Wednesday and call the mismatch a desync — or worse,
+    /// call a genuine match agreement on a day the two are not both standing on.
+    /// </summary>
+    private void CompareLeague()
     {
         if (_localLeague is not { } mine || _remoteLeague is not { } theirs) return;
 
-        if (mine == theirs) LastAgreedDay = day;
+        int day = _reportedDay;
+
+        if (_remoteDay != _reportedDay)
+        {
+            DriftedOnDay = System.Math.Min(_remoteDay, _reportedDay);
+            Status = $"The two leagues are on different days ({_reportedDay} and {_remoteDay}).";
+            GD.PushError($"League out of step: local day {_reportedDay}, remote day {_remoteDay}");
+            Changed?.Invoke();
+        }
+        else if (mine == theirs)
+        {
+            LastAgreedDay = day;
+        }
         else
         {
             DriftedOnDay = day;
@@ -452,7 +610,8 @@ public partial class NetLink : Node
 
         _localLeague = null;
         _remoteLeague = null;
-        _reportedDay = -1;
+        _reportedDay = -2;
+        _remoteDay = -2;
     }
 
     private void CompareFingerprints()

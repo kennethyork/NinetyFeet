@@ -320,11 +320,21 @@ public sealed class SeasonState
         if (spot != null) roster.SetPitcher(spot);
     }
 
-    /// <summary>Simulates a single scheduled game and books the result.</summary>
-    public void SimulateGame(ScheduledGame game)
+    /// <summary>
+    /// Plays a fixture out and hands back the finished game, without booking anything.
+    ///
+    /// Split from <see cref="SimulateGame"/> for the shared league, where a result and the act of
+    /// recording it are two separate steps — an owner's game has to be packed for the other machine
+    /// before it goes into the book, and the packing needs the game itself rather than its
+    /// after-effects.
+    /// </summary>
+    /// <param name="seed">
+    /// Overrides the fixture's own seed. Used only by the audit, which needs a legitimate result
+    /// that the other machine could not possibly derive for itself — that being the whole point of
+    /// sending one.
+    /// </param>
+    public Core.GameSituation Resolve(ScheduledGame game, int? seed = null)
     {
-        if (game.Played) return;
-
         // Injuries used to be rolled here, once per club per game. With a calendar that is wrong
         // twice over: a club that plays twice on one date got two rolls, and a club with a day off
         // got none — so nobody healed on an off day. It is now a daily tick in AdvanceDay.
@@ -344,19 +354,18 @@ public sealed class SeasonState
 
         var sit = Core.QuickGame.Simulate(
             RosterFor(game.AwayId), RosterFor(game.HomeId), Innings,
-            LeagueSeed * 7919 + game.Day * 131 + game.HomeId,
+            seed ?? LeagueSeed * 7919 + game.Day * 131 + game.HomeId,
             Calendar.MonthIndex(game.Day));
 
         Core.FieldGeometry.ClearConditions();
+        return sit;
+    }
 
-        game.AwayRuns = sit.AwayScore;
-        game.HomeRuns = sit.HomeScore;
-        game.Played = true;
-        game.Crowd = Attendance.For(this, game);
-        Attendance.Record(this, game, game.Crowd);
-        Book.Absorb(sit.Stats);
-        LogGame(game, sit);
-        GamesPlayed++;
+    /// <summary>Simulates a single scheduled game and books the result.</summary>
+    public void SimulateGame(ScheduledGame game)
+    {
+        if (game.Played) return;
+        RecordPlayedGame(game, Resolve(game));
     }
 
     /// <summary>
@@ -461,8 +470,15 @@ public sealed class SeasonState
         }
     }
 
-    /// <summary>Records a game the player actually played, from its finished situation.</summary>
-    public void RecordUserGame(ScheduledGame game, Core.GameSituation sit)
+    /// <summary>
+    /// Books a game the player actually played, and stops there.
+    ///
+    /// Split out from <see cref="RecordUserGame"/> for the online league, where finishing a game
+    /// and moving the calendar are two different moments. Two owners share one league, so the day
+    /// cannot turn over until both of them have finished with it — one man's ninth inning must not
+    /// drag the other into tomorrow.
+    /// </summary>
+    public void RecordPlayedGame(ScheduledGame game, Core.GameSituation sit)
     {
         if (game == null || game.Played) return;
         game.AwayRuns = sit.AwayScore;
@@ -473,6 +489,13 @@ public sealed class SeasonState
         Book.Absorb(sit.Stats);
         LogGame(game, sit);
         GamesPlayed++;
+    }
+
+    /// <summary>Records a game the player actually played, from its finished situation.</summary>
+    public void RecordUserGame(ScheduledGame game, Core.GameSituation sit)
+    {
+        if (game == null || game.Played) return;
+        RecordPlayedGame(game, sit);
 
         // Once the human's game is in the books the rest of the date plays out and the calendar
         // moves on. This must not live in SimulateGame: every simulated game would then advance

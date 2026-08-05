@@ -41,6 +41,10 @@ public static class LeagueFingerprint
                $" {t.Outs}/{t.EarnedRuns}/{t.Strikeouts}";
     }
 
+    /// <summary>The nine, by name, for saying which club is sending out somebody else.</summary>
+    private static string Card(SeasonState s, int teamId) =>
+        string.Join(" ", s.RosterFor(teamId).BattingOrder.Select(p => p?.ShortName ?? "—"));
+
     private static ulong Fold(ulong hash, long value)
     {
         unchecked
@@ -74,9 +78,23 @@ public static class LeagueFingerprint
             h = Fold(h, rec.RunsScored);
             h = Fold(h, rec.RunsAllowed);
 
+            // The card, not just the names on it.
+            //
+            // A pinch hitter is permanent — Substitute writes the new man into the batting order
+            // and the fielding chart and nothing ever puts the old one back — so two machines
+            // whose rosters hold exactly the same men can still send out different nines tomorrow.
+            // Without this the fingerprint would call those two leagues identical right up until
+            // the moment they produced different results, which is the worst possible place to
+            // find out. Order matters here and is the roster's own, so it is folded as it stands.
+            var club = season.RosterFor(team.Id);
+            foreach (var p in club.BattingOrder) h = Fold(h, p?.Id ?? -1);
+            foreach (var spot in club.Starters.Keys.OrderBy(k => (int)k))
+                h = Fold(h, (int)spot * 1_000_003L + (club.Starters[spot]?.Id ?? -1));
+            foreach (var p in club.Pitchers) h = Fold(h, p?.Id ?? -1);
+
             // The roster itself, in id order: who is on it and what he has done. A trade that
             // happened on one machine and not the other shows up here on the day it happens.
-            foreach (var p in season.RosterFor(team.Id).Players.OrderBy(p => p.Id))
+            foreach (var p in club.Players.OrderBy(p => p.Id))
             {
                 var b = season.Book.Batting(p);
                 var t = season.Book.Pitching(p);
@@ -128,6 +146,20 @@ public static class LeagueFingerprint
         // Standings agree, so walk the rosters and name the first man who does not.
         foreach (var team in Teams.All.OrderBy(t => t.Id))
         {
+            if (shown >= limit) break;
+
+            // The lineup card first, because a club can hold the same twenty-six men and still be
+            // sending out a different nine — and that difference decides tomorrow's game rather
+            // than describing yesterday's.
+            string ca = Card(a, team.Id);
+            string cb = Card(b, team.Id);
+            if (ca != cb)
+            {
+                found.AppendLine($"    {team.Abbrev} lineup  {ca}");
+                found.AppendLine($"    {team.Abbrev} against  {cb}");
+                shown++;
+            }
+
             var ra = a.RosterFor(team.Id).Players.OrderBy(p => p.Id).ToList();
             var rb = b.RosterFor(team.Id).Players.OrderBy(p => p.Id).ToList();
 

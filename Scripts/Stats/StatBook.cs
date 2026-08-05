@@ -110,6 +110,27 @@ public sealed class StatBook
     public bool HasMinorLine(PlayerData p) =>
         _minorBatting.ContainsKey(p) || _minorPitching.ContainsKey(p);
 
+    // -----------------------------------------------------------------------
+    // Reading a book out
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Everyone who batted, everyone who pitched, and every club's line — for a book that belongs
+    /// to a single game rather than a season.
+    ///
+    /// An online league needs this. A game one owner played by hand cannot be re-derived on the
+    /// other machine, so its numbers have to be sent, and sending them means being able to read
+    /// them back out of the book the game just filled in. Nothing else enumerates a book: the
+    /// season's copy is only ever written to and looked up by player.
+    /// </summary>
+    public IEnumerable<KeyValuePair<PlayerData, BattingLine>> BattingLines => _batting;
+    public IEnumerable<KeyValuePair<PlayerData, PitchingLine>> PitchingLines => _pitching;
+    public IEnumerable<KeyValuePair<int, TeamRecord>> TeamLines => _records;
+
+    /// <summary>Whether this player has a line in this book at all, as against an empty one.</summary>
+    public bool HasBatted(PlayerData p) => _batting.ContainsKey(p);
+    public bool HasPitched(PlayerData p) => _pitching.ContainsKey(p);
+
     /// <summary>
     /// Closes the season out: this year's numbers are folded into every player's career totals,
     /// then the year is cleared.

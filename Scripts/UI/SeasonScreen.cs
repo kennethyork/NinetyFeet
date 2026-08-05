@@ -30,7 +30,31 @@ public partial class SeasonScreen : Control
             _season.Games = Schedule.Build(Schedule.ShortSeason, _season.LeagueSeed);
             Game.Instance.SaveLeague();
         }
+
+        // In a shared league the screen changes because of something the other owner did, which
+        // no click of ours will ever prompt a redraw for.
+        if (Shared)
+        {
+            _listening = true;
+            Net.NetLeague.I.Advanced += QueueRedraw;
+            SetProcess(true);
+        }
     }
+
+    /// <summary>
+    /// Whether this screen actually subscribed, which is not the same question as whether the
+    /// league is shared right now. If the link drops while the screen is open the league goes
+    /// inactive, and testing the league on the way out would leave a dead handler pointing at a
+    /// freed node — a crash the next time either owner turned a page.
+    /// </summary>
+    private bool _listening;
+
+    public override void _ExitTree()
+    {
+        if (_listening) Net.NetLeague.I.Advanced -= QueueRedraw;
+    }
+
+    public override void _Process(double delta) => QueueRedraw();
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -59,11 +83,13 @@ public partial class SeasonScreen : Control
     private void GoToGame(bool spectate)
     {
         // Roll the calendar forward to the date of the game, so the rest of the league is caught
-        // up before the user takes the field.
-        var next = _season.AdvanceToNextUserGame();
+        // up before the user takes the field. In a shared league the calendar is not this screen's
+        // to roll — it belongs to both owners — so the only game reachable is today's, and the
+        // rest of the day is left alone because the other machine is simulating it too.
+        var next = Shared ? _season.UserGameToday() : _season.AdvanceToNextUserGame();
         if (next == null) return;
 
-        _season.SimulateRestOfDay(next);
+        if (!Shared) _season.SimulateRestOfDay(next);
 
         var g = Game.Instance;
         g.AwayTeamId = next.AwayId;
@@ -162,6 +188,65 @@ public partial class SeasonScreen : Control
     private bool _confirmWipe;
 
     // -----------------------------------------------------------------------
+    // A season two people are running
+    // -----------------------------------------------------------------------
+
+    /// <summary>True while this league belongs to two owners rather than one.</summary>
+    private static bool Shared => Net.NetLeague.I.Active;
+
+    /// <summary>
+    /// Settles this owner's game for today and hands it to the other machine.
+    ///
+    /// The calendar deliberately does not move here. In a shared league a day is a barrier: this
+    /// owner saying he has finished with it is half of what turns the page, and the other half
+    /// arrives over the wire whenever the other man is done. Simulating past it would be
+    /// simulating a day somebody else has not played yet, and there is no way back from that.
+    /// </summary>
+    private void SharedSim()
+    {
+        var mine = _season.UserGameToday();
+        if (mine == null) { SharedAdvance(); return; }
+
+        Net.NetLeague.I.Finished(mine, _season.Resolve(mine));
+        Net.NetLeague.I.DoneWithToday();
+        _notice = $"{Teams.Get(mine.AwayId).Abbrev} {mine.AwayRuns} — " +
+                  $"{mine.HomeRuns} {Teams.Get(mine.HomeId).Abbrev}";
+    }
+
+    /// <summary>Tells the other machine this owner has finished with today.</summary>
+    private void SharedAdvance()
+    {
+        Net.NetLeague.I.DoneWithToday();
+        _notice = Net.NetLeague.I.Status();
+    }
+
+    private void DrawSharedControls(Rect2 panel, ScheduledGame next)
+    {
+        var mine = _season.UserGameToday();
+        bool today = mine != null;
+
+        // The day the two owners meet is the one nobody plays. Both machines have to settle it
+        // identically and neither can send the other a game he was in, so it is simulated on both
+        // — and the button says so rather than being quietly missing.
+        bool derby = Net.NetLeague.I.IsDerby(mine);
+
+        Button(new Rect2(panel.Position + new Vector2(18f, 104f), new Vector2(150f, 44f)),
+            derby ? "—" : "PLAY", () => { if (!derby) PlayNext(); },
+            today && !derby ? Palette.Highlight : (Color?)null);
+
+        Button(new Rect2(panel.Position + new Vector2(178f, 104f), new Vector2(96f, 44f)),
+            "SIM", SharedSim, derby ? Palette.Highlight : (Color?)null);
+
+        Button(new Rect2(panel.Position + new Vector2(284f, 104f), new Vector2(218f, 44f)),
+            today ? "SETTLE TODAY FIRST" : "DONE WITH TODAY", SharedAdvance,
+            today ? (Color?)null : Palette.Highlight);
+
+        if (derby)
+            Palette.Text(this, panel.Position + new Vector2(18f, 164f),
+                "You are both in this one, so both machines simulate it.", 12, Palette.InkDim);
+    }
+
+    // -----------------------------------------------------------------------
     // Drawing
     // -----------------------------------------------------------------------
 
@@ -216,6 +301,15 @@ public partial class SeasonScreen : Control
         // Last, on top of everything. A navigation bar that something else can paint over is not
         // navigation.
         DrawOfficeShortcuts(size);
+
+        // A shared league says what it is waiting on, always. A screen that simply does nothing
+        // when you click is indistinguishable from a screen that has crashed.
+        if (Shared)
+        {
+            bool bad = Net.NetLeague.I.Broken != null || Net.NetLink.I is { LeagueDrifted: true };
+            Palette.Text(this, new Vector2(40f, size.Y - 46f), Net.NetLeague.I.Status(), 14,
+                bad ? Palette.Warning : Palette.Highlight);
+        }
 
         if (!string.IsNullOrEmpty(_notice))
             Palette.Text(this, new Vector2(40f, size.Y - 26f), _notice, 14, Palette.Highlight);
@@ -290,13 +384,18 @@ public partial class SeasonScreen : Control
         };
 
         // Starting over used to require finishing a season first — there was no way out of a
-        // league you had lost interest in without deleting the save file by hand.
-        var wipe = new Rect2(new Vector2(size.X - 128f - links.Length * 134f, NavY),
-            new Vector2(124f, 30f));
-        Palette.Panel3D(this, wipe, _confirmWipe ? Palette.Warning.Darkened(0.25f) : Palette.Panel);
-        Palette.TextCentered(this, wipe.Position + wipe.Size * 0.5f,
-            _confirmWipe ? "SURE?" : "NEW LEAGUE", 10, _confirmWipe ? Palette.Ink : Palette.InkDim);
-        _clicks.Add(wipe, StartOver);
+        // league you had lost interest in without deleting the save file by hand. It is not
+        // offered in a shared league: this one is half somebody else's, and wiping it here would
+        // leave them holding a season with nobody on the other end of it.
+        if (!Shared)
+        {
+            var wipe = new Rect2(new Vector2(size.X - 128f - links.Length * 134f, NavY),
+                new Vector2(124f, 30f));
+            Palette.Panel3D(this, wipe, _confirmWipe ? Palette.Warning.Darkened(0.25f) : Palette.Panel);
+            Palette.TextCentered(this, wipe.Position + wipe.Size * 0.5f,
+                _confirmWipe ? "SURE?" : "NEW LEAGUE", 10, _confirmWipe ? Palette.Ink : Palette.InkDim);
+            _clicks.Add(wipe, StartOver);
+        }
 
         for (int i = 0; i < links.Length; i++)
         {
@@ -343,6 +442,11 @@ public partial class SeasonScreen : Control
             $"{park.Name} — {park.Quirk}", 13, Palette.InkDim);
 
         bool today = _season.UserGameToday() != null;
+
+        // A shared league gets its own controls. Week, year and sim-to-end are all missing on
+        // purpose: every one of them runs the calendar past days the other owner has not finished
+        // with, and there is no way back from a day that has been played on one machine only.
+        if (Shared) { DrawSharedControls(panel, next); return; }
 
         // Dynasty defaults to simulating, but never locks you out of a game you want to see —
         // a big series is exactly when a manager wants to watch rather than read a box score.

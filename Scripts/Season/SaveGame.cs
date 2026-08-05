@@ -159,6 +159,22 @@ public static class SaveGame
         /// <summary>Consecutive seasons over the luxury tax line, which sets the rate.</summary>
         public int TaxYears { get; set; }
 
+        /// <summary>
+        /// The lineup card: the batting order, the fielding chart, and the staff in staff order.
+        ///
+        /// None of it was written down. Loading a league rebuilt every club from its player list
+        /// and let TradeEngine.Rebuild decide the nine again from ratings, so a season came back
+        /// batting somebody else — a pinch hitter who stayed in, a man moved up to leadoff, a
+        /// bench player covering an injury, all of it undone by closing the game. Found the same
+        /// way the missing injuries were: by widening the online-league fingerprint to cover the
+        /// card and watching a save round trip stop matching. Absent in an older save, which then
+        /// falls back to the old behaviour of working the lineup out afresh.
+        /// </summary>
+        public int[] Order { get; set; }
+        public int[] FieldSpots { get; set; }
+        public int[] FieldMen { get; set; }
+        public int[] Staff { get; set; }
+
         /// <summary>The coaching staff. Absent in a save from before there was one.</summary>
         public int[] CoachIds { get; set; }
         public string[] CoachNames { get; set; }
@@ -365,6 +381,10 @@ public static class SaveGame
                 HighAIds = Farm.Of(team.Id, Farm.Level.HighA).Select(p => p.Id).ToArray(),
                 FarmWins = FarmSeason.Export(team.Id).Wins,
                 FarmLosses = FarmSeason.Export(team.Id).Losses,
+                Order = roster.BattingOrder.Select(p => p.Id).ToArray(),
+                FieldSpots = roster.Starters.Keys.Select(k => (int)k).ToArray(),
+                FieldMen = roster.Starters.Keys.Select(k => roster.Starters[k].Id).ToArray(),
+                Staff = roster.Pitchers.Select(p => p.Id).ToArray(),
                 W = rec.Wins,
                 L = rec.Losses,
                 RS = rec.RunsScored,
@@ -506,6 +526,12 @@ public static class SaveGame
                 if (savedRoles.TryGetValue(p.Id, out int r))
                     p.Role = (StaffRole)Mathf.Clamp(r, 0, 4);
 
+            // And the lineup the club was actually using, for the same reason: Rebuild works the
+            // nine out from ratings, which is right for a club that has never had one and wrong
+            // for a club that has. A save from before the card was stored has no arrays here and
+            // keeps Rebuild's answer, which is what it has always had.
+            RestoreCard(roster, td, byId);
+
             var farm = Farm.Of(td.Id);
             foreach (int id in td.FarmIds ?? System.Array.Empty<int>())
                 if (byId.TryGetValue(id, out var p)) farm.Add(p);
@@ -641,6 +667,50 @@ public static class SaveGame
             : season.Games.Where(g => g.Played).Select(g => g.Day + 1).DefaultIfEmpty(0).Max();
 
         return season;
+    }
+
+    /// <summary>
+    /// Puts a club's lineup card back as it was.
+    ///
+    /// Everything is all-or-nothing per list: a card that has lost a man — traded away between the
+    /// save and the load, or belonging to a save written by an older build — is discarded in favour
+    /// of the one Rebuild just worked out, rather than restoring a lineup with a hole in it. A club
+    /// with eight hitters in the order does not fail; it plays wrong all season.
+    /// </summary>
+    private static void RestoreCard(Roster roster, TeamDto td, Dictionary<int, PlayerData> byId)
+    {
+        PlayerData Find(int id) => byId.TryGetValue(id, out var p) && roster.Players.Contains(p) ? p : null;
+
+        if (td.Order is { Length: > 0 })
+        {
+            var order = td.Order.Select(Find).ToList();
+            if (order.All(p => p != null))
+            {
+                roster.BattingOrder.Clear();
+                roster.BattingOrder.AddRange(order);
+            }
+        }
+
+        if (td.FieldSpots is { Length: > 0 } && td.FieldMen?.Length == td.FieldSpots.Length)
+        {
+            var men = td.FieldMen.Select(Find).ToList();
+            if (men.All(p => p != null))
+            {
+                roster.Starters.Clear();
+                for (int i = 0; i < men.Count; i++)
+                    roster.Starters[(Data.Position)td.FieldSpots[i]] = men[i];
+            }
+        }
+
+        if (td.Staff is { Length: > 0 })
+        {
+            var staff = td.Staff.Select(Find).ToList();
+            if (staff.All(p => p != null))
+            {
+                roster.Pitchers.Clear();
+                roster.Pitchers.AddRange(staff);
+            }
+        }
     }
 
     /// <summary>
