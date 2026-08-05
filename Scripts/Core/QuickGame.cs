@@ -13,10 +13,11 @@ public static class QuickGame
     private const float Step = 1f / 120f;
 
     /// <summary>Plays it out and hands back the finished situation, box score included.</summary>
-    public static GameSituation Simulate(Roster away, Roster home, int innings, int seed)
+    public static GameSituation Simulate(Roster away, Roster home, int innings, int seed,
+        int month = 0)
     {
         var rng = new Rng(seed);
-        var sit = new GameSituation();
+        var sit = new GameSituation { Month = month };
         var play = new PlaySimulation();
 
         away.LineupSpot = 0;
@@ -74,15 +75,22 @@ public static class QuickGame
                     sit.AddStrike(foul: result == SwingResult.Foul);
                 }
             }
-            else if (pitch.IsStrike) sit.AddStrike(foul: false);
-            else sit.AddBall();
+            else if (LooseBall.HitsBatter(pitch, batter, ref rng)) sit.AwardHitByPitch();
+            else
+            {
+                bool endedAtBat = pitch.IsStrike ? sit.AddStrike(foul: false) : sit.AddBall();
+
+                if (!endedAtBat && !sit.IsOver && sit.RunnerCount > 0 &&
+                    LooseBall.GetsAway(pitch, sit.FieldingTeam.Fielder(Position.C), ref rng))
+                    sit.WildPitch();
+            }
 
             // Go to the bullpen when the man on the mound is spent. Who comes in depends on the
             // inning and the score, so the closer is saved for a lead in the ninth.
             var current = sit.FieldingTeam.CurrentPitcher;
             pitchCounts.TryGetValue(current, out int used);
             var reliever = CpuBrain.Relieve(sit, used);
-            if (reliever != null) sit.FieldingTeam.SetPitcher(reliever);
+            if (reliever != null) sit.ChangePitcher(reliever);
         }
 
         if (sit.IsOver) Finalize(sit);

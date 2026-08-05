@@ -433,10 +433,75 @@ public partial class FranchiseScreen : Control
                 all.AtBats > 0 ? $"{all.Average:.000}" : "—", all.AtBats > 0 ? $"{all.Ops:.000}" : "—" });
         }
 
+        DrawSplits(card, ref y, p);
+
         var close = new Rect2(card.Position + new Vector2(card.Size.X - 96f, card.Size.Y - 52f), new Vector2(76f, 34f));
         Palette.Panel3D(this, close, Palette.PanelLight);
         Palette.TextCentered(this, close.Position + close.Size * 0.5f, "CLOSE", 13, Palette.Ink);
         _clicks.Add(close, () => _selected = null);
+    }
+
+    /// <summary>
+    /// The same season cut by hand, by ground and by the men on base.
+    ///
+    /// The simulation has always played the platoon matchup — a left-hander really does have a
+    /// harder time against left-handed pitching here — but nothing wrote down which hand was on
+    /// the mound, so the one thing the engine did best was the one thing you could not see. This
+    /// is where a bench decision comes from: it is not interesting that a man is hitting .260, it
+    /// is interesting that he is hitting .300 against right-handers and .190 against left.
+    /// </summary>
+    private void DrawSplits(Rect2 card, ref float y, PlayerData p)
+    {
+        bool arm = p.Position == Data.Position.P;
+        var slices = new[]
+        {
+            Stats.Split.VsRight, Stats.Split.VsLeft,
+            Stats.Split.AtHome, Stats.Split.OnRoad, Stats.Split.ScoringPosition,
+        };
+
+        y += 14f;
+        Palette.Text(this, card.Position + new Vector2(20f, y), "THIS SEASON, BROKEN DOWN", 11,
+            Palette.InkDim);
+        y += 22f;
+
+        StatRow(card, ref y, arm
+            ? new[] { "", "IP", "ERA", "WHIP", "K", "BB", "H" }
+            : new[] { "", "AB", "H", "HR", "RBI", "AVG", "OPS" }, header: true);
+
+        var book = _season.Book.Splits;
+        bool anything = false;
+
+        foreach (var slice in slices)
+        {
+            string label = arm ? Stats.SplitBook.PitcherLabel(slice) : Stats.SplitBook.Label(slice);
+
+            if (arm)
+            {
+                var line = book.HasPitching(p) ? book.Pitching(p).Peek(slice) : null;
+                if (line == null || line.Outs == 0) continue;
+                anything = true;
+                StatRow(card, ref y, new[]
+                {
+                    label, line.InningsText, $"{line.Era:F2}", $"{line.Whip:F2}",
+                    $"{line.Strikeouts}", $"{line.Walks}", $"{line.Hits}",
+                });
+            }
+            else
+            {
+                var line = book.HasBatting(p) ? book.Batting(p).Peek(slice) : null;
+                if (line == null || line.AtBats == 0) continue;
+                anything = true;
+                StatRow(card, ref y, new[]
+                {
+                    label, $"{line.AtBats}", $"{line.Hits}", $"{line.HomeRuns}",
+                    $"{line.RunsBattedIn}", $"{line.Average:.000}", $"{line.Ops:.000}",
+                });
+            }
+        }
+
+        if (!anything)
+            Palette.Text(this, card.Position + new Vector2(20f, y),
+                "Nothing yet this season.", 12, Palette.InkDim);
     }
 
     private void StatRow(Rect2 card, ref float y, string[] cells, bool header = false)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using SandlotSlugfest.Data;
@@ -5,7 +6,26 @@ using SandlotSlugfest.Data;
 namespace SandlotSlugfest.Stats;
 
 /// <summary>How a plate appearance finished, from the hitter's point of view.</summary>
-public enum PaResult { Strikeout, Walk, Single, Double, Triple, HomeRun, OutInPlay, ReachedOnError }
+public enum PaResult
+{
+    Strikeout, Walk, Single, Double, Triple, HomeRun, OutInPlay, ReachedOnError,
+    // Appended so saved and networked values keep their meaning.
+    HitByPitch, IntentionalWalk,
+}
+
+/// <summary>
+/// What else the play was, beyond how it finished. A ground ball that retires two men and a fly
+/// ball that scores one both come through as an out; the difference is the whole of a hitter's
+/// reputation, so it has to be carried rather than inferred later.
+/// </summary>
+[Flags]
+public enum PlayCredit
+{
+    None = 0,
+    SacrificeFly = 1,
+    SacrificeBunt = 2,
+    DoublePlay = 4,
+}
 
 /// <summary>
 /// The league's record book. Keyed by player identity, so a traded player carries his numbers
@@ -23,6 +43,12 @@ public sealed class StatBook
     private readonly Dictionary<PlayerData, BattingLine> _careerBatting = new();
     private readonly Dictionary<PlayerData, PitchingLine> _careerPitching = new();
     private readonly Dictionary<PlayerData, int> _seasonsPlayed = new();
+
+    /// <summary>This season's line cut by hand, by ground, by month and by the men on base.</summary>
+    public readonly SplitBook Splits = new();
+
+    /// <summary>The same slices over a whole career.</summary>
+    public readonly SplitBook CareerSplits = new();
 
     public BattingLine Batting(PlayerData p)
     {
@@ -103,68 +129,228 @@ public sealed class StatBook
             CareerPitching(p).Absorb(line);
         }
 
+        CareerSplits.Absorb(Splits);
+
         _batting.Clear();
         _pitching.Clear();
         _records.Clear();
         _minorBatting.Clear();
         _minorPitching.Clear();
+        Splits.Clear();
     }
 
     public IEnumerable<KeyValuePair<PlayerData, BattingLine>> AllBatting => _batting;
     public IEnumerable<KeyValuePair<PlayerData, PitchingLine>> AllPitching => _pitching;
 
+    // -----------------------------------------------------------------------
+    // Recording a plate appearance
+    // -----------------------------------------------------------------------
+
     /// <summary>Records one completed plate appearance for both the hitter and the pitcher.</summary>
     public void RecordPlateAppearance(
         PlayerData batter, PlayerData pitcher, PaResult result,
-        int runsBattedIn, int outsRecorded, bool runsAreEarned)
+        int runsBattedIn, int outsRecorded, bool runsAreEarned,
+        SplitContext where = default, PlayCredit credit = PlayCredit.None)
     {
-        var b = Batting(batter);
-        var p = Pitching(pitcher);
+        // The delta is built once and then applied to the season line and to every slice it
+        // belongs in. Doing it any other way means the splits drift from the totals the first
+        // time somebody adds a stat and forgets one of the four places it had to go.
+        var b = new BattingLine { PlateAppearances = 1, RunsBattedIn = runsBattedIn };
+        var p = new PitchingLine { BattersFaced = 1, Outs = outsRecorded, Runs = runsBattedIn };
 
-        b.PlateAppearances++;
-        b.RunsBattedIn += runsBattedIn;
+        if (runsAreEarned) p.EarnedRuns = runsBattedIn;
 
-        // A walk is a plate appearance but not an at-bat.
-        bool countsAsAtBat = result != PaResult.Walk;
-        if (countsAsAtBat) b.AtBats++;
+        bool sacrifice = credit.HasFlag(PlayCredit.SacrificeFly)
+                      || credit.HasFlag(PlayCredit.SacrificeBunt);
+
+        // A walk, a hit batsman and a sacrifice are all plate appearances but none is an at-bat.
+        bool countsAsAtBat = result is not (PaResult.Walk or PaResult.IntentionalWalk
+                                         or PaResult.HitByPitch) && !sacrifice;
+        if (countsAsAtBat) b.AtBats = 1;
+
+        if (credit.HasFlag(PlayCredit.SacrificeFly)) b.SacrificeFlies = 1;
+        if (credit.HasFlag(PlayCredit.SacrificeBunt)) b.SacrificeBunts = 1;
+        if (credit.HasFlag(PlayCredit.DoublePlay)) b.GroundedIntoDoublePlay = 1;
 
         switch (result)
         {
             case PaResult.Strikeout:
-                b.Strikeouts++;
-                p.Strikeouts++;
+                b.Strikeouts = 1;
+                p.Strikeouts = 1;
                 break;
             case PaResult.Walk:
-                b.Walks++;
-                p.Walks++;
+                b.Walks = 1;
+                p.Walks = 1;
+                break;
+            case PaResult.IntentionalWalk:
+                b.Walks = 1; b.IntentionalWalks = 1;
+                p.Walks = 1; p.IntentionalWalksIssued = 1;
+                break;
+            case PaResult.HitByPitch:
+                b.HitByPitch = 1;
+                p.HitBatters = 1;
                 break;
             case PaResult.Single:
-                b.Hits++;
-                p.Hits++;
+                b.Hits = 1;
+                p.Hits = 1;
                 break;
             case PaResult.Double:
-                b.Hits++; b.Doubles++;
-                p.Hits++;
+                b.Hits = 1; b.Doubles = 1;
+                p.Hits = 1;
                 break;
             case PaResult.Triple:
-                b.Hits++; b.Triples++;
-                p.Hits++;
+                b.Hits = 1; b.Triples = 1;
+                p.Hits = 1;
                 break;
             case PaResult.HomeRun:
-                b.Hits++; b.HomeRuns++;
-                p.Hits++; p.HomeRunsAllowed++;
+                b.Hits = 1; b.HomeRuns = 1;
+                p.Hits = 1; p.HomeRunsAllowed = 1;
                 break;
         }
 
-        p.Outs += outsRecorded;
-        p.Runs += runsBattedIn;
-        if (runsAreEarned) p.EarnedRuns += runsBattedIn;
+        Batting(batter).Absorb(b);
+        Pitching(pitcher).Absorb(p);
+        ApplySplits(batter, pitcher, b, p, where);
     }
 
-    /// <summary>Credits a run to whoever crossed the plate.</summary>
-    public void RecordRun(PlayerData runner) => Batting(runner).Runs++;
+    /// <summary>
+    /// Files the same delta under every slice it belongs to. A hitter's slices are named for the
+    /// pitcher's hand and his own ground; a pitcher's are the mirror image.
+    /// </summary>
+    private void ApplySplits(PlayerData batter, PlayerData pitcher,
+        BattingLine b, PitchingLine p, SplitContext where)
+    {
+        var hitterSlices = Splits.Batting(batter);
+        hitterSlices.Of(HandSlice(pitcher?.Throws)).Absorb(b);
+        hitterSlices.Of(where.BatterAtHome ? Split.AtHome : Split.OnRoad).Absorb(b);
+        hitterSlices.Of(SplitContext.MonthSlot(where.Month)).Absorb(b);
+        if (where.RunnerInScoringPosition) hitterSlices.Of(Split.ScoringPosition).Absorb(b);
+
+        if (pitcher == null) return;
+
+        var armSlices = Splits.Pitching(pitcher);
+        armSlices.Of(HandSlice(SideBattedFrom(batter, pitcher))).Absorb(p);
+        armSlices.Of(where.BatterAtHome ? Split.OnRoad : Split.AtHome).Absorb(p);
+        armSlices.Of(SplitContext.MonthSlot(where.Month)).Absorb(p);
+        if (where.RunnerInScoringPosition) armSlices.Of(Split.ScoringPosition).Absorb(p);
+    }
+
+    private static Split HandSlice(Handedness? hand) =>
+        hand == Handedness.Left ? Split.VsLeft : Split.VsRight;
+
+    /// <summary>
+    /// Which side the hitter actually stood on. A switch hitter turns around to face whoever is
+    /// on the mound, so filing him under his listed hand would put every one of his at-bats in a
+    /// box he never batted from — and it is the pitcher's split that would carry the error.
+    /// </summary>
+    private static Handedness SideBattedFrom(PlayerData batter, PlayerData pitcher)
+    {
+        if (batter == null) return Handedness.Right;
+        if (batter.Bats != Handedness.Switch) return batter.Bats;
+        return pitcher?.Throws == Handedness.Left ? Handedness.Right : Handedness.Left;
+    }
+
+    /// <summary>Credits a run to whoever crossed the plate, in the season line and the slices.</summary>
+    public void RecordRun(PlayerData runner, SplitContext where = default)
+    {
+        Batting(runner).Runs++;
+        var slices = Splits.Batting(runner);
+        slices.Of(where.BatterAtHome ? Split.AtHome : Split.OnRoad).Runs++;
+        slices.Of(SplitContext.MonthSlot(where.Month)).Runs++;
+    }
+
+    /// <summary>A stolen base, and the times he was thrown out trying — which nothing kept before.</summary>
+    public void RecordSteal(PlayerData runner, bool safe, SplitContext where = default)
+    {
+        var line = Batting(runner);
+        if (safe) line.StolenBases++; else line.CaughtStealing++;
+
+        var slices = Splits.Batting(runner);
+        var ground = slices.Of(where.BatterAtHome ? Split.AtHome : Split.OnRoad);
+        var month = slices.Of(SplitContext.MonthSlot(where.Month));
+        if (safe) { ground.StolenBases++; month.StolenBases++; }
+        else { ground.CaughtStealing++; month.CaughtStealing++; }
+    }
+
+    public void RecordWildPitch(PlayerData pitcher) => Pitching(pitcher).WildPitches++;
 
     public void RecordPitch(PlayerData pitcher) => Pitching(pitcher).Pitches++;
+
+    // -----------------------------------------------------------------------
+    // The relief ledger
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// One pitcher's time in a game: what the score was when he walked in, and what it was when
+    /// he walked off. Holds and blown saves cannot be worked out from a final line — two men can
+    /// finish a game with identical numbers and only one of them let the lead go.
+    /// </summary>
+    private sealed class Stint
+    {
+        public PlayerData Arm;
+        public int TeamId;
+        public int LeadAtEntry;
+        public int LeadAtExit;
+        public int OutsAtEntry;
+        public bool Started;
+        public bool Closed;
+    }
+
+    private readonly List<Stint> _stints = new();
+
+    /// <summary>Notes a pitcher taking the ball, with the lead he inherited.</summary>
+    public void RecordEntry(PlayerData arm, int teamId, int ownScore, int oppScore, bool starting)
+    {
+        if (arm == null) return;
+
+        // Whoever was out there is done; close his stint at the same score.
+        var open = _stints.LastOrDefault(s => s.TeamId == teamId && !s.Closed);
+        if (open != null)
+        {
+            open.LeadAtExit = ownScore - oppScore;
+            open.Closed = true;
+        }
+
+        _stints.Add(new Stint
+        {
+            Arm = arm,
+            TeamId = teamId,
+            LeadAtEntry = ownScore - oppScore,
+            OutsAtEntry = Pitching(arm).Outs,
+            Started = starting,
+        });
+    }
+
+    /// <summary>
+    /// Settles the relief ledger once the game is final.
+    ///
+    /// A save situation is a lead of one to three when he takes the ball. Leave without the lead
+    /// and it is a blown save; leave with it, having got somebody out, and it is a hold — unless
+    /// he finished the game, in which case it is a save and already credited.
+    /// </summary>
+    private void SettleStints(Roster team, int ownRuns, int oppRuns)
+    {
+        int lead = ownRuns - oppRuns;
+
+        foreach (var s in _stints.Where(s => s.TeamId == team.Team.Id))
+        {
+            if (!s.Closed) { s.LeadAtExit = lead; s.Closed = true; }
+            if (s.Started) continue;
+
+            bool saveSpot = s.LeadAtEntry >= 1 && s.LeadAtEntry <= 3;
+            if (!saveSpot) continue;
+
+            if (s.LeadAtExit <= 0) { Pitching(s.Arm).BlownSaves++; continue; }
+
+            bool gotSomebodyOut = Pitching(s.Arm).Outs > s.OutsAtEntry;
+            bool finishedIt = team.UsedArms.Count > 0 && team.UsedArms[^1] == s.Arm;
+            if (gotSomebodyOut && !finishedIt) Pitching(s.Arm).Holds++;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Finishing a game
+    // -----------------------------------------------------------------------
 
     /// <summary>
     /// Rolls a finished game's numbers into this book.
@@ -178,6 +364,7 @@ public sealed class StatBook
     {
         foreach (var (player, line) in game._batting) Batting(player).Absorb(line);
         foreach (var (player, line) in game._pitching) Pitching(player).Absorb(line);
+        Splits.Absorb(game.Splits);
 
         if (!countTowardRecord) return;
 
@@ -209,11 +396,34 @@ public sealed class StatBook
         Decide(loser, won: false);
         CreditSave(winner, winnerRuns - loserRuns);
 
+        CreditStarter(winner, loserRuns);
+        CreditStarter(loser, winnerRuns);
+
+        SettleStints(winner, winnerRuns, loserRuns);
+        SettleStints(loser, loserRuns, winnerRuns);
+
         foreach (var p in winner.Players.Concat(loser.Players))
         {
             if (_batting.ContainsKey(p)) Batting(p).Games++;
             if (_pitching.ContainsKey(p)) Pitching(p).Games++;
         }
+    }
+
+    /// <summary>
+    /// The starter's own marks: a complete game if nobody relieved him, a shutout if nobody
+    /// scored, and a quality start for the old six-and-three-or-better standard.
+    /// </summary>
+    private void CreditStarter(Roster team, int runsAllowedByTeam)
+    {
+        if (team.UsedArms.Count == 0) return;
+        var starter = team.UsedArms[0];
+        var line = Pitching(starter);
+
+        if (line.Outs >= 18 && line.EarnedRuns <= 3) line.QualityStarts++;
+
+        if (team.UsedArms.Count > 1) return;
+        line.CompleteGames++;
+        if (runsAllowedByTeam == 0) line.Shutouts++;
     }
 
     /// <summary>Who takes the win or the loss, and who is credited with the start.</summary>

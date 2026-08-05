@@ -332,7 +332,8 @@ public sealed class SeasonState
 
         var sit = Core.QuickGame.Simulate(
             RosterFor(game.AwayId), RosterFor(game.HomeId), Innings,
-            LeagueSeed * 7919 + game.Day * 131 + game.HomeId);
+            LeagueSeed * 7919 + game.Day * 131 + game.HomeId,
+            Calendar.MonthIndex(game.Day));
 
         Core.FieldGeometry.ClearConditions();
 

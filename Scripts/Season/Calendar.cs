@@ -27,6 +27,18 @@ public static class Calendar
 
     public static DateTime DateOf(int gameDay) => OpeningDay.AddDays(gameDay * DaysPerGameDay);
 
+    /// <summary>
+    /// Which month of the season a game day falls in, April being 0. This is what buckets a
+    /// player's monthly splits, so a hot August is something you can point at rather than
+    /// something you half remember.
+    /// </summary>
+    public static int MonthIndex(int gameDay)
+    {
+        var d = DateOf(gameDay);
+        int months = (d.Year - OpeningDay.Year) * 12 + d.Month - OpeningDay.Month;
+        return months < 0 ? 0 : months > 6 ? 6 : months;
+    }
+
     /// <summary>The schedule day on or before a calendar date.</summary>
     public static int GameDayOf(DateTime date) =>
         (int)Math.Floor((date - OpeningDay).TotalDays / DaysPerGameDay);

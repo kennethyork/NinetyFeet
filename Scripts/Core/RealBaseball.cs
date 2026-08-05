@@ -67,4 +67,24 @@ public static class RealBaseball
     /// <summary>Earned run average and walks-plus-hits-per-inning, majors 2024.</summary>
     public const float MlbEra = 3.49f;
     public const float MlbWhip = 1.20f;
+
+    /// <summary>
+    /// Hit batsmen and wild pitches, both clubs combined per game.
+    ///
+    /// UNLIKE EVERYTHING ELSE IN THIS FILE, these two are from memory rather than from the API —
+    /// they were added alongside the loose-ball model and the fetch has not been redone. They are
+    /// the right order of magnitude and no better than that. Refetch before calibrating hard
+    /// against them: same endpoint, group=pitching, fields hitByPitch and wildPitches.
+    /// </summary>
+    public const float MlbHitByPitch = 0.79f;
+    public const float MlbWildPitches = 0.76f;
+
+    /// <summary>
+    /// The scorer's distinctions, both clubs combined per game. Same caveat as the two above:
+    /// remembered, not fetched, and good to about the nearest tenth. Refetch with the rest.
+    /// </summary>
+    public const float MlbCaughtStealing = 0.51f;
+    public const float MlbSacrificeFlies = 0.79f;
+    public const float MlbSacrificeBunts = 0.19f;
+    public const float MlbDoublePlays = 1.44f;
 }

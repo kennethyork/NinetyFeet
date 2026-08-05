@@ -511,38 +511,83 @@ public static class SaveGame
             Seasons = book.SeasonsPlayed(p),
             Car = Pack(book.CareerBatting(p), book.CareerPitching(p)),
             Min = book.HasMinorLine(p) ? Pack(book.MinorBatting(p), book.MinorPitching(p)) : null,
-            Bat = new[]
-            {
-                b.Games, b.PlateAppearances, b.AtBats, b.Hits, b.Doubles, b.Triples,
-                b.HomeRuns, b.Runs, b.RunsBattedIn, b.Walks, b.Strikeouts, b.StolenBases,
-            },
-            Pit = new[]
-            {
-                t.Games, t.GamesStarted, t.Outs, t.Hits, t.Runs, t.EarnedRuns, t.Walks,
-                t.Strikeouts, t.HomeRunsAllowed, t.Wins, t.Losses, t.Saves, t.Pitches,
-            },
+            Bat = PackBatting(b),
+            Pit = PackPitching(t),
         };
     }
 
-    /// <summary>A batting line and a pitching line back to back, for the career and minor totals.</summary>
-    private static int[] Pack(Stats.BattingLine b, Stats.PitchingLine t) => new[]
+    // The stat arrays grew when the line did: the sacrifices, the hit-by-pitch, the caught
+    // stealing and the bullpen's holds and blown saves all had to go somewhere. New fields are
+    // appended and every reader takes a minimum length rather than an exact one, so a save
+    // written before them still loads and simply carries zeroes in the new columns. An exact
+    // length check here would have silently binned every stat in every existing league.
+    private const int BattingFields = 18;
+    private const int PitchingFields = 22;
+
+    private static int[] PackBatting(Stats.BattingLine b) => new[]
     {
         b.Games, b.PlateAppearances, b.AtBats, b.Hits, b.Doubles, b.Triples,
         b.HomeRuns, b.Runs, b.RunsBattedIn, b.Walks, b.Strikeouts, b.StolenBases,
+        b.HitByPitch, b.IntentionalWalks, b.CaughtStealing,
+        b.SacrificeFlies, b.SacrificeBunts, b.GroundedIntoDoublePlay,
+    };
+
+    private static int[] PackPitching(Stats.PitchingLine t) => new[]
+    {
         t.Games, t.GamesStarted, t.Outs, t.Hits, t.Runs, t.EarnedRuns, t.Walks,
         t.Strikeouts, t.HomeRunsAllowed, t.Wins, t.Losses, t.Saves, t.Pitches,
+        t.HitBatters, t.IntentionalWalksIssued, t.WildPitches, t.BattersFaced,
+        t.Holds, t.BlownSaves, t.CompleteGames, t.Shutouts, t.QualityStarts,
     };
+
+    private static void UnpackBatting(int[] v, Stats.BattingLine b, int at = 0)
+    {
+        if (v == null || v.Length < at + 12) return;
+        b.Games = v[at]; b.PlateAppearances = v[at + 1]; b.AtBats = v[at + 2]; b.Hits = v[at + 3];
+        b.Doubles = v[at + 4]; b.Triples = v[at + 5]; b.HomeRuns = v[at + 6]; b.Runs = v[at + 7];
+        b.RunsBattedIn = v[at + 8]; b.Walks = v[at + 9]; b.Strikeouts = v[at + 10];
+        b.StolenBases = v[at + 11];
+
+        if (v.Length < at + BattingFields) return;
+        b.HitByPitch = v[at + 12]; b.IntentionalWalks = v[at + 13]; b.CaughtStealing = v[at + 14];
+        b.SacrificeFlies = v[at + 15]; b.SacrificeBunts = v[at + 16];
+        b.GroundedIntoDoublePlay = v[at + 17];
+    }
+
+    private static void UnpackPitching(int[] v, Stats.PitchingLine t, int at = 0)
+    {
+        if (v == null || v.Length < at + 13) return;
+        t.Games = v[at]; t.GamesStarted = v[at + 1]; t.Outs = v[at + 2]; t.Hits = v[at + 3];
+        t.Runs = v[at + 4]; t.EarnedRuns = v[at + 5]; t.Walks = v[at + 6];
+        t.Strikeouts = v[at + 7]; t.HomeRunsAllowed = v[at + 8]; t.Wins = v[at + 9];
+        t.Losses = v[at + 10]; t.Saves = v[at + 11]; t.Pitches = v[at + 12];
+
+        if (v.Length < at + PitchingFields) return;
+        t.HitBatters = v[at + 13]; t.IntentionalWalksIssued = v[at + 14];
+        t.WildPitches = v[at + 15]; t.BattersFaced = v[at + 16];
+        t.Holds = v[at + 17]; t.BlownSaves = v[at + 18]; t.CompleteGames = v[at + 19];
+        t.Shutouts = v[at + 20]; t.QualityStarts = v[at + 21];
+    }
+
+    /// <summary>A batting line and a pitching line back to back, for the career and minor totals.</summary>
+    private static int[] Pack(Stats.BattingLine b, Stats.PitchingLine t)
+    {
+        var joined = new int[BattingFields + PitchingFields];
+        PackBatting(b).CopyTo(joined, 0);
+        PackPitching(t).CopyTo(joined, BattingFields);
+        return joined;
+    }
 
     private static void Unpack(int[] v, Stats.BattingLine b, Stats.PitchingLine t)
     {
-        if (v is not { Length: 25 }) return;
-        b.Games = v[0]; b.PlateAppearances = v[1]; b.AtBats = v[2]; b.Hits = v[3];
-        b.Doubles = v[4]; b.Triples = v[5]; b.HomeRuns = v[6]; b.Runs = v[7];
-        b.RunsBattedIn = v[8]; b.Walks = v[9]; b.Strikeouts = v[10]; b.StolenBases = v[11];
-        t.Games = v[12]; t.GamesStarted = v[13]; t.Outs = v[14]; t.Hits = v[15];
-        t.Runs = v[16]; t.EarnedRuns = v[17]; t.Walks = v[18]; t.Strikeouts = v[19];
-        t.HomeRunsAllowed = v[20]; t.Wins = v[21]; t.Losses = v[22]; t.Saves = v[23];
-        t.Pitches = v[24];
+        if (v == null) return;
+
+        // A save written before the line grew packs twelve batting fields then thirteen pitching
+        // ones; a current save packs eighteen then twenty-two. The join moves, so it is read from
+        // the length rather than assumed.
+        int split = v.Length >= BattingFields + PitchingFields ? BattingFields : 12;
+        UnpackBatting(v, b);
+        UnpackPitching(v, t, split);
     }
 
     private static PlayerData FromDto(PlayerDto d) => new()
@@ -561,23 +606,8 @@ public static class SaveGame
 
     private static void ApplyStats(StatBook book, PlayerData p, PlayerDto d)
     {
-        if (d.Bat is { Length: 12 })
-        {
-            var b = book.Batting(p);
-            b.Games = d.Bat[0]; b.PlateAppearances = d.Bat[1]; b.AtBats = d.Bat[2];
-            b.Hits = d.Bat[3]; b.Doubles = d.Bat[4]; b.Triples = d.Bat[5];
-            b.HomeRuns = d.Bat[6]; b.Runs = d.Bat[7]; b.RunsBattedIn = d.Bat[8];
-            b.Walks = d.Bat[9]; b.Strikeouts = d.Bat[10]; b.StolenBases = d.Bat[11];
-        }
-
-        if (d.Pit is { Length: 13 })
-        {
-            var t = book.Pitching(p);
-            t.Games = d.Pit[0]; t.GamesStarted = d.Pit[1]; t.Outs = d.Pit[2]; t.Hits = d.Pit[3];
-            t.Runs = d.Pit[4]; t.EarnedRuns = d.Pit[5]; t.Walks = d.Pit[6]; t.Strikeouts = d.Pit[7];
-            t.HomeRunsAllowed = d.Pit[8]; t.Wins = d.Pit[9]; t.Losses = d.Pit[10];
-            t.Saves = d.Pit[11]; t.Pitches = d.Pit[12];
-        }
+        if (d.Bat is { Length: >= 12 }) UnpackBatting(d.Bat, book.Batting(p));
+        if (d.Pit is { Length: >= 13 }) UnpackPitching(d.Pit, book.Pitching(p));
 
         // Career totals used to be thrown away on every reload: a ten-year veteran came back a
         // rookie, which also meant nobody could ever be judged for the hall of fame.

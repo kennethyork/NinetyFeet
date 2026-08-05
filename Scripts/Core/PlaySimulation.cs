@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using SandlotSlugfest.Data;
+using SandlotSlugfest.Stats;
 
 namespace SandlotSlugfest.Core;
 
@@ -669,6 +670,26 @@ public sealed class PlaySimulation
         return remaining / Mathf.Max(r.BaseSpeed, 1f);
     }
 
+    /// <summary>
+    /// How long the ball takes to reach a bag, used to decide whether an out is there.
+    ///
+    /// KNOWN DEFECT, MEASURED, NOT YET FIXED. This charges the play for the glove-to-hand
+    /// transfer that DecideThrow has already spent a quarter of a second waiting through, so the
+    /// same time is counted twice — and on a routine ground ball the two estimates are separated
+    /// by less than that, so the infielder decides he cannot get the batter and holds the ball.
+    ///
+    /// What --sim measures: of every ball in play not caught on the fly, 95% goes down as a hit.
+    /// The defence records 0.75 ground outs a game. There are 0.05 double plays a game against a
+    /// real 1.44, and the league's entire out total is carried by fly balls — 68% of balls in
+    /// play are caught in the air against a real 45%.
+    ///
+    /// Dropping the double-charge (using ThrowTravel alone here) is a strict improvement to the
+    /// defence and was tried: ground outs went to 1.12 and runners thrown out on the bases went
+    /// from 0.8 to 1.8 a game. But it is only part of the fix — the infield still lets almost
+    /// every grounder through — and on its own it drops league scoring 15% below the real rate.
+    /// Left as it stands so the league stays calibrated. Fixing it properly means giving the
+    /// infield real range and then re-deriving the batted-ball calibration behind it.
+    /// </summary>
     private float ThrowTime(Vector2 target) =>
         BallHolder == null ? float.MaxValue : BallArrivalTime(target);
 
@@ -1058,6 +1079,11 @@ public sealed class PlaySimulation
         var batter = sit.Batter;
         var pitcher = sit.CurrentPitcher;
 
+        // Read the situation before anybody moves. Once the runners have been picked up, the
+        // state no longer says whether this was an at-bat with a man in scoring position.
+        var where = sit.Where;
+        var credit = CreditFor(sit);
+
         // Clear the bases and re-seat whoever is still standing on one.
         for (int b = 1; b <= 3; b++) sit.RemoveRunner(b);
 
@@ -1071,7 +1097,44 @@ public sealed class PlaySimulation
         }
 
         sit.CompleteBattedBall(batter, pitcher, scorers,
-            o.IsHit, o.BasesForBatter, o.Outs, _errorCharged);
+            o.IsHit, o.BasesForBatter, o.Outs, _errorCharged, where, credit);
+    }
+
+    /// <summary>
+    /// What the play was, beyond its result. The scorer's distinctions: a fly ball that scores a
+    /// man is a sacrifice and costs the hitter no at-bat, a bunt that moves one along is the
+    /// same, and a ground ball that retires two is the one every hitter is charged for.
+    ///
+    /// All three used to arrive at the book as a plain out, which is why nobody's line ever
+    /// showed a sacrifice and why a slow right-handed hitter looked exactly like a fast one.
+    /// </summary>
+    private PlayCredit CreditFor(GameSituation sit)
+    {
+        var runner = Runners.FirstOrDefault(r => r.IsBatter);
+        if (runner == null || !runner.IsOut || Outcome.IsHit) return PlayCredit.None;
+
+        var credit = PlayCredit.None;
+        bool underTwoOut = sit.Outs < 2;
+
+        bool somebodyAdvanced = Runners.Any(r =>
+            !r.IsBatter && !r.IsOut && (r.Scored || r.MaxBaseReached > r.StartBase));
+
+        if (CaughtInAir)
+        {
+            // A sacrifice fly needs a run, not merely an advance.
+            if (underTwoOut && Runners.Any(r => !r.IsBatter && r.Scored))
+                credit |= PlayCredit.SacrificeFly;
+        }
+        else if (_batted.WasBunt)
+        {
+            if (underTwoOut && somebodyAdvanced) credit |= PlayCredit.SacrificeBunt;
+        }
+        else if (_outsRecorded >= 2 && _batted.LaunchAngle < 10f)
+        {
+            credit |= PlayCredit.DoublePlay;
+        }
+
+        return credit;
     }
 }
 

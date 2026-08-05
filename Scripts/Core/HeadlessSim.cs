@@ -471,6 +471,16 @@ public static class HeadlessSim
         public int Innings;
         public int Steals, Caught;
 
+        // The pitches that got away from somebody.
+        public int HitBatsmen, WildPitches;
+
+        // The scorer's distinctions, read back out of the book.
+        public int SacrificeFlies, SacrificeBunts, DoublePlays;
+
+        // Double-play diagnostics: chances offered against chances taken.
+        public int TwoOutPlays, ForceChances, ManOnFirst, OnFirstUnderTwo, OnFirstNotCaught;
+        public int NotCaught, NotCaughtOut;
+
         // Pitch-level diagnostics, so balance work is measured rather than guessed.
         public int InZone, Swings, Misses, Fouls, InPlay, CalledStrikes, CalledBalls;
         public int PlateAppearances, Doubles, Triples;
@@ -488,7 +498,9 @@ public static class HeadlessSim
 
     private sealed class SeriesTotals
     {
-        private int _runs, _hits, _hr, _k, _bb, _pitches, _innings, _sb, _cs;
+        private int _runs, _hits, _hr, _k, _bb, _pitches, _innings, _sb, _cs, _hbp, _wp;
+        private int _sf, _sh, _gidp, _twoOut, _forceChances, _onFirst;
+        private int _onFirstUnderTwo, _onFirstNotCaught, _notCaught, _notCaughtOut;
         private int _zone, _swings, _miss, _foul, _inPlay, _called, _balls, _pa;
         private int _doubles, _triples, _carryCount;
         private float _carrySum, _carryMax;
@@ -497,7 +509,11 @@ public static class HeadlessSim
         {
             _runs += r.Runs; _hits += r.Hits; _hr += r.HomeRuns;
             _k += r.Strikeouts; _bb += r.Walks; _pitches += r.Pitches; _innings += r.Innings;
-            _sb += r.Steals; _cs += r.Caught;
+            _sb += r.Steals; _cs += r.Caught; _hbp += r.HitBatsmen; _wp += r.WildPitches;
+            _sf += r.SacrificeFlies; _sh += r.SacrificeBunts; _gidp += r.DoublePlays;
+            _twoOut += r.TwoOutPlays; _forceChances += r.ForceChances; _onFirst += r.ManOnFirst;
+            _onFirstUnderTwo += r.OnFirstUnderTwo; _onFirstNotCaught += r.OnFirstNotCaught;
+            _notCaught += r.NotCaught; _notCaughtOut += r.NotCaughtOut;
             _zone += r.InZone; _swings += r.Swings; _miss += r.Misses; _foul += r.Fouls;
             _inPlay += r.InPlay; _called += r.CalledStrikes; _balls += r.CalledBalls;
             _pa += r.PlateAppearances; _doubles += r.Doubles; _triples += r.Triples;
@@ -557,7 +573,38 @@ public static class HeadlessSim
                    Row("BB", (float)_bb / games, r.Walks) +
                    Row("K", (float)_k / games, r.Strikeouts) +
                    Row("SB", (float)_sb / games, r.StolenBases) +
+                   Row("CS", (float)_cs / games, RealBaseball.MlbCaughtStealing) +
+                   Row("HBP", (float)_hbp / games, RealBaseball.MlbHitByPitch) +
+                   Row("WP", (float)_wp / games, RealBaseball.MlbWildPitches) +
+                   Row("SF", (float)_sf / games, RealBaseball.MlbSacrificeFlies) +
+                   Row("SH", (float)_sh / games, RealBaseball.MlbSacrificeBunts) +
+                   Row("GIDP", (float)_gidp / games, RealBaseball.MlbDoublePlays) +
+                   Defence(games) +
                    Reference;
+        }
+
+        /// <summary>
+        /// Where the defence's outs actually come from.
+        ///
+        /// Added because a missing statistic turned out to be a missing play: the double-play
+        /// column read zero, and the reason was not the scorer but an infield that never threw
+        /// anybody out. This block is what told the two apart, so it stays.
+        /// </summary>
+        private string Defence(int games)
+        {
+            float bip = Mathf.Max(_bip, 1);
+            float caught = _bip - _notCaught;
+
+            return $"\n=== where the outs come from ===\n" +
+                   $"  balls in play {bip / games:F1}/game — " +
+                   $"caught in the air {caught * 100f / bip:F0}% (real about 45%), " +
+                   $"not caught {_notCaught * 100f / bip:F0}%\n" +
+                   $"  of those not caught, an out {_notCaughtOut * 100f / Mathf.Max(_notCaught, 1):F0}% " +
+                   $"— {(float)_notCaughtOut / games:F2}/game (real is nearer 15)\n" +
+                   $"  with a man on first: {(float)_onFirst / games:F2} balls in play, " +
+                   $"{(float)_onFirstUnderTwo / games:F2} under two out, " +
+                   $"{(float)_forceChances / games:F2} retired, " +
+                   $"{(float)_gidp / games:F2} double plays\n";
         }
 
         /// <summary>
@@ -652,6 +699,10 @@ public static class HeadlessSim
 
                 if (result == SwingResult.InPlay)
                 {
+                    // Read before the play, since Apply picks the runners up off the bases.
+                    bool runnerOnFirst = sit.RunnerOn(1);
+                    int outsBefore = sit.Outs;
+
                     play.Begin(sit, ball, playSeed++);
 
                     if (ball.LaunchAngle > 15f)
@@ -666,6 +717,18 @@ public static class HeadlessSim
                     while (!play.Finished && frames++ < 2400) play.Update(FixedStep);
                     if (play.Outcome.IsHomeRun) report.HomeRuns++;
                     if (play.Outcome.IsHit) report.Hits++;
+
+                    // Told apart so a missing double play can be blamed on the right thing: a
+                    // simulation that never turns two, or a scorer that never recognises it.
+                    if (play.Outcome.Outs >= 2) report.TwoOutPlays++;
+                    if (runnerOnFirst) report.ManOnFirst++;
+                    if (!play.CaughtInAir) report.NotCaught++;
+                    if (!play.CaughtInAir && !play.Outcome.IsHit) report.NotCaughtOut++;
+                    if (runnerOnFirst && outsBefore < 2) report.OnFirstUnderTwo++;
+                    if (runnerOnFirst && outsBefore < 2 && !play.CaughtInAir)
+                        report.OnFirstNotCaught++;
+                    if (runnerOnFirst && outsBefore < 2 && !play.CaughtInAir &&
+                        !play.Outcome.IsHit) report.ForceChances++;
 
                     report.BallsInPlay++;
                     if (ball.SprayAngle < -15f) report.SprayLeft++;
@@ -687,22 +750,40 @@ public static class HeadlessSim
                     sit.AddStrike(foul: result == SwingResult.Foul);
                 }
             }
-            else if (pitch.IsStrike)
+            else if (LooseBall.HitsBatter(pitch, batter, ref rng))
             {
-                report.CalledStrikes++;
-                sit.AddStrike(foul: false);
+                report.HitBatsmen++;
+                sit.AwardHitByPitch();
             }
             else
             {
-                report.CalledBalls++;
-                sit.AddBall();
+                bool endedAtBat;
+                if (pitch.IsStrike)
+                {
+                    report.CalledStrikes++;
+                    endedAtBat = sit.AddStrike(foul: false);
+                }
+                else
+                {
+                    report.CalledBalls++;
+                    endedAtBat = sit.AddBall();
+                }
+
+                // The ball is only wild if there is somebody to advance, and only if the at-bat
+                // is still going — a walk has already put the runners where they belong.
+                if (!endedAtBat && !sit.IsOver && sit.RunnerCount > 0 &&
+                    LooseBall.GetsAway(pitch, sit.FieldingTeam.Fielder(Position.C), ref rng))
+                {
+                    report.WildPitches++;
+                    sit.WildPitch();
+                }
             }
 
             // Managers go to the pen when the man on the mound is spent.
             var current = sit.FieldingTeam.CurrentPitcher;
             pitchCounts.TryGetValue(current, out int used);
             var reliever = CpuBrain.Relieve(sit, used);
-            if (reliever != null) sit.FieldingTeam.SetPitcher(reliever);
+            if (reliever != null) sit.ChangePitcher(reliever);
         }
 
         report.Runs = sit.AwayScore + sit.HomeScore;
@@ -719,6 +800,13 @@ public static class HeadlessSim
             report.PlateAppearances += line.PlateAppearances;
             report.Doubles += line.Doubles;
             report.Triples += line.Triples;
+
+            // The scorer's distinctions. These are read from the book on purpose: they are the
+            // only proof that a sacrifice or a double play was ever recognised as one, rather
+            // than passing through as a plain out the way they used to.
+            report.SacrificeFlies += line.SacrificeFlies;
+            report.SacrificeBunts += line.SacrificeBunts;
+            report.DoublePlays += line.GroundedIntoDoublePlay;
         }
 
         if (sit.IsOver)

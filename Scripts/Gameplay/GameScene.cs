@@ -362,6 +362,12 @@ public partial class GameScene : Node2D
 
         FieldGeometry.SetConditions(Conditions.Wind, Conditions.TemperatureF);
 
+        // Which month this is, so the at-bats land in the right monthly split. A friendly or a
+        // moment has no calendar behind it and stays in the first bucket.
+        Situation.Month = Game.Instance.League != null
+            ? Season.Calendar.MonthIndex(Game.Instance.League.CurrentDay)
+            : 0;
+
         Situation.Start(away, home, g.Innings);
 
         // A moment starts somewhere other than the top of the first. Nothing in the rules is
@@ -820,7 +826,7 @@ public partial class GameScene : Node2D
         {
             if (Visit.IsChange && Visit.Incoming != null)
             {
-                Situation.FieldingTeam.SetPitcher(Visit.Incoming);
+                Situation.ChangePitcher(Visit.Incoming);
                 Toast($"{Visit.Incoming.ShortName} " +
                       $"({PlayerData.RoleLabel(Visit.Incoming.Role)}) comes in.", 2f);
                 AddLog($"Pitching change: {Visit.Incoming.Name} replaces {Visit.Outgoing?.Name}.");
@@ -1537,6 +1543,18 @@ public partial class GameScene : Node2D
     private void TakePitch()
     {
         SwingTaken = true;
+
+        // Before anything is called: did it hit him. There is no umpire's judgement to make and
+        // no challenge to take — he is on first and the count is gone.
+        if (LooseBall.HitsBatter(CurrentPitch, Situation.Batter, ref _rng))
+        {
+            Sfx.Instance?.Play(Sound.Out, 0.5f);
+            ShowResult("Hit by the pitch.");
+            AddLog($"{Situation.Batter.Name} is hit by a pitch.");
+            Situation.AwardHitByPitch();
+            return;
+        }
+
         // Either way it thumps into the catcher's mitt.
         Sfx.Instance?.Play(Sound.MittPop, 0.6f, 0.92f + _audioRng.NextFloat() * 0.16f);
 
@@ -1568,10 +1586,12 @@ public partial class GameScene : Node2D
         _callPending = false;
         ChallengeWindow = 0f;
 
+        bool endedAtBat;
+
         if (called)
         {
             // AddStrike reports strike three, which deserves more than a called-strike toast.
-            if (Situation.AddStrike(foul: false))
+            if (endedAtBat = Situation.AddStrike(foul: false))
             {
                 Sfx.Instance?.Play(Sound.Out, 0.6f);
                 if (HumanBatting) CrowdSound(Sound.CrowdGroan, 0.4f);
@@ -1586,7 +1606,7 @@ public partial class GameScene : Node2D
         }
         else
         {
-            if (Situation.AddBall())
+            if (endedAtBat = Situation.AddBall())
             {
                 Sfx.Instance?.Play(Sound.Walk, 0.6f);
                 Narrator.Instance?.Say(VoiceLine.Walk, 3);
@@ -1596,6 +1616,18 @@ public partial class GameScene : Node2D
             else Narrator.Instance?.Say(VoiceLine.Ball);
             ShowResult("Ball.");
         }
+
+        // And whether the catcher kept it in front of him. Only worth asking while the at-bat is
+        // still alive and there is somebody out there to take the extra bag.
+        if (endedAtBat || Situation.IsOver || Situation.RunnerCount == 0) return;
+        if (!LooseBall.GetsAway(CurrentPitch,
+                Situation.FieldingTeam.Fielder(Data.Position.C), ref _rng))
+            return;
+
+        int scored = Situation.WildPitch();
+        Sfx.Instance?.Play(Sound.Out, 0.4f);
+        ShowResult(scored > 0 ? "Wild pitch — a run scores!" : "Wild pitch!");
+        AddLog($"Wild pitch by {Situation.CurrentPitcher?.Name}. Runners move up.");
     }
 
     // -----------------------------------------------------------------------

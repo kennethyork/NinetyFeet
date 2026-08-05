@@ -237,15 +237,17 @@ public partial class LeagueOffice : Control
             ("HOME RUNS", l => l.HomeRuns, l => l.HomeRuns.ToString(), 1),
             ("RUNS BATTED IN", l => l.RunsBattedIn, l => l.RunsBattedIn.ToString(), 1),
             ("ON-BASE PLUS SLUGGING", l => l.Ops, l => l.Ops.ToString("F3"), 10),
+            ("ON-BASE PERCENTAGE", l => l.OnBase, l => BattingLine.Rate(l.OnBase), 10),
+            ("STOLEN BASES", l => l.StolenBases, l => $"{l.StolenBases}-{l.CaughtStealing}", 1),
         };
 
-        DrawLeaderGrid(size, boards.Length, (i, x, y, w) =>
+        DrawLeaderGrid(size, boards.Length, (i, x, y, w, depth) =>
         {
             var (title, by, show, min) = boards[i];
             Palette.Text(this, new Vector2(x, y), title, 13, Palette.Highlight);
             float ry = y + 24f;
 
-            var rows = _season.HittingLeaders(by, min, 9);
+            var rows = _season.HittingLeaders(by, min, depth);
             if (rows.Count == 0)
                 Palette.Text(this, new Vector2(x, ry), "No qualifiers yet — play some games.", 12, Palette.InkDim);
 
@@ -273,15 +275,21 @@ public partial class LeagueOffice : Control
             ("STRIKEOUTS", l => l.Strikeouts, false, l => l.Strikeouts.ToString(), 1),
             ("WINS", l => l.Wins, false, l => l.Wins.ToString(), 1),
             ("WALKS PLUS HITS PER INNING", l => l.Whip, true, l => l.Whip.ToString("F2"), 9),
+
+            // The bullpen's own board. Saves alone flatter the one man who gets the ninth and
+            // say nothing about the four who got the game to him.
+            ("SAVES AND HOLDS", l => l.Saves + l.Holds, false,
+                l => $"{l.Saves} sv, {l.Holds} hld", 1),
+            ("FIELDING INDEPENDENT", l => l.Fip, true, l => l.Fip.ToString("F2"), 9),
         };
 
-        DrawLeaderGrid(size, boards.Length, (i, x, y, w) =>
+        DrawLeaderGrid(size, boards.Length, (i, x, y, w, depth) =>
         {
             var (title, by, asc, show, min) = boards[i];
             Palette.Text(this, new Vector2(x, y), title, 13, Palette.Highlight);
             float ry = y + 24f;
 
-            var rows = _season.PitchingLeaders(by, asc, min, 9);
+            var rows = _season.PitchingLeaders(by, asc, min, depth);
             if (rows.Count == 0)
                 Palette.Text(this, new Vector2(x, ry), "No qualifiers yet — play some games.", 12, Palette.InkDim);
 
@@ -300,14 +308,29 @@ public partial class LeagueOffice : Control
         });
     }
 
-    private void DrawLeaderGrid(Vector2 size, int count, System.Action<int, float, float, float> draw)
+    /// <summary>
+    /// Lays the leaderboards out two across and as many down as there are.
+    ///
+    /// The row height used to be a fixed 250 and the depth a fixed nine, which quietly capped the
+    /// screen at four boards: a fifth started below the bottom of the window and was drawn where
+    /// nobody could see it. The band is now divided by how many rows there actually are, and each
+    /// board is told how many names will fit rather than assuming.
+    /// </summary>
+    private void DrawLeaderGrid(Vector2 size, int count,
+        System.Action<int, float, float, float, int> draw)
     {
         float w = (size.X - 100f) / 2f;
+        const float Top = 152f;
+
+        int rows = Mathf.Max(1, Mathf.CeilToInt(count / 2f));
+        float band = (size.Y - Top - 40f) / rows;
+        int depth = Mathf.Clamp(Mathf.FloorToInt((band - 30f) / 19f), 3, 9);
+
         for (int i = 0; i < count; i++)
         {
             float x = 40f + (i % 2) * (w + 20f);
-            float y = 152f + (i / 2) * 250f;
-            draw(i, x, y, w);
+            float y = Top + (i / 2) * band;
+            draw(i, x, y, w, depth);
         }
     }
 
@@ -325,8 +348,20 @@ public partial class LeagueOffice : Control
 
         // Hitters.
         float y = 224f;
-        string[] cols = { "POS", "NAME", "AVG", "AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "K", "OPS" };
-        float[] xs = { 40f, 88f, 250f, 306f, 348f, 386f, 424f, 462f, 504f, 550f, 590f, 630f, 676f };
+        // The right-hand half of this table was empty, so the columns that make a line readable
+        // now live there: on-base and slugging rather than only their sum, the stolen-base record
+        // with the times he was caught, and the sacrifices and double plays that were being kept
+        // but never shown.
+        string[] cols =
+        {
+            "POS", "NAME", "AVG", "AB", "H", "2B", "3B", "HR", "RBI", "R", "BB", "K",
+            "OBP", "SLG", "OPS", "SB-CS", "HBP", "SF", "GIDP",
+        };
+        float[] xs =
+        {
+            40f, 88f, 250f, 306f, 348f, 386f, 424f, 462f, 504f, 550f, 590f, 630f,
+            676f, 730f, 784f, 838f, 902f, 946f, 986f,
+        };
 
         for (int i = 0; i < cols.Length; i++)
             Palette.Text(this, new Vector2(xs[i], y), cols[i], 12, Palette.Highlight);
@@ -347,14 +382,30 @@ public partial class LeagueOffice : Control
             Palette.Text(this, new Vector2(xs[9], y), b.Runs.ToString(), 12, Palette.InkDim);
             Palette.Text(this, new Vector2(xs[10], y), b.Walks.ToString(), 12, Palette.InkDim);
             Palette.Text(this, new Vector2(xs[11], y), b.Strikeouts.ToString(), 12, Palette.InkDim);
-            Palette.Text(this, new Vector2(xs[12], y), b.Ops.ToString("F3"), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[12], y), BattingLine.Rate(b.OnBase), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[13], y), BattingLine.Rate(b.Slugging), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[14], y), b.Ops.ToString("F3"), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[15], y),
+                $"{b.StolenBases}-{b.CaughtStealing}", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[16], y), b.HitByPitch.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[17], y), b.SacrificeFlies.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[18], y),
+                b.GroundedIntoDoublePlay.ToString(), 12, Palette.InkDim);
             y += 19f;
         }
 
         // Pitchers.
         y += 22f;
-        string[] pcols = { "NAME", "W", "L", "ERA", "IP", "H", "ER", "BB", "K", "WHIP" };
-        float[] pxs = { 88f, 250f, 288f, 326f, 386f, 434f, 472f, 514f, 552f, 596f };
+        string[] pcols =
+        {
+            "NAME", "W", "L", "ERA", "IP", "H", "ER", "BB", "K", "WHIP",
+            "SV", "HLD", "BS", "QS", "HR", "HBP", "WP", "FIP",
+        };
+        float[] pxs =
+        {
+            88f, 250f, 288f, 326f, 386f, 434f, 472f, 514f, 552f, 596f,
+            652f, 692f, 738f, 776f, 814f, 856f, 902f, 940f,
+        };
         Palette.Text(this, new Vector2(40f, y), "STAFF", 12, Palette.Highlight);
         for (int i = 0; i < pcols.Length; i++)
             Palette.Text(this, new Vector2(pxs[i], y), pcols[i], 12, Palette.Highlight);
@@ -373,6 +424,14 @@ public partial class LeagueOffice : Control
             Palette.Text(this, new Vector2(pxs[7], y), t.Walks.ToString(), 12, Palette.InkDim);
             Palette.Text(this, new Vector2(pxs[8], y), t.Strikeouts.ToString(), 12, Palette.Ink);
             Palette.Text(this, new Vector2(pxs[9], y), t.Outs > 0 ? t.Whip.ToString("F2") : "—", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[10], y), t.Saves.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(pxs[11], y), t.Holds.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[12], y), t.BlownSaves.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[13], y), t.QualityStarts.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[14], y), t.HomeRunsAllowed.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[15], y), t.HitBatters.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[16], y), t.WildPitches.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(pxs[17], y), t.Outs > 0 ? t.Fip.ToString("F2") : "—", 12, Palette.InkDim);
             y += 19f;
         }
 

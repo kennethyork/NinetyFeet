@@ -57,6 +57,19 @@ public sealed class GameSituation
     /// <summary>This game's box score. The season book absorbs it when the game goes final.</summary>
     public readonly StatBook Stats = new();
 
+    /// <summary>
+    /// Which month of the season this is, April being 0. Set by whoever starts the game; a
+    /// friendly or a moment leaves it at zero, which is harmless — it only sorts the splits.
+    /// </summary>
+    public int Month;
+
+    /// <summary>
+    /// The slices this moment's numbers belong in. Read it before moving anybody: a hit with a
+    /// man on second is a hit with a runner in scoring position, and once the runner has been
+    /// waved home the state no longer says so.
+    /// </summary>
+    public SplitContext Where => new(!TopHalf, Month, RunnerOn(2) || RunnerOn(3));
+
     public PlayerData CurrentPitcher => FieldingTeam.CurrentPitcher;
 
     public Roster BattingTeam => TopHalf ? Away : Home;
@@ -95,6 +108,12 @@ public sealed class GameSituation
         AwayLine.Add(0);
         Array.Clear(Runners, 0, Runners.Length);
         IsOver = false;
+
+        // Both starters go on the relief ledger so the men who follow them have something to be
+        // measured against.
+        Stats.RecordEntry(away.CurrentPitcher, away.Team.Id, 0, 0, starting: true);
+        Stats.RecordEntry(home.CurrentPitcher, home.Team.Id, 0, 0, starting: true);
+
         NextBatter();
     }
 
@@ -117,6 +136,21 @@ public sealed class GameSituation
         return true;
     }
 
+    /// <summary>
+    /// Brings a new arm in for the side in the field, and notes the lead he is inheriting.
+    ///
+    /// Going through here rather than straight to the roster is what makes holds and blown saves
+    /// possible: a final line cannot tell you whether a man walked into a one-run game or a rout,
+    /// and that difference is most of how a bullpen is judged.
+    /// </summary>
+    public void ChangePitcher(PlayerData arm)
+    {
+        if (arm == null) return;
+        var side = FieldingTeam;
+        side.SetPitcher(arm);
+        Stats.RecordEntry(arm, side.Team.Id, FieldingScore, BattingScore, starting: false);
+    }
+
     public void Announce(string message) => Announced?.Invoke(message);
 
     // -----------------------------------------------------------------------
@@ -132,7 +166,7 @@ public sealed class GameSituation
         if (Strikes >= 3)
         {
             Announce($"{Batter.ShortName} strikes out!");
-            Stats.RecordPlateAppearance(Batter, CurrentPitcher, PaResult.Strikeout, 0, 1, true);
+            Stats.RecordPlateAppearance(Batter, CurrentPitcher, PaResult.Strikeout, 0, 1, true, Where);
             // RecordOut may end the half inning, which already queues the next hitter.
             bool endedHalf = RecordOut();
             if (!IsOver && !endedHalf) NextBatter();
@@ -158,11 +192,33 @@ public sealed class GameSituation
     // Advancing runners
     // -----------------------------------------------------------------------
 
-    /// <summary>Walk or hit-by-pitch: the batter takes first and forces runners along.</summary>
-    public void AwardWalk()
+    /// <summary>Walk: the batter takes first and forces runners along.</summary>
+    public void AwardWalk() => AwardFirstBase(PaResult.Walk);
+
+    /// <summary>
+    /// A free pass given on purpose. It moves runners exactly as a walk does, but it is a
+    /// different thing on both men's records — an intentional walk says nothing about the
+    /// pitcher's control, and a hitter is not credited with an eye for being avoided.
+    /// </summary>
+    public void AwardIntentionalWalk()
+    {
+        Announce($"{Batter.ShortName} is put on intentionally.");
+        AwardFirstBase(PaResult.IntentionalWalk);
+    }
+
+    /// <summary>A pitch that got away and hit him. Same bases, and it is on the pitcher.</summary>
+    public void AwardHitByPitch()
+    {
+        Announce($"{Batter.ShortName} is hit by the pitch.");
+        AwardFirstBase(PaResult.HitByPitch);
+    }
+
+    /// <summary>The batter takes first however he earned it, and the forced runners move up.</summary>
+    private void AwardFirstBase(PaResult how)
     {
         var batter = Batter;
         var pitcher = CurrentPitcher;
+        var where = Where;
 
         int runs = 0;
         if (RunnerOn(1))
@@ -172,7 +228,7 @@ public sealed class GameSituation
                 if (RunnerOn(3))
                 {
                     // Bases loaded: the runner on third is forced home.
-                    Stats.RecordRun(Runners[3]);
+                    Stats.RecordRun(Runners[3], where);
                     runs++;
                 }
                 Runners[3] = Runners[2];
@@ -181,7 +237,7 @@ public sealed class GameSituation
         }
         Runners[1] = batter;
 
-        Stats.RecordPlateAppearance(batter, pitcher, PaResult.Walk, runs, 0, true);
+        Stats.RecordPlateAppearance(batter, pitcher, how, runs, 0, true, where);
         if (runs > 0) AddRuns(runs);
         if (!IsOver) NextBatter();
     }
@@ -191,18 +247,24 @@ public sealed class GameSituation
     {
         if (!RunnerOn(fromBase)) return;
         var runner = Runners[fromBase];
+        var where = Where;
         Runners[fromBase + 1] = runner;
         Runners[fromBase] = null;
-        Stats.Batting(runner).StolenBases++;
+        Stats.RecordSteal(runner, safe: true, where);
         Announce($"{runner.ShortName} steals {(fromBase == 1 ? "second" : "third")}!");
     }
 
-    /// <summary>Thrown out trying. The runner is off the bases and it is an out.</summary>
+    /// <summary>
+    /// Thrown out trying. The runner is off the bases and it is an out — and now it goes on his
+    /// record, which it never did. A thief with fifty steals and no times caught looked free.
+    /// </summary>
     public bool CaughtStealing(int fromBase)
     {
         if (!RunnerOn(fromBase)) return false;
         var runner = Runners[fromBase];
+        var where = Where;
         Runners[fromBase] = null;
+        Stats.RecordSteal(runner, safe: false, where);
         Announce($"{runner.ShortName} is caught stealing.");
         return RecordOut();
     }
@@ -211,13 +273,34 @@ public sealed class GameSituation
     /// A balk: every runner is awarded one base and the batter stays at the plate. Used by the
     /// disengagement limit — a third step-off that does not retire the runner is a balk.
     /// </summary>
-    public int AwardBalk()
+    public int AwardBalk() => AdvanceAllRunners();
+
+    /// <summary>
+    /// Everybody up one bag, the batter staying where he is. A balk and a ball that gets past the
+    /// catcher move the same men the same distance.
+    /// </summary>
+    public int AdvanceAllRunners()
     {
+        var where = Where;
         int runs = 0;
-        if (RunnerOn(3)) { Stats.RecordRun(Runners[3]); runs++; Runners[3] = null; }
+        if (RunnerOn(3)) { Stats.RecordRun(Runners[3], where); runs++; Runners[3] = null; }
         if (RunnerOn(2)) { Runners[3] = Runners[2]; Runners[2] = null; }
         if (RunnerOn(1)) { Runners[2] = Runners[1]; Runners[1] = null; }
         if (runs > 0) AddRuns(runs);
+        return runs;
+    }
+
+    /// <summary>
+    /// A pitch the catcher could not keep in front of him. The count stands; the runners do not.
+    /// </summary>
+    public int WildPitch()
+    {
+        if (RunnerCount == 0) return 0;
+
+        var arm = CurrentPitcher;
+        int runs = AdvanceAllRunners();
+        Stats.RecordWildPitch(arm);
+        Announce($"Wild pitch — the runners move up.");
         return runs;
     }
 
@@ -234,6 +317,7 @@ public sealed class GameSituation
     {
         var batter = Batter;
         var pitcher = CurrentPitcher;
+        var where = Where;
 
         int runs = 0;
         for (int b = 3; b >= 1; b--)
@@ -242,18 +326,18 @@ public sealed class GameSituation
             int dest = b + bases;
             var runner = Runners[b];
             Runners[b] = null;
-            if (dest >= 4) { Stats.RecordRun(runner); runs++; }
+            if (dest >= 4) { Stats.RecordRun(runner, where); runs++; }
             else Runners[dest] = runner;
         }
 
         if (bases >= 4)
         {
-            Stats.RecordRun(batter);            // the batter himself
+            Stats.RecordRun(batter, where);     // the batter himself
             runs++;
         }
         else Runners[bases] = batter;
 
-        Stats.RecordPlateAppearance(batter, pitcher, ResultForBases(bases), runs, 0, true);
+        Stats.RecordPlateAppearance(batter, pitcher, ResultForBases(bases), runs, 0, true, where);
 
         if (TopHalf) AwayHits++; else HomeHits++;
         if (runs > 0) AddRuns(runs);
@@ -275,9 +359,10 @@ public sealed class GameSituation
     /// </summary>
     public void CompleteBattedBall(
         PlayerData batter, PlayerData pitcher, IReadOnlyList<PlayerData> scorers,
-        bool isHit, int basesForBatter, int outs, bool errorOnPlay)
+        bool isHit, int basesForBatter, int outs, bool errorOnPlay,
+        SplitContext where = default, PlayCredit credit = PlayCredit.None)
     {
-        foreach (var runner in scorers) Stats.RecordRun(runner);
+        foreach (var runner in scorers) Stats.RecordRun(runner, where);
 
         PaResult result = isHit
             ? ResultForBases(basesForBatter)
@@ -288,7 +373,8 @@ public sealed class GameSituation
         int outsCredited = Math.Min(outs, 3 - Outs);
 
         // Runs that only scored because of a misplay do not go on the pitcher's ledger.
-        Stats.RecordPlateAppearance(batter, pitcher, result, scorers.Count, outsCredited, !errorOnPlay);
+        Stats.RecordPlateAppearance(batter, pitcher, result, scorers.Count, outsCredited,
+            !errorOnPlay, where, credit);
 
         if (isHit) { if (TopHalf) AwayHits++; else HomeHits++; }
 
