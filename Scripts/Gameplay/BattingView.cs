@@ -550,14 +550,38 @@ public partial class BattingView : Node2D
     /// </summary>
     private const float Wide = 1f / 0.72f;
 
+    /// <summary>An ellipse outline, since Godot's DrawArc only draws circles.</summary>
+    private void DrawEllipseOutline(Vector2 centre, float rx, float ry, Color tint, float width)
+    {
+        const int Steps = 40;
+        var points = new Vector2[Steps + 1];
+        for (int i = 0; i <= Steps; i++)
+        {
+            float a = i / (float)Steps * Mathf.Tau;
+            points[i] = centre + new Vector2(Mathf.Cos(a) * rx, Mathf.Sin(a) * ry);
+        }
+        DrawPolyline(points, tint, width);
+    }
+
     private void DrawBatCursor()
     {
         var batter = Scene.Situation.Batter;
         var type = Scene.PendingSwing;
 
-        float barrelFeet = SwingResolver.BarrelRadius(batter, Scene.BatAssist, type);
-        float reach = barrelFeet * PixelsPerFoot;
-        float r = reach * 0.42f;              // the sweet spot — what the bracket marks
+        // Two radii, both taken straight from the resolver rather than picked to look right.
+        //
+        //   reach  — where the bat touches the ball at all. Widened by difficulty.
+        //   r      — where a well-timed swing actually squares it up. NOT widened by difficulty,
+        //            because the assist has never made anybody hit the ball harder.
+        //
+        // The bracket marks the second one, because that is the thing worth aiming at. The first
+        // is drawn as a thin outline: a hitter should be able to see what he can reach without it
+        // being a disc big enough to bury the pitch behind, which is what it used to be.
+        float platoon = Scene.CurrentPitch != null
+            ? Platoon.Factor(batter, Scene.CurrentPitch.Pitcher) : 1f;
+
+        float reach = SwingResolver.BarrelRadius(batter, Scene.BatAssist, type) * PixelsPerFoot;
+        float r = SwingResolver.SquareUpRadius(batter, type, platoon) * PixelsPerFoot;
 
         Vector2 at = ToScreen(Scene.BatCursor);
 
@@ -597,23 +621,11 @@ public partial class BattingView : Node2D
             DrawLine(corner, corner + new Vector2(0f, -sy * arm), live, onTime ? 3f : 2.2f);
         }
 
-        // The barrel: the part of the sweet spot that produces a struck ball rather than contact.
-        //
-        // The resolver already grades every swing continuously — `squared` decides exit velocity
-        // and it is far sharper than whether you made contact at all — and none of that was ever
-        // on screen. You could see the region where you would hit the ball and had no way to see
-        // the much smaller region where you would hurt it. This is that region, drawn to the same
-        // ellipse as the maths.
-        float coreR = r * 0.52f;
-        var coreTint = new Color(live.R, live.G, live.B, 0.30f);
-        for (int i = 0; i < 4; i++)
-        {
-            float sx = (i & 1) == 0 ? -1f : 1f;
-            float sy = (i & 2) == 0 ? -1f : 1f;
-            var corner = at + new Vector2(sx * coreR * Wide, sy * coreR);
-            DrawLine(corner, corner + new Vector2(-sx * coreR * 0.4f, 0f), coreTint, 1.5f);
-            DrawLine(corner, corner + new Vector2(0f, -sy * coreR * 0.4f), coreTint, 1.5f);
-        }
+        // The full reach, as a thin ellipse. This is where the bat touches the ball at all, and it
+        // is the number difficulty actually moves — so on Rookie it is visibly large and on Legend
+        // it closes right down onto the bracket, which is the honest picture of what the setting
+        // does. It is an outline rather than a fill precisely so it does not hide the pitch.
+        DrawEllipseOutline(at, reach * Wide, reach, new Color(live.R, live.G, live.B, 0.16f), 1.4f);
 
         // A faint centre mark so the aim point is unambiguous without covering anything.
         DrawLine(at + new Vector2(-5f, 0f), at + new Vector2(5f, 0f), new Color(live.R, live.G, live.B, 0.85f), 1.6f);

@@ -126,6 +126,27 @@ public static class SwingResolver
     /// widens the gap where a person can feel it and leaves every league statistic exactly where
     /// it was measured.
     /// </summary>
+    /// <summary>
+    /// The radius inside which a well-timed swing actually squares the ball up, in feet.
+    ///
+    /// This is the number the reticle should be built around, and until now nothing drew it. The
+    /// bracket was pinned at 0.42 of the contact radius — a figure that corresponds to nothing in
+    /// the resolver, chosen because a ring the size of the real bat buried the pitch behind it.
+    ///
+    /// Derived rather than picked. With perfect timing the resolver scores a swing at
+    /// <c>0.68 · trueSpatial^1.6 + 0.32</c>, and a struck ball needs about 0.60 of that, which
+    /// works back to being within roughly 43% of the true barrel. Note what it is *not* multiplied
+    /// by: the assist. Difficulty widens the region where you make contact and never widens the
+    /// region where you do damage, and a hitter should be able to see that.
+    /// </summary>
+    public static float SquareUpRadius(PlayerData batter, SwingType type, float platoon = 1f)
+    {
+        float barrelTrue = (0.505f + batter.Contact / 10f * 0.125f)
+                           * SwingProfile.For(type).Barrel * platoon;
+        if (batter.Special == Special.ContactMaster) barrelTrue *= 1.35f;
+        return barrelTrue * 0.43f;
+    }
+
     public static float BarrelRadius(PlayerData batter, float assist, SwingType type)
     {
         float rated = batter.Contact / 10f;
