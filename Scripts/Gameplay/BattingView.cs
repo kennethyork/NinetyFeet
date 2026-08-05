@@ -434,7 +434,14 @@ public partial class BattingView : Node2D
         // The catcher is nearest the camera: cropped by the bottom edge, framing the shot.
         var catcher = Scene.Situation.FieldingTeam.Fielder(Data.Position.C);
         // Far enough down that only his head and shoulders show, framing the bottom of the shot.
-        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 210f), 3.0f, 1f,
+        // Far enough down that his head never reaches the zone.
+        //
+        // Scaling him up from 1.55 to 3.0 scaled his head with him, and heads vary — the largest
+        // roll is 1.20 of the base. At the old offset that put the crown of a big-headed catcher
+        // 21 pixels inside the bottom of the strike zone, which is exactly where a hitter is
+        // trying to judge a low pitch. He frames the bottom of the shot; he does not get to stand
+        // in the part of it that is being read.
+        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 290f), 3.0f, 1f,
             Pose.Field, fieldTeam, catcher, _time,
             lookAt: Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
                 ? BallScreenPos()
