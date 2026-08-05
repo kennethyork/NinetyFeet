@@ -163,6 +163,27 @@ public static class Inbox
             break;      // one of these a season is a note; five is noise
         }
 
+        // --- The bench coach on somebody who has had enough. ---
+        var unhappy = roster.Players
+            .Where(p => p.Morale <= 2 && !p.Retired)
+            .OrderBy(p => p.Morale)
+            .ThenByDescending(p => p.Overall)
+            .FirstOrDefault();
+
+        if (unhappy != null)
+        {
+            Post(Sender.Bench, $"{unhappy.ShortName} has had enough",
+                $"{unhappy.Name} is not in a good place. {Temperament.MoraleText(unhappy.Morale)}, " +
+                $"and he is {Temperament.LoyaltyText(unhappy.Loyalty)}.\n\n" +
+                (unhappy.ContractYears <= 1
+                    ? "He is in the last year of his deal, which is not helping. If you want him " +
+                      "next season it will cost more than it should."
+                    : "He is under contract, so he is not going anywhere. That is not the same as " +
+                      "him being all right.") +
+                "\n\nPlay him, win some games, or trade him. Those are the three.",
+                season.CurrentDay, season.Year, unhappy.Name);
+        }
+
         // --- The bench coach on the infirmary. ---
         var hurt = roster.Players.Where(p => p.IsInjured).ToList();
         if (hurt.Count >= 3)

@@ -25,6 +25,9 @@ public partial class FranchiseScreen : Control
     /// <summary>Selected for a swap. Click a second player to exchange their places.</summary>
     private PlayerData _swapFrom;
 
+    /// <summary>Space kept clear at the foot of the player card for the close button.</summary>
+    private const float Room = 78f;
+
     private Tab _tab = Tab.Roster;
     private SeasonState _season;
     private PlayerData _selected;
@@ -399,7 +402,13 @@ public partial class FranchiseScreen : Control
             $"Overall {p.Overall}   ·   ceiling {p.Ceiling} ({p.PotentialGrade})" +
             (p.Upside > 0 ? $"   ·   {p.Upside} still to come" : "   ·   at his ceiling"),
             13, Palette.InkDim);
-        y += 32f;
+        y += 22f;
+
+        // Who he is, which is a different question from how good he is — and the one that decides
+        // whether the ceiling above ever gets reached and whether he is still here when it does.
+        Palette.Text(this, card.Position + new Vector2(20f, y), Temperament.Summary(p), 13,
+            p.Morale <= 2 ? Palette.Warning : p.Morale >= 8 ? Palette.Highlight : Palette.InkDim);
+        y += 30f;
 
         // --- This season, and the career behind it ---
         int seasons = _season.Book.SeasonsPlayed(p);
@@ -453,6 +462,12 @@ public partial class FranchiseScreen : Control
     /// </summary>
     private void DrawSplits(Rect2 card, ref float y, PlayerData p)
     {
+        // The card has grown a section at a time — ratings, then the career line, then the
+        // splits, then the form — and each one was added assuming there was room. There is not
+        // always: a pitcher with five slices runs past the bottom and draws over the close
+        // button. Every block below here checks first.
+        if (y > card.Size.Y - Room) return;
+
         bool arm = p.Position == Data.Position.P;
         var slices = new[]
         {
@@ -474,6 +489,7 @@ public partial class FranchiseScreen : Control
 
         foreach (var slice in slices)
         {
+            if (y > card.Size.Y - Room) break;
             string label = arm ? Stats.SplitBook.PitcherLabel(slice) : Stats.SplitBook.Label(slice);
 
             if (arm)
@@ -514,6 +530,8 @@ public partial class FranchiseScreen : Control
     /// </summary>
     private void DrawRecentForm(Rect2 card, ref float y, PlayerData p)
     {
+        if (y > card.Size.Y - Room) return;
+
         var recent = _season.Logs.Recent(p.Id, 10);
         if (recent.Count == 0) return;
 

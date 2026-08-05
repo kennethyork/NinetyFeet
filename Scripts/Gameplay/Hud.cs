@@ -126,6 +126,7 @@ public partial class Hud : Node2D
 
         DrawBaseDiamond(at + new Vector2(258f, 46f), s);
         DrawChallenges(at, s);
+        DrawMatchupCard(s);
         // Only one of these can apply: you are either at the plate or in the field.
         DrawStealPrompt(at, s);
         DrawDefencePrompt(at, s);
@@ -256,6 +257,65 @@ public partial class Hud : Node2D
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.Text(this, rect.Position + new Vector2(10f, 18f),
             $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+    }
+
+    // The matchup card: who is up, and the one number that makes it interesting.
+    private Data.PlayerData _cardFor;
+    private float _cardLeft;
+
+    /// <summary>
+    /// The graphic a broadcast puts up when a new man comes to the plate.
+    ///
+    /// It exists because the splits do. Telling you a hitter is batting .262 is filler; telling
+    /// you he is batting .310 against right-handers while a right-hander is warming is the reason
+    /// to look up. The card is built out of the season book and shows nothing it does not know —
+    /// a hitter with nine at-bats gets his name and no numbers rather than a made-up line.
+    /// </summary>
+    private void DrawMatchupCard(GameSituation s)
+    {
+        // A new man at the plate puts the card up. Nothing else does, so it never covers a pitch.
+        if (s.Batter != _cardFor)
+        {
+            _cardFor = s.Batter;
+            _cardLeft = Broadcast.CardSeconds;
+        }
+
+        if (_cardLeft <= 0f || s.Batter == null) return;
+        _cardLeft -= (float)GetProcessDeltaTime();
+
+        var card = Broadcast.Matchup(s.Batter, s.CurrentPitcher, Core.Game.Instance.League);
+        if (card.IsEmpty) return;
+
+        // Slides in and fades out at the end, so it reads as a graphic rather than a pop-up.
+        float t = Mathf.Clamp(Broadcast.CardSeconds - _cardLeft, 0f, 1f);
+        float alpha = Mathf.Min(1f, _cardLeft / 0.45f) * Mathf.SmoothStep(0f, 1f, t);
+        if (alpha <= 0.01f) return;
+
+        Vector2 size = GetViewportRect().Size;
+        float w = 330f;
+        float h = 62f + card.Lines.Length * 20f;
+        var at = new Vector2(40f, size.Y - h - 64f);
+
+        var club = s.BattingTeam?.Team;
+        var body = Palette.Panel;
+        body.A *= alpha;
+
+        Palette.Panel3D(this, new Rect2(at, new Vector2(w, h)), body);
+        DrawRect(new Rect2(at, new Vector2(5f, h)),
+            new Color(club?.Secondary ?? Palette.Highlight) { A = alpha });
+
+        var ink = Palette.Ink; ink.A *= alpha;
+        var dim = Palette.InkDim; dim.A *= alpha;
+
+        Palette.Text(this, at + new Vector2(16f, 26f), card.Title, 18, ink);
+        Palette.Text(this, at + new Vector2(16f, 44f), card.Subtitle, 11, dim);
+
+        float y = 64f;
+        foreach (string line in card.Lines)
+        {
+            Palette.Text(this, at + new Vector2(16f, y), line, 12, ink);
+            y += 20f;
+        }
     }
 
     /// <summary>

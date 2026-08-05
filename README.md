@@ -56,6 +56,39 @@ reward programme as the rest of the collection.
 
 **Exhibition** — any two clubs, any length.
 
+### The stat sheet
+
+Every plate appearance is filed four ways: by the pitcher's hand, by home or road, by month, and by
+whether a man was in scoring position. The simulation has always modelled the platoon matchup —
+`Platoon.cs` has been deciding at-bats by handedness for a long time — and until recently nothing
+wrote down which hand was on the mound, so the one thing the engine did best was the one thing you
+could not see. Splits are on the player card; the broadcast card at the plate reads from them.
+
+Box scores are kept for your club's games — the line score by inning, both sides' hitters and arms,
+and who took the decision — with a form line on the player card showing his last ten nights. A
+season total says a man is hitting .240; it cannot say whether he got there steadily or by going
+2-for-40 in September.
+
+### Managing
+
+**In the field** — five alignments on `Y`: straight, double-play depth, infield in, no doubles, and
+the shift. There is no hidden bonus behind any of them; the nine men simply stand somewhere else
+and the play simulation decides from where they are. `--defence` hits the same batted balls at each
+one and reports what changed.
+
+**The pen** — `U` gets somebody up. He needs about an inning to get loose; rushed in cold he cannot
+find his release point for ten pitches. Left standing out there too long costs him too.
+
+**The people** — every player has a work ethic, a loyalty and a poise, and a morale that moves with
+playing time, winning and the state of his contract. Work ethic decides how much he improves over a
+winter; loyalty and morale decide what he will re-sign for. None of it touches his bat, deliberately
+— a league whose run environment moved with how happy everybody was would be a league whose
+calibration could not be trusted.
+
+**The inbox** — the pitching coach on a workload nobody else can see, the hitting coach on a man who
+cannot handle left-handers, the bench coach on somebody who has had enough, the owner on what he
+expects. Everyone writing is reading real state; nothing is invented to have something to say.
+
 ---
 
 ## The league
@@ -148,7 +181,9 @@ side.
 | | P | Go to the pen — the manager walks out |
 | | V | Mound visit. Five a game; the sixth has to be a change |
 | | I | Intentional walk |
+| | U | Get somebody up in the pen — again to walk down it |
 | In the field | 1 2 3 4 | Throw to first, second, third, home |
+| | Y | Move the defence — DP depth, in, no doubles, shift |
 | Anywhere | Esc | Back out · M mute · N commentary · `-`/`=` volume |
 
 ---
@@ -213,6 +248,9 @@ godot471cs --headless --path . -- --pen 60         # bullpen usage and roster in
 godot471cs --headless --path . -- --farm           # can all 96 affiliates field a side?
 godot471cs --headless --path . -- --plate          # the batting view, in milliseconds and pixels
 godot471cs --headless --path . -- --careermode 40  # whole careers, played end to end
+godot471cs --headless --path . -- --boxes 20       # box scores must add up to the season book
+godot471cs --headless --path . -- --defence 4000   # what each fielding alignment actually does
+godot471cs --headless --path . -- --people 4       # is personality a mechanic or a label?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40
@@ -223,14 +261,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.93 | 8.79 | +1.6% |
-| Hits | 16.96 | 16.39 | +3.5% |
-| Doubles | 3.09 | 3.20 | −3.5% |
-| Triples | 0.29 | 0.29 | −1.5% |
-| Home runs | 2.15 | 2.24 | −4.1% |
-| Walks | 5.83 | 6.15 | −5.3% |
-| Strikeouts | 17.91 | 16.96 | +5.6% |
-| Stolen bases | 1.52 | 1.49 | +2.2% |
+| Runs | 8.89 | 8.79 | +1.1% |
+| Hits | 16.64 | 16.39 | +1.5% |
+| Doubles | 2.90 | 3.20 | −9.3% |
+| Triples | 0.30 | 0.29 | +2.5% |
+| Home runs | 2.15 | 2.24 | −4.0% |
+| Walks | 5.59 | 6.15 | −9.1% |
+| Strikeouts | 18.08 | 16.96 | +6.6% |
+| Stolen bases | 1.44 | 1.49 | −3.4% |
+| Caught stealing | 0.34 | 0.51 | −33.3% |
+| Hit by pitch | 0.80 | 0.79 | +1.3% |
+| Wild pitches | 0.70 | 0.76 | −7.5% |
+| Sacrifice flies | 0.95 | 0.79 | +20.1% |
+| Sacrifice bunts | 0.00 | 0.19 | −100% |
+| Grounded into DP | 0.04 | 1.44 | **−97.0%** |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -247,7 +291,41 @@ The absolute averages in the platoon audit run low because it scores batted ball
 model rather than the full defensive simulation — only the *split* is calibrated there. The
 league's real batting rates are the `--sim` table above.
 
-Known gaps: strikeouts run about 6% high and walks about 5% low.
+### The one that matters
+
+**The infield does not field.** Of every ball in play not caught on the fly, 95% goes down as a
+hit. The defence records 0.6 ground outs a game against a real figure near fifteen, there are
+almost no double plays, and 66% of balls in play are caught in the air against a real 45% — the
+league's entire out total is carried by fly balls. Run `--sim` and read the "where the outs come
+from" block.
+
+This is why the double-play and sacrifice-bunt rows above are empty, and why bringing the infield
+in costs runs instead of saving them (`--defence` measures both). Part of the cause is found and
+written up at `PlaySimulation.ThrowTime`: the play is charged twice for the same glove-to-hand
+transfer, so on a routine ground ball the infielder decides he cannot get the batter and holds the
+ball. Removing that double-charge helps — ground outs go to 1.1 a game and runners retired on the
+bases from 0.8 to 1.8 — but it is only part of the fix, and on its own it drops league scoring 15%
+below the real rate. It is left in place, documented, rather than half-applied.
+
+Fixing it properly means giving the infield real range and then re-deriving the batted-ball
+calibration behind it. It is the single highest-value piece of work left in the simulation.
+
+### The harness does not play the same game the season does
+
+Found while checking box scores, and not yet resolved. `--sim` plays every game in neutral
+conditions — it sets the ballpark but never calls `FieldGeometry.SetConditions`, so there is no
+wind and no temperature. `SeasonState.SimulateGame` does set them, from `Weather.For`. The
+calibration table above is therefore measured under conditions a real season never plays in.
+
+A club's box scores over a fortnight came out around 11 hits a game against the 8.2 the harness
+reports, which is a large enough gap to be worth chasing rather than filing under sampling. It has
+not been chased: making `--sim` sample weather would move every number in the table at once, and
+that is a deliberate re-calibration rather than a fix to slip in.
+
+Other known gaps: strikeouts run about 7% high and walks about 9% low. Caught stealing is a third
+low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
+and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
+unlike everything else in that file, and are flagged there as needing a refetch.
 
 ---
 

@@ -118,7 +118,11 @@ public static class Development
                     continue;
                 }
 
-                Develop(p, ref rng, Coaches.DevelopmentFactor(team.Id, p));
+                // The coach you hired, and the man himself. Two players with the same ratings and
+                // the same coach no longer improve at the same rate, which is the whole reason to
+                // prefer one prospect over another.
+                Develop(p, ref rng,
+                    Coaches.DevelopmentFactor(team.Id, p) * Temperament.GrowthFactor(p));
 
                 int after = p.Overall;
                 report.Add(new Progress
@@ -200,8 +204,21 @@ public static class Development
         }
         else
         {
-            steps = Mathf.RoundToInt(Mathf.Max(gap, 0) * rate * RatingsPerOverall
-                                     + (rate > 0f ? 1f : 0f));
+            // Taken as a whole number of steps plus a chance at one more, rather than rounded.
+            //
+            // Rounding here quietly threw away every modifier smaller than half a step. A typical
+            // young player works out at about 2.2 steps, so a coaching or work-ethic factor of
+            // ±18% moved him to 1.98 or 2.42 and he took two either way — --people measured the
+            // hardest workers in the league developing no faster than the men who coast, and the
+            // reason was not the factor, it was this line. Flooring and rolling for the remainder
+            // has the same expectation and lets a small factor actually land.
+            // The guaranteed step is 0.65 rather than a whole one. Rounding was biased — round(2.2)
+            // is 2, but flooring and rolling the remainder averages 2.2 — so switching to the
+            // unbiased form quietly made everybody develop faster, and career mode went from 36
+            // men in 40 reaching the majors to 39. This takes that back out.
+            float raw = Mathf.Max(gap, 0) * rate * RatingsPerOverall + (rate > 0f ? 0.65f : 0f);
+            steps = Mathf.FloorToInt(raw);
+            if (rng.Chance(raw - steps)) steps++;
 
             // A poor year: some stall, some go backwards.
             if (rng.Chance(0.12f)) steps = -Mathf.Max(1, steps / 3);

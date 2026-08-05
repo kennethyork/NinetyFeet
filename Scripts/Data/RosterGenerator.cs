@@ -271,6 +271,7 @@ public static class RosterGenerator
                 p.Special = rng.Pick(PitcherSpecials);
 
             AssignArsenal(p, ref rng);
+            Season.Temperament.Assign(p, ref rng);
 
             roster.Pitchers.Add(p);
             roster.Players.Add(p);
@@ -582,7 +583,7 @@ public static class RosterGenerator
         int guard = 0;
         do { number = rng.Range(1, 76); } while (!usedNumbers.Add(number) && ++guard < 100);
 
-        return new PlayerData
+        var made = new PlayerData
         {
             // Unique across the league and stable for saves; a trade never changes it.
             Id = team.Id * 100 + usedNames.Count,
@@ -607,6 +608,14 @@ public static class RosterGenerator
                 _ => rng.Range(34, 39),
             },
         };
+
+        // Who he is. This is the path almost every player in the league comes through, and it was
+        // missed the first time — the two call sites that did get it covered the pitchers and the
+        // draft prospects, so three quarters of the league carried the neutral default and the
+        // whole mechanic did nothing for them. --people found it: the work ethic histogram had 646
+        // of 869 men on exactly five.
+        Season.Temperament.Assign(made, ref rng);
+        return made;
     }
 
     /// <summary>
@@ -677,6 +686,7 @@ public static class RosterGenerator
         p.Potential = Mathf.Clamp(p.Overall + room, 1, 10);
 
         AssignArsenal(p, ref rng);
+        Season.Temperament.Assign(p, ref rng);
         return p;
     }
 

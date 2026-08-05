@@ -54,6 +54,9 @@ public static class SaveGame
         public int Svc { get; set; }
         public int Role { get; set; }
 
+        /// <summary>Work ethic, loyalty, poise, morale. Absent in a save written before them.</summary>
+        public int[] Who { get; set; }
+
         public int[] Bat { get; set; }     // batting counters
         public int[] Pit { get; set; }     // pitching counters
         public int[] Car { get; set; }     // career batting, then career pitching
@@ -651,6 +654,7 @@ public static class SaveGame
             Seasons = book.SeasonsPlayed(p),
             Car = Pack(book.CareerBatting(p), book.CareerPitching(p)),
             Min = book.HasMinorLine(p) ? Pack(book.MinorBatting(p), book.MinorPitching(p)) : null,
+            Who = new[] { p.WorkEthic, p.Loyalty, p.Poise, p.Morale },
             Bat = PackBatting(b),
             Pit = PackPitching(t),
         };
@@ -746,6 +750,16 @@ public static class SaveGame
 
     private static void ApplyStats(StatBook book, PlayerData p, PlayerDto d)
     {
+        // A league that existed before players had personalities gets the neutral middle rather
+        // than a room full of zeroes, which would read as thirty clubs of men who want out.
+        if (d.Who is { Length: 4 })
+        {
+            p.WorkEthic = Mathf.Clamp(d.Who[0], 1, 10);
+            p.Loyalty = Mathf.Clamp(d.Who[1], 1, 10);
+            p.Poise = Mathf.Clamp(d.Who[2], 1, 10);
+            p.Morale = Mathf.Clamp(d.Who[3], 0, 10);
+        }
+
         if (d.Bat is { Length: >= 12 }) UnpackBatting(d.Bat, book.Batting(p));
         if (d.Pit is { Length: >= 13 }) UnpackPitching(d.Pit, book.Pitching(p));
 

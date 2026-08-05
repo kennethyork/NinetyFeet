@@ -193,7 +193,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people",
     };
 
     private static bool IsVerificationRun()
@@ -300,6 +300,18 @@ public partial class Game : Node
             int pa = 60000;
             if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
             PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--people [seasons]` checks that personality is a mechanic rather than a label: a work
+        // ethic that does nothing looks exactly like one that does.
+        int ppl = System.Array.IndexOf(args, "--people");
+        if (ppl >= 0)
+        {
+            int yrs = 4;
+            if (ppl + 1 < args.Length && int.TryParse(args[ppl + 1], out int py)) yrs = py;
+            Season.TemperamentAudit.Run(Mathf.Clamp(yrs, 1, 12));
             GetTree().Quit();
             return;
         }

@@ -211,6 +211,12 @@ public sealed class SeasonState
             Report($"{a.PlayerName} wins the {a.Award}", a.Line, a.TeamId);
 
         Finances.CloseBooks(this);
+
+        // How everybody feels about the year they have just had, worked out from the season book
+        // — who played, who sat, and whether the club won. It has to happen before the close
+        // wipes the numbers it is reading, and before development, which reads the result.
+        Temperament.EndOfSeason(this);
+
         Book.CloseSeason();
 
         LastOffseason = Development.RunOffseason(this, LeagueSeed + Year * 31);

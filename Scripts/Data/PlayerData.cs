@@ -174,6 +174,15 @@ public sealed class PlayerData
     /// The overall this player could reach if he develops. A draft is only interesting when a
     /// raw kid with a high ceiling is a real alternative to a polished one who is already there.
     /// </summary>
+    // Who he is, rather than how good he is. See Season.Temperament for what each one does and
+    // for why none of them touches his bat.
+    public int WorkEthic = 5;
+    public int Loyalty = 5;
+    public int Poise = 5;
+
+    /// <summary>How he feels about being here, 0 to 10. Five is settled.</summary>
+    public int Morale = 5;
+
     public int Potential = 5;
 
     /// <summary>

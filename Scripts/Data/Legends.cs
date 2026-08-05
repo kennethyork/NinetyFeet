@@ -6014,6 +6014,17 @@ public static class Legends
             Special.Knuckleball => 1 << (int)PitchType.Changeup,
             _ => 0,
         };
+
+        // A written player gets a character too, and the same one every time — it is part of who
+        // he is, not a roll made when he happens to be generated.
+        //
+        // The four-round warm-up is the same guard HandFor needs: seeds that walk in an
+        // arithmetic progression produce correlated first outputs from this generator, and
+        // without it a whole shelf of written players came out with identical handedness.
+        var rng = new Core.Rng(44_000 + id * 977);
+        for (int i = 0; i < 4; i++) rng.NextFloat();
+        Season.Temperament.Assign(p, ref rng);
+
         return p;
     }
 }

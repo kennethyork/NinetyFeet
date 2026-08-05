@@ -188,7 +188,10 @@ public static class FreeAgency
 
         foreach (var player in market)
         {
-            int asking = Contracts.MarketValue(player);
+            // What he actually wants, which is his market value bent by who he is. A loyal,
+            // contented man will take less; one who wants out asks to be paid for staying.
+            int asking = Mathf.RoundToInt(
+                Contracts.MarketValue(player) * Temperament.AskingFactor(player));
             int years = Contracts.DesiredYears(player, ref rng);
 
             Offer best = default;
@@ -332,7 +335,7 @@ public static class FreeAgency
         if (roster.Players.Count >= Development.RosterLimit)
             return $"Your roster is full at {Development.RosterLimit}. Someone has to go first.";
 
-        int asking = Contracts.MarketValue(p);
+        int asking = Mathf.RoundToInt(Contracts.MarketValue(p) * Temperament.AskingFactor(p));
         if (salary < asking * 0.82f)
             return $"He wants about {Contracts.Text(asking)} a year. That offer won't get a meeting.";
 
