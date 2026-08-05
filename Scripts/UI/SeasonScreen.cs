@@ -187,11 +187,14 @@ public partial class SeasonScreen : Control
             $"Year {_season.Year}  ·  {Calendar.PhaseLabel(_season.Phase)}" +
             (Game.Instance.ManagerOnly ? "  ·  Manager" : ""), 13, Palette.InkDim);
 
-        // The deadline is a clock you have to manage, so it belongs next to the date.
+        // The deadline is a clock you have to manage. It used to sit under the date, which is
+        // where it belongs conceptually and where there is no room: the right column is full at 46
+        // and 68, and the office links own everything from 72 down. Under the club's record on the
+        // left instead — that column is empty and the deadline is a fact about your club anyway.
         if (_season.Phase == SeasonPhase.RegularSeason)
         {
             bool open = _season.TradesOpen;
-            Palette.Text(this, new Vector2(size.X - 300f, 86f),
+            Palette.Text(this, new Vector2(40f, 90f),
                 open
                     ? $"Trade deadline: {Calendar.FormatShort(Calendar.DateOf(_season.TradeDeadlineDay))}" +
                       $"  ({_season.DaysToDeadline} game days)"
@@ -204,13 +207,15 @@ public partial class SeasonScreen : Control
 
         // Between games is exactly when a manager wants the roster and the league — having to go
         // back out to the main menu for them made them feel like a separate application.
-        DrawOfficeShortcuts(size);
-
         if (_season.Playoffs.Started) DrawPlayoffs(size);
         else DrawRegularSeason(size);
 
         DrawDivision(size, club);
         DrawNews(size);
+
+        // Last, on top of everything. A navigation bar that something else can paint over is not
+        // navigation.
+        DrawOfficeShortcuts(size);
 
         if (!string.IsNullOrEmpty(_notice))
             Palette.Text(this, new Vector2(40f, size.Y - 26f), _notice, 14, Palette.Highlight);
@@ -225,7 +230,7 @@ public partial class SeasonScreen : Control
     {
         if (_season.News.Count == 0) return;
 
-        var panel = new Rect2(new Vector2(40f, 292f), new Vector2(520f, size.Y - 340f));
+        var panel = new Rect2(new Vector2(40f, PanelTop + 188f), new Vector2(520f, size.Y - PanelTop - 228f));
         if (panel.Size.Y < 90f) return;
         Palette.Panel3D(this, panel, Palette.Panel);
 
@@ -253,6 +258,24 @@ public partial class SeasonScreen : Control
     }
 
     /// <summary>Quick links to the management screens, alongside the calendar controls.</summary>
+    /// <summary>
+    /// Where the office links sit.
+    ///
+    /// They were at 114, which is inside both panels — the next-game card starts at 104 and so
+    /// does the division table — and they were drawn before those panels, so the whole navigation
+    /// bar was painted over. All that showed was a sliver of one word in the forty-pixel gap
+    /// between the two panels and one letter past the right-hand edge.
+    ///
+    /// Their own row above the panels, and drawn last so nothing can bury them again.
+    /// </summary>
+    private const float NavY = 74f;
+
+    /// <summary>
+    /// Where the panels start. The header runs to 90 and the office links occupy 74 to 104, so
+    /// anything above this is standing on something.
+    /// </summary>
+    private const float PanelTop = 120f;
+
     private void DrawOfficeShortcuts(Vector2 size)
     {
         var links = new (string Label, string Scene)[]
@@ -266,7 +289,8 @@ public partial class SeasonScreen : Control
 
         // Starting over used to require finishing a season first — there was no way out of a
         // league you had lost interest in without deleting the save file by hand.
-        var wipe = new Rect2(new Vector2(size.X - 128f - links.Length * 134f, 114f), new Vector2(124f, 30f));
+        var wipe = new Rect2(new Vector2(size.X - 128f - links.Length * 134f, NavY),
+            new Vector2(124f, 30f));
         Palette.Panel3D(this, wipe, _confirmWipe ? Palette.Warning.Darkened(0.25f) : Palette.Panel);
         Palette.TextCentered(this, wipe.Position + wipe.Size * 0.5f,
             _confirmWipe ? "SURE?" : "NEW LEAGUE", 10, _confirmWipe ? Palette.Ink : Palette.InkDim);
@@ -276,7 +300,7 @@ public partial class SeasonScreen : Control
         {
             bool shut = links[i].Label == "TRADE DESK" && !_season.TradesOpen;
 
-            var rect = new Rect2(new Vector2(size.X - 128f - i * 134f, 114f), new Vector2(124f, 30f));
+            var rect = new Rect2(new Vector2(size.X - 128f - i * 134f, NavY), new Vector2(124f, 30f));
             Palette.Panel3D(this, rect, shut ? Palette.Panel : Palette.PanelLight);
             Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, links[i].Label, 10,
                 shut ? Palette.InkDim : Palette.Ink);
@@ -289,7 +313,7 @@ public partial class SeasonScreen : Control
     private void DrawRegularSeason(Vector2 size)
     {
         var next = _season.NextUserGame();
-        var panel = new Rect2(new Vector2(40f, 104f), new Vector2(520f, 168f));
+        var panel = new Rect2(new Vector2(40f, PanelTop), new Vector2(520f, 168f));
         Palette.Panel3D(this, panel, Palette.Panel);
 
         if (next == null)
@@ -340,7 +364,7 @@ public partial class SeasonScreen : Control
 
     private void DrawPlayoffs(Vector2 size)
     {
-        var panel = new Rect2(new Vector2(40f, 104f), new Vector2(520f, 300f));
+        var panel = new Rect2(new Vector2(40f, PanelTop), new Vector2(520f, 300f));
         Palette.Panel3D(this, panel, Palette.Panel);
         Palette.Text(this, panel.Position + new Vector2(18f, 30f), "POSTSEASON", 13, Palette.Highlight);
 
@@ -385,7 +409,7 @@ public partial class SeasonScreen : Control
     private void DrawDivision(Vector2 size, TeamData club)
     {
         float x = 600f;
-        var panel = new Rect2(new Vector2(x, 104f), new Vector2(size.X - x - 40f, size.Y - 160f));
+        var panel = new Rect2(new Vector2(x, PanelTop), new Vector2(size.X - x - 40f, size.Y - PanelTop - 40f));
         Palette.Panel3D(this, panel, Palette.Panel);
 
         Palette.Text(this, panel.Position + new Vector2(16f, 28f),

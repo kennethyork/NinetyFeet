@@ -144,8 +144,10 @@ public partial class FrontOffice : Control
         int rows = Mathf.Max(4, (int)((height - 70f - reserve - y) / 19f));
         _scroll = Mathf.Clamp(_scroll, 0, Mathf.Max(0, total - rows));
 
+        // Clear of the header. This printed at x 760 and y-22, which is the seventh column's x
+        // and the header's own row — the note and the word SERVICE were drawn on top of each other.
         if (total > rows)
-            Palette.Text(this, new Vector2(760f, y - 22f),
+            Palette.Text(this, new Vector2(985f, y - 24f),
                 $"{_scroll + 1}–{Mathf.Min(_scroll + rows, total)} of {total}  ·  scroll or Up/Down",
                 12, Palette.InkDim);
 
@@ -227,8 +229,9 @@ public partial class FrontOffice : Control
         // The tax line. A budget alone is a wall you either fit under or you do not; a tax turns
         // "can I afford him" into "is he worth the penalty", which is the question a real front
         // office is asking.
+        // Below the bar, not through it. The bar spans y+20 to y+32 and this sat at y+24.
         int over = Finances.OverTaxLine(_season, _season.UserTeamId);
-        Palette.Text(this, new Vector2(40f, y + 24f),
+        Palette.Text(this, new Vector2(40f, y + 50f),
             over > 0
                 ? $"OVER THE TAX LINE by {Contracts.Text(over)} — " +
                   $"a bill of {Contracts.Text(Finances.TaxBill(_season, _season.UserTeamId))} " +
@@ -248,7 +251,7 @@ public partial class FrontOffice : Control
         DrawRect(new Rect2(bar.Position, new Vector2(bar.Size.X * Mathf.Min(fill, 1f), bar.Size.Y)),
             fill > 1f ? Palette.Warning : Palette.Highlight);
 
-        y += 56f;
+        y += 74f;
         Header(y, "PLAYER", "JOB", "AGE", "OVR", "SALARY", "YEARS", "SERVICE");
         y += 22f;
 
