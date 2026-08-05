@@ -233,7 +233,8 @@ public static class HeadlessSim
                  $"vs {pitcher.Name} (VEL {pitcher.PitchPower} CMD {pitcher.PitchControl}) ===");
 
         foreach (var level in new[]
-                 { Difficulty.Rookie, Difficulty.Pro, Difficulty.AllStar, Difficulty.Legend })
+                 { Difficulty.Rookie, Difficulty.Pro, Difficulty.AllStar, Difficulty.Legend,
+                   Difficulty.Simulation })
         {
         var tune = DifficultyTuning.For(level);
         float assist = tune.BatAssist;

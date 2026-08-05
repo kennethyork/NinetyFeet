@@ -420,7 +420,9 @@ public partial class Hud : Node2D
 
         // Tucked under the line score on the right, clear of the pitcher's name plate and the
         // strike zone, both of which sit around the centre of the frame.
-        var box = new Rect2(new Vector2(size.X - 340f, 104f), new Vector2(300f, 62f));
+        // Wider than it was: the detail line now carries the placement as well as the contact,
+        // and "Got it off the end of the bat · under it, inside" does not fit in three hundred.
+        var box = new Rect2(new Vector2(size.X - 420f, 104f), new Vector2(380f, 62f));
         DrawRect(box, new Color(0f, 0f, 0f, 0.55f * fade));
 
         // Green when squared up, amber when mistimed, red on a whiff.
@@ -453,8 +455,13 @@ public partial class Hud : Node2D
             },
         };
 
+        // Timing was on screen and placement was not, so half of every swing was invisible: a
+        // hitter told he was late still had no idea he was also under it by a foot. Both axes are
+        // reported now, which is what makes the swing learnable rather than mysterious.
+        string where = ball.PlacementVerdict;
         Palette.TextCentered(this, box.Position + new Vector2(box.Size.X * 0.5f, 46f),
-            detail, 14, new Color(Palette.Ink.R, Palette.Ink.G, Palette.Ink.B, fade * 0.9f));
+            where == "on it" ? detail : $"{detail}  ·  {where}", 14,
+            new Color(Palette.Ink.R, Palette.Ink.G, Palette.Ink.B, fade * 0.9f));
 
         // A little timing bar: centre is perfect, left is early, right is late.
         var bar = new Rect2(box.Position + new Vector2(60f, 54f), new Vector2(180f, 4f));

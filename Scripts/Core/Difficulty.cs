@@ -2,7 +2,11 @@ using Godot;
 
 namespace SandlotSlugfest.Core;
 
-public enum Difficulty { Rookie, Pro, AllStar, Legend }
+/// <summary>
+/// Appended rather than inserted: the value is written to settings, so putting Simulation in the
+/// middle would silently move everybody who had chosen Legend.
+/// </summary>
+public enum Difficulty { Rookie, Pro, AllStar, Legend, Simulation }
 
 /// <summary>
 /// What a difficulty level actually changes.
@@ -66,6 +70,19 @@ public readonly struct DifficultyTuning
             "Almost no help. You are hitting on your own eyes.",
             1.02f, 1.14f, 0.58f, 0.62f, 0.70f, pitchSpeed: 1.16f),
 
+        // No help whatsoever: the same bat, the same timing window and the same command the
+        // simulation itself swings with. Every rate in this game is calibrated at assist 1, so
+        // this is the only setting where a human plays on exactly the terms the league does — an
+        // average hitter misses about a quarter of his swings, fouls off about four in ten, and
+        // squaring one up has to be earned. It is what somebody means when they ask for hitting
+        // like The Show's.
+        //
+        // The whiff rescue in the resolver is skipped entirely at assist 1, so a bad swing is a
+        // miss rather than a foul. That is the whole difference in feel.
+        Difficulty.Simulation => new DifficultyTuning("Simulation",
+            "No help at all — the same bat the simulation swings. Hard, and honest.",
+            1f, 1f, 0.45f, 0.85f, 0.85f, pitchSpeed: 1f),
+
         // Pro sat where an average player never missed at all — three quarters of every swing in
         // play — so it was tightened. That went too far the other way: four swings in ten came
         // back as fouls and at-bats stopped resolving. This sits between the two.
@@ -74,7 +91,8 @@ public readonly struct DifficultyTuning
             1.46f, 2.05f, 0.30f, 1f, 1f, pitchSpeed: 1f),
     };
 
-    public static Difficulty Next(Difficulty d) => (Difficulty)(((int)d + 1) % 4);
+    public static Difficulty Next(Difficulty d) =>
+        (Difficulty)(((int)d + 1) % System.Enum.GetValues<Difficulty>().Length);
 }
 
 /// <summary>Difficulty is a preference, not season state, so it lives in its own settings file.</summary>
@@ -87,7 +105,7 @@ public static class Settings
         var cfg = new ConfigFile();
         if (cfg.Load(Path) != Error.Ok) return Difficulty.Pro;
         int v = (int)cfg.GetValue("game", "difficulty", (int)Difficulty.Pro);
-        return (Difficulty)Mathf.Clamp(v, 0, 3);
+        return (Difficulty)Mathf.Clamp(v, 0, 4);
     }
 
     public static bool LoadManagerOnly()

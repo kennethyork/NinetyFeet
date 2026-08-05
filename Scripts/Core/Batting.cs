@@ -73,6 +73,31 @@ public struct BattedBall
     public float TimingNorm;
     public bool MadeContact;
 
+    /// <summary>
+    /// Where the bat was relative to the ball, in barrel radii. Positive X is toward the
+    /// right-handed hitter's outside corner; positive Y is above the ball.
+    ///
+    /// Timing was reported and placement was not, which meant half of every swing was invisible.
+    /// A hitter told only that he was late cannot tell whether he was also under it by a foot.
+    /// </summary>
+    public float MissX, MissY;
+
+    /// <summary>Plain-language verdict on where the bat was, when it was not close enough.</summary>
+    public string PlacementVerdict
+    {
+        get
+        {
+            float ax = Mathf.Abs(MissX), ay = Mathf.Abs(MissY);
+            if (ax < 0.45f && ay < 0.45f) return "on it";
+
+            string v = ay >= 0.45f ? (MissY > 0f ? "over it" : "under it") : "";
+            string h = ax >= 0.45f ? (MissX > 0f ? "outside" : "inside") : "";
+
+            if (v != "" && h != "") return $"{v}, {h}";
+            return v != "" ? v : h;
+        }
+    }
+
     /// <summary>Plain-language verdict on the timing, the way a batting practice readout reads.</summary>
     public string TimingVerdict => TimingNorm switch
     {
@@ -231,6 +256,11 @@ public static class SwingResolver
         float lean = 1f + (assist - 1f) * 0.85f;
         float barrel = (0.505f + contact * 0.125f * lean) * profile.Barrel * platoon * assist;
         if (contactMaster) barrel *= 1.35f;
+
+        // Reported whatever happens, the same as the timing, so a miss tells the hitter both what
+        // went wrong and in which direction.
+        ball.MissX = delta.X / barrel;
+        ball.MissY = delta.Y / barrel;
 
         float spatialQuality = 1f - spatialDist / barrel;
 
