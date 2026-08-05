@@ -118,6 +118,7 @@ public partial class Hud : Node2D
 
         DrawBaseDiamond(at + new Vector2(258f, 46f), s);
         DrawChallenges(at, s);
+        DrawStealPrompt(at, s);
     }
 
     /// <summary>
@@ -216,6 +217,37 @@ public partial class Hud : Node2D
             DrawCircle(rect.Position + new Vector2(88f, 15f), 4f, Palette.Highlight);
     }
 
+    /// <summary>
+    /// The steal sign, spelled out.
+    ///
+    /// Stealing has been bound to G the whole time and the game never once said so. You had to
+    /// already know the rule — a lead runner with the bag ahead of him empty — and then remember
+    /// a key nothing mentioned. A verb the game never tells you about is a verb almost nobody
+    /// uses, which is why half of a manager's job sat unused.
+    ///
+    /// It names the runner and prints his speed, because whether to send him is the actual
+    /// decision and his legs are what it turns on.
+    /// </summary>
+    private void DrawStealPrompt(Vector2 at, GameSituation s)
+    {
+        if (!Scene.HumanBatting) return;
+        if (Scene.Phase is not (AtBatPhase.PitchSelect or AtBatPhase.PitchFlight)) return;
+
+        int lead = Core.Baserunning.LeadRunner(s);
+        if (lead <= 0) return;
+
+        var man = s.Runners[lead];
+        if (man == null) return;
+
+        float beat = 0.5f + 0.5f * Mathf.Sin(_pulse * 6f);
+        var tint = new Color(0.45f, 1f, 0.55f, 0.65f + beat * 0.35f);
+
+        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(310f, 26f));
+        Palette.Panel3D(this, rect, Palette.Panel);
+        Palette.Text(this, rect.Position + new Vector2(10f, 18f),
+            $"G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+    }
+
     private void DrawBaseDiamond(Vector2 center, GameSituation s)
     {
         float r = 13f;
@@ -226,17 +258,46 @@ public partial class Hud : Node2D
             center + new Vector2(-r, 0f),     // third
         };
 
+        // The man who can go, if there is one. Stealing has always been bound to G and there has
+        // never been anything on screen to say so — you had to already know the rule (a lead
+        // runner with the bag ahead of him empty) and then remember the key. A verb the game never
+        // mentions is a verb most people never use.
+        int lead = Core.Baserunning.LeadRunner(s);
+
         for (int i = 0; i < 3; i++)
         {
             bool occupied = s.RunnerOn(i + 1);
+            bool canGo = Scene.HumanBatting && lead == i + 1 &&
+                         Scene.Phase is AtBatPhase.PitchSelect or AtBatPhase.PitchFlight;
             float h = 7f;
+
+            // A pulsing ring round the bag he would be leaving.
+            if (canGo)
+            {
+                float beat = 0.5f + 0.5f * Mathf.Sin(Scene.Situation.Outs * 1f + _pulse * 6f);
+                DrawArc(spots[i], 13f + beat * 3f, 0f, Mathf.Tau, 20,
+                    new Color(0.45f, 1f, 0.55f, 0.45f + beat * 0.45f), 2.4f);
+            }
+
             var poly = new[]
             {
                 spots[i] + new Vector2(0f, -h), spots[i] + new Vector2(h, 0f),
                 spots[i] + new Vector2(0f, h), spots[i] + new Vector2(-h, 0f),
             };
-            DrawColoredPolygon(poly, occupied ? Palette.Highlight : Palette.PanelLight);
+            DrawColoredPolygon(poly,
+                canGo ? new Color(0.45f, 1f, 0.55f)
+                      : occupied ? Palette.Highlight : Palette.PanelLight);
         }
+
+    }
+
+    /// <summary>Drives the steal prompt's pulse.</summary>
+    private float _pulse;
+
+    public override void _Process(double delta)
+    {
+        _pulse += (float)delta;
+        QueueRedraw();
     }
 
     private void DrawLineScore(Vector2 topRight, GameSituation s)
