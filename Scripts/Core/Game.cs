@@ -193,7 +193,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm",
+        "--platoon", "--farm", "--plate",
     };
 
     private static bool IsVerificationRun()
@@ -274,6 +274,14 @@ public partial class Game : Node
         }
 
         // `--pen [games]` audits how the league's pitching staffs are actually used over a season.
+        // `--plate` measures the batting view in milliseconds and pixels.
+        if (System.Array.IndexOf(args, "--plate") >= 0)
+        {
+            Gameplay.PlateAudit.Run();
+            GetTree().Quit();
+            return;
+        }
+
         // `--platoon [PA]` measures the left-right split against the real one.
         int plat = System.Array.IndexOf(args, "--platoon");
         if (plat >= 0)

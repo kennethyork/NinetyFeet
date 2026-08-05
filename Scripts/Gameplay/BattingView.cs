@@ -14,7 +14,7 @@ public partial class BattingView : Node2D
     public GameScene Scene;
 
     /// <summary>Screen pixels per foot in the plane of home plate.</summary>
-    private const float PixelsPerFoot = 104f;
+    public const float PixelsPerFoot = 104f;
 
     // The hitter's framing. These three numbers have to stay in step with the bat length in
     // CartoonPlayer.DrawBat: the swung bat must actually sweep through the strike zone, or the
@@ -95,7 +95,7 @@ public partial class BattingView : Node2D
     /// </summary>
     private const float PerspectiveRealism = 0.34f;
 
-    private static float Perspective(float t)
+    public static float Perspective(float t)
     {
         float far = FieldGeometry.MoundDistance + CameraSetback;
         float near = CameraSetback;
