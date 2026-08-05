@@ -193,7 +193,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes",
     };
 
     private static bool IsVerificationRun()
@@ -300,6 +300,18 @@ public partial class Game : Node
             int pa = 60000;
             if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
             PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--boxes [days]` plays a fortnight and adds the box scores up by hand, checking they
+        // agree with the season book. A box score that is wrong still looks plausible.
+        int boxes = System.Array.IndexOf(args, "--boxes");
+        if (boxes >= 0)
+        {
+            int days = 14;
+            if (boxes + 1 < args.Length && int.TryParse(args[boxes + 1], out int bd)) days = bd;
+            Season.BoxScoreAudit.Run(Mathf.Clamp(days, 1, 200));
             GetTree().Quit();
             return;
         }

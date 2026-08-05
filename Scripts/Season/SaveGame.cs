@@ -182,6 +182,45 @@ public static class SaveGame
         public List<AwardDto> Awards { get; set; }
         public List<HallDto> Hall { get; set; }
         public List<RecordDto> Records { get; set; }
+
+        /// <summary>Recent box scores for the user's club. See <see cref="BoxesKept"/>.</summary>
+        public List<BoxDto> Boxes { get; set; }
+    }
+
+    /// <summary>
+    /// How many finished games are written to the save.
+    ///
+    /// The club keeps more than this in memory — two seasons' worth, so you can look back at last
+    /// year — but every box score is thirty-odd player lines and writing them all would multiply
+    /// the size of the save several times over for games that are rarely opened twice. Sixty is
+    /// about six weeks, which covers every reason anybody actually looks one up.
+    /// </summary>
+    private const int BoxesKept = 60;
+
+    private sealed class BoxDto
+    {
+        public int Day { get; set; }
+        public int Year { get; set; }
+        public int Away { get; set; }
+        public int Home { get; set; }
+        public int[] AwayInn { get; set; }
+        public int[] HomeInn { get; set; }
+        public int[] Totals { get; set; }        // hits and errors, away then home
+        public int Win { get; set; } = -1;
+        public int Loss { get; set; } = -1;
+        public int Save { get; set; } = -1;
+        public string Note { get; set; }
+        public List<LineDto> Lines { get; set; }
+    }
+
+    private sealed class LineDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; }
+        public string Slot { get; set; }
+        public int Team { get; set; }
+        public bool Arm { get; set; }
+        public int[] Stat { get; set; }
     }
 
     public static bool Exists() => FileAccess.FileExists(Path);
@@ -221,6 +260,7 @@ public static class SaveGame
                 HW = s.HighWins, LW = s.LowWins, Best = s.BestOf,
             }),
             ChampionId = season.Playoffs.ChampionId,
+            Boxes = season.Logs.Games.Take(BoxesKept).Select(ToDto).ToList(),
         };
 
         foreach (var team in Teams.All)
@@ -475,6 +515,13 @@ public static class SaveGame
         Inbox.Import(dto.MailFrom, dto.MailSubject, dto.MailBody, dto.MailDay, dto.MailYear,
             dto.MailRead, dto.MailAbout);
 
+        // The box scores are stored newest first and Add pushes to the front, so they go back in
+        // oldest first or the whole book comes out reversed.
+        season.Logs.Clear();
+        if (dto.Boxes != null)
+            for (int i = dto.Boxes.Count - 1; i >= 0; i--)
+                season.Logs.Add(FromDto(dto.Boxes[i]));
+
         // A league that existed before there was an inbox has no correspondence, and would have
         // none until the calendar rolled into a new year — an empty screen for a whole season.
         // Seed it: the owner states his expectations and the scouts write up the best man in the
@@ -493,6 +540,99 @@ public static class SaveGame
             : season.Games.Where(g => g.Played).Select(g => g.Day + 1).DefaultIfEmpty(0).Max();
 
         return season;
+    }
+
+    /// <summary>
+    /// Runs the box scores through the save format and back, in memory, and reports what came
+    /// out wrong. Used by --boxes: writing an actual file would overwrite the player's league,
+    /// and a round trip is the only part of saving that can silently corrupt a box score.
+    /// </summary>
+    public static string BoxRoundTrip(SeasonState season)
+    {
+        int checked_ = 0, bad = 0;
+
+        foreach (var original in season.Logs.Games.Take(BoxesKept))
+        {
+            var back = FromDto(ToDto(original));
+            checked_++;
+
+            bool same = back.Day == original.Day
+                     && back.AwayId == original.AwayId && back.HomeId == original.HomeId
+                     && back.AwayRuns == original.AwayRuns && back.HomeRuns == original.HomeRuns
+                     && back.AwayHits == original.AwayHits && back.HomeHits == original.HomeHits
+                     && back.WinnerPlayerId == original.WinnerPlayerId
+                     && back.Lines.Count == original.Lines.Count;
+
+            // And the lines themselves, which is the part that actually matters.
+            for (int i = 0; same && i < back.Lines.Count; i++)
+            {
+                var a = original.Lines[i];
+                var c = back.Lines[i];
+                same = a.PlayerId == c.PlayerId && a.Name == c.Name && a.TeamId == c.TeamId
+                    && a.Pitched == c.Pitched
+                    && (a.Pitched
+                        ? a.Pitching.Outs == c.Pitching.Outs &&
+                          a.Pitching.Strikeouts == c.Pitching.Strikeouts &&
+                          a.Pitching.EarnedRuns == c.Pitching.EarnedRuns
+                        : a.Batting.Hits == c.Batting.Hits &&
+                          a.Batting.AtBats == c.Batting.AtBats &&
+                          a.Batting.RunsBattedIn == c.Batting.RunsBattedIn);
+            }
+
+            if (!same) bad++;
+        }
+
+        return $"{checked_} checked, {bad} came back wrong";
+    }
+
+    private static BoxDto ToDto(Stats.BoxScore b) => new()
+    {
+        Day = b.Day, Year = b.Year, Away = b.AwayId, Home = b.HomeId,
+        AwayInn = b.AwayInnings, HomeInn = b.HomeInnings,
+        Totals = new[] { b.AwayHits, b.HomeHits, b.AwayErrors, b.HomeErrors },
+        Win = b.WinnerPlayerId, Loss = b.LoserPlayerId, Save = b.SavePlayerId, Note = b.Note,
+        Lines = b.Lines.Select(a => new LineDto
+        {
+            Id = a.PlayerId, Name = a.Name, Slot = a.Slot, Team = a.TeamId, Arm = a.Pitched,
+            Stat = a.Pitched ? PackPitching(a.Pitching) : PackBatting(a.Batting),
+        }).ToList(),
+    };
+
+    private static Stats.BoxScore FromDto(BoxDto d)
+    {
+        var box = new Stats.BoxScore
+        {
+            Day = d.Day, Year = d.Year, AwayId = d.Away, HomeId = d.Home,
+            AwayInnings = d.AwayInn ?? System.Array.Empty<int>(),
+            HomeInnings = d.HomeInn ?? System.Array.Empty<int>(),
+            WinnerPlayerId = d.Win, LoserPlayerId = d.Loss, SavePlayerId = d.Save,
+            Note = d.Note ?? "",
+        };
+
+        box.AwayRuns = box.AwayInnings.Sum();
+        box.HomeRuns = box.HomeInnings.Sum();
+
+        if (d.Totals is { Length: 4 })
+        {
+            box.AwayHits = d.Totals[0]; box.HomeHits = d.Totals[1];
+            box.AwayErrors = d.Totals[2]; box.HomeErrors = d.Totals[3];
+        }
+
+        foreach (var l in d.Lines ?? new List<LineDto>())
+        {
+            var a = new Stats.Appearance
+            {
+                PlayerId = l.Id, Name = l.Name ?? "", Slot = l.Slot ?? "",
+                TeamId = l.Team, Pitched = l.Arm,
+            };
+
+            if (l.Arm) { a.Pitching = new Stats.PitchingLine(); UnpackPitching(l.Stat, a.Pitching); }
+            else { a.Batting = new Stats.BattingLine(); UnpackBatting(l.Stat, a.Batting); }
+
+            box.Lines.Add(a);
+        }
+
+        return box;
     }
 
     private static PlayerDto ToDto(PlayerData p, StatBook book)

@@ -14,9 +14,13 @@ namespace SandlotSlugfest.UI;
 /// </summary>
 public partial class LeagueOffice : Control
 {
-    private enum Tab { Standings, Hitting, Pitching, MyClub }
+    private enum Tab { Standings, Hitting, Pitching, MyClub, Results }
 
-    private static readonly string[] TabNames = { "STANDINGS", "HITTING LEADERS", "PITCHING LEADERS", "CLUB STATS" };
+    private static readonly string[] TabNames =
+        { "STANDINGS", "HITTING LEADERS", "PITCHING LEADERS", "CLUB STATS", "RESULTS" };
+
+    /// <summary>The game being read, drawn over everything else. Null when the list is showing.</summary>
+    private Stats.BoxScore _openBox;
 
     private Tab _tab = Tab.Standings;
     private int _teamCursor;
@@ -78,16 +82,20 @@ public partial class LeagueOffice : Control
         switch (key.PhysicalKeycode)
         {
             case Key.Escape or Key.Backspace:
+                // A box score is a layer over the tab, so Escape closes it rather than the screen.
+                if (_openBox != null) { _openBox = null; break; }
                 Leave();
                 return;
             case Key.Pagedown: Scroll(220f); return;
             case Key.Pageup: Scroll(-220f); return;
             case Key.Home: Scroll(-99999f); return;
             case Key.Left or Key.A:
-                _tab = (Tab)Mathf.PosMod((int)_tab - 1, 4);
+                _tab = (Tab)Mathf.PosMod((int)_tab - 1, TabNames.Length);
+                _openBox = null; _scroll = 0f;
                 break;
             case Key.Right or Key.D:
-                _tab = (Tab)Mathf.PosMod((int)_tab + 1, 4);
+                _tab = (Tab)Mathf.PosMod((int)_tab + 1, TabNames.Length);
+                _openBox = null; _scroll = 0f;
                 break;
             case Key.Up or Key.W:
                 _teamCursor = Mathf.PosMod(_teamCursor - 1, 32);
@@ -134,6 +142,16 @@ public partial class LeagueOffice : Control
         // The tab's body scrolls; the title, tabs and footer do not. Anything that fits reports
         // no overflow, so switching to it puts the scroll back to the top by itself.
         _overflow = 0f;
+
+        // A box score replaces the tab rather than covering it. Drawing the list underneath would
+        // leave its rows registered as click targets, and a click meant for the box score would
+        // land on whatever game happened to be behind it.
+        if (_openBox != null)
+        {
+            DrawBoxScore(size, _openBox);
+            return;
+        }
+
         DrawSetTransform(new Vector2(0f, -_scroll), 0f, Vector2.One);
         switch (_tab)
         {
@@ -141,6 +159,7 @@ public partial class LeagueOffice : Control
             case Tab.Hitting: DrawHittingLeaders(size); break;
             case Tab.Pitching: DrawPitchingLeaders(size); break;
             case Tab.MyClub: DrawClubStats(size); break;
+            case Tab.Results: DrawResults(size); break;
         }
         DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
 
@@ -331,6 +350,183 @@ public partial class LeagueOffice : Control
             float x = 40f + (i % 2) * (w + 20f);
             float y = Top + (i / 2) * band;
             draw(i, x, y, w, depth);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Results, and the box score behind each one
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Your club's finished games, newest first.
+    ///
+    /// A result was a pair of numbers on a schedule row. You could see that you lost 5-2 on the
+    /// fourteenth of June and there was no way, ever, to find out who had pitched.
+    /// </summary>
+    private void DrawResults(Vector2 size)
+    {
+        var mine = Teams.Get(_season.UserTeamId);
+        var games = _season.Logs.Games;
+
+        Palette.Text(this, new Vector2(40f, 152f),
+            $"{mine.FullName} — {games.Count} game{(games.Count == 1 ? "" : "s")} on file",
+            14, Palette.InkDim);
+
+        if (games.Count == 0)
+        {
+            Palette.Text(this, new Vector2(40f, 182f),
+                "Nothing yet. Box scores are kept from the moment a game is played.",
+                14, Palette.InkDim);
+            return;
+        }
+
+        float y = 190f;
+        foreach (var box in games)
+        {
+            bool home = box.HomeId == mine.Id;
+            int mineRuns = home ? box.HomeRuns : box.AwayRuns;
+            int theirs = home ? box.AwayRuns : box.HomeRuns;
+            var foe = Teams.Get(home ? box.AwayId : box.HomeId);
+            bool won = mineRuns > theirs;
+
+            var row = new Rect2(new Vector2(40f, y - 14f), new Vector2(size.X - 80f, 24f));
+
+            DrawRect(new Rect2(row.Position + new Vector2(0f, 3f), new Vector2(5f, 18f)),
+                won ? Palette.Highlight : Palette.Warning);
+
+            Palette.Text(this, new Vector2(58f, y),
+                Calendar.FormatShort(Calendar.DateOf(box.Day)), 13, Palette.InkDim);
+            Palette.Text(this, new Vector2(150f, y), home ? "vs" : "at", 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(178f, y), foe.FullName, 13, Palette.Ink);
+            Palette.Text(this, new Vector2(430f, y), won ? "W" : "L", 13,
+                won ? Palette.Highlight : Palette.Warning);
+            Palette.Text(this, new Vector2(456f, y), $"{mineRuns}-{theirs}", 13, Palette.Ink);
+
+            var winner = box.Lines.FirstOrDefault(a => a.PlayerId == box.WinnerPlayerId);
+            var loser = box.Lines.FirstOrDefault(a => a.PlayerId == box.LoserPlayerId);
+            if (winner != null)
+                Palette.Text(this, new Vector2(530f, y),
+                    $"W: {winner.Name}" + (loser != null ? $"   L: {loser.Name}" : ""),
+                    12, Palette.InkDim);
+
+            // The list is drawn under a scroll transform but the mouse is not, so the hit box has
+            // to be registered where the row actually ended up on screen.
+            var open = box;
+            var hit = new Rect2(row.Position - new Vector2(0f, _scroll), row.Size);
+            _clicks.Add(hit, () => { _openBox = open; _scroll = 0f; });
+            y += 24f;
+        }
+
+        _overflow = Mathf.Max(0f, y - (size.Y - 60f));
+    }
+
+    /// <summary>One game, read the way a newspaper prints it.</summary>
+    private void DrawBoxScore(Vector2 size, Stats.BoxScore box)
+    {
+        var away = Teams.Get(box.AwayId);
+        var home = Teams.Get(box.HomeId);
+
+        Palette.Text(this, new Vector2(40f, 152f),
+            $"{away.FullName} {box.AwayRuns}, {home.FullName} {box.HomeRuns}", 20, Palette.Ink);
+        Palette.Text(this, new Vector2(40f, 174f),
+            Calendar.Format(Calendar.DateOf(box.Day)) +
+            (box.Note != "" ? $"   ·   {box.Note}" : ""), 13, Palette.InkDim);
+
+        float y = 206f;
+        DrawLineScore(new Vector2(40f, y), box, away, home);
+
+        // The two clubs side by side, each with its hitters over its arms.
+        float half = (size.X - 100f) / 2f;
+        float top = y + 96f;
+        DrawHalfBox(new Vector2(40f, top), half, box, away.Id);
+        DrawHalfBox(new Vector2(60f + half, top), half, box, home.Id);
+
+        var back = new Rect2(new Vector2(40f, size.Y - 46f), new Vector2(120f, 30f));
+        Palette.Panel3D(this, back, Palette.PanelLight);
+        Palette.TextCentered(this, back.Position + back.Size * 0.5f, "RESULTS", 12, Palette.Ink);
+        _clicks.Add(back, () => _openBox = null);
+
+        Palette.Text(this, new Vector2(180f, size.Y - 26f),
+            "Esc goes back to the list", 13, Palette.InkDim);
+    }
+
+    /// <summary>Runs by inning, with the totals on the end.</summary>
+    private void DrawLineScore(Vector2 at, Stats.BoxScore box, TeamData away, TeamData home)
+    {
+        int innings = Mathf.Max(box.AwayInnings.Length, box.HomeInnings.Length);
+        float cell = 26f;
+
+        for (int i = 0; i < innings; i++)
+            Palette.Text(this, at + new Vector2(150f + i * cell, 0f), $"{i + 1}", 11, Palette.InkDim);
+
+        float totals = 150f + innings * cell + 12f;
+        Palette.Text(this, at + new Vector2(totals, 0f), "R", 11, Palette.Highlight);
+        Palette.Text(this, at + new Vector2(totals + 28f, 0f), "H", 11, Palette.Highlight);
+        Palette.Text(this, at + new Vector2(totals + 56f, 0f), "E", 11, Palette.Highlight);
+
+        void Row(float dy, TeamData club, int[] line, int runs, int hits, int errors)
+        {
+            Palette.Text(this, at + new Vector2(0f, dy), club.Abbrev, 14, club.Secondary);
+            for (int i = 0; i < innings; i++)
+                Palette.Text(this, at + new Vector2(150f + i * cell, dy),
+                    i < line.Length ? line[i].ToString() : "-", 13, Palette.Ink);
+
+            Palette.Text(this, at + new Vector2(totals, dy), runs.ToString(), 13, Palette.Ink);
+            Palette.Text(this, at + new Vector2(totals + 28f, dy), hits.ToString(), 13, Palette.InkDim);
+            Palette.Text(this, at + new Vector2(totals + 56f, dy), errors.ToString(), 13, Palette.InkDim);
+        }
+
+        Row(24f, away, box.AwayInnings, box.AwayRuns, box.AwayHits, box.AwayErrors);
+        Row(46f, home, box.HomeInnings, box.HomeRuns, box.HomeHits, box.HomeErrors);
+    }
+
+    /// <summary>One club's hitters and one club's arms.</summary>
+    private void DrawHalfBox(Vector2 at, float width, Stats.BoxScore box, int teamId)
+    {
+        var club = Teams.Get(teamId);
+        Palette.Text(this, at, club.FullName, 15, club.Secondary);
+
+        float y = at.Y + 26f;
+        float[] xs = { at.X, at.X + 190f, at.X + 226f, at.X + 262f, at.X + 298f, at.X + 334f };
+        string[] cols = { "", "AB", "R", "H", "RBI", "BB" };
+
+        for (int i = 1; i < cols.Length; i++)
+            Palette.Text(this, new Vector2(xs[i], y), cols[i], 11, Palette.InkDim);
+        y += 18f;
+
+        foreach (var a in box.Batters(teamId))
+        {
+            var b = a.Batting;
+            Palette.Text(this, new Vector2(xs[0], y), $"{a.Name}  {a.Slot}", 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[1], y), b.AtBats.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[2], y), b.Runs.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[3], y), b.Hits.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[4], y), b.RunsBattedIn.ToString(), 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[5], y), b.Walks.ToString(), 12, Palette.InkDim);
+            y += 17f;
+        }
+
+        y += 14f;
+        string[] pcols = { "", "IP", "H", "ER", "BB", "K" };
+        for (int i = 1; i < pcols.Length; i++)
+            Palette.Text(this, new Vector2(xs[i], y), pcols[i], 11, Palette.InkDim);
+        y += 18f;
+
+        foreach (var a in box.Arms(teamId))
+        {
+            var t = a.Pitching;
+            string mark = a.PlayerId == box.WinnerPlayerId ? " (W)"
+                        : a.PlayerId == box.LoserPlayerId ? " (L)"
+                        : a.PlayerId == box.SavePlayerId ? " (S)" : "";
+
+            Palette.Text(this, new Vector2(xs[0], y), a.Name + mark, 12,
+                mark != "" ? Palette.Highlight : Palette.Ink);
+            Palette.Text(this, new Vector2(xs[1], y), t.InningsText, 12, Palette.Ink);
+            Palette.Text(this, new Vector2(xs[2], y), t.Hits.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[3], y), t.EarnedRuns.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[4], y), t.Walks.ToString(), 12, Palette.InkDim);
+            Palette.Text(this, new Vector2(xs[5], y), t.Strikeouts.ToString(), 12, Palette.Ink);
+            y += 17f;
         }
     }
 

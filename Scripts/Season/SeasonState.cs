@@ -86,6 +86,12 @@ public sealed class SeasonState
     public int UserTeamId;
 
     public readonly StatBook Book = new();
+
+    /// <summary>
+    /// Finished games, written down properly — the user's club only. A result used to be a pair
+    /// of numbers on a schedule row, with no way ever to find out who had pitched.
+    /// </summary>
+    public readonly Stats.GameLogs Logs = new();
     private readonly Dictionary<int, Roster> _rosters = new();
     private readonly Dictionary<int, ClubBook> _books = new();
 
@@ -343,7 +349,24 @@ public sealed class SeasonState
         game.Crowd = Attendance.For(this, game);
         Attendance.Record(this, game, game.Crowd);
         Book.Absorb(sit.Stats);
+        LogGame(game, sit);
         GamesPlayed++;
+    }
+
+    /// <summary>
+    /// Keeps the box score, for the user's club only.
+    ///
+    /// Every game in the league would be some fifty thousand player lines a season, nearly all of
+    /// them for games nobody will ever open, and every one of them has to be written to the save.
+    /// </summary>
+    private void LogGame(ScheduledGame game, Core.GameSituation sit)
+    {
+        if (game == null || sit == null || !game.Involves(UserTeamId)) return;
+
+        Logs.Add(Stats.BoxScore.From(
+            game.Day, Year, RosterFor(game.AwayId), RosterFor(game.HomeId), sit.Stats,
+            sit.AwayLine.ToArray(), sit.HomeLine.ToArray(),
+            sit.AwayHits, sit.HomeHits, sit.AwayErrors, sit.HomeErrors, sit.FinalNote));
     }
 
     /// <summary>Plays out every remaining game the user is not involved in, up to a given day.</summary>
@@ -442,6 +465,7 @@ public sealed class SeasonState
         if (game.Crowd <= 0) game.Crowd = Attendance.For(this, game);
         Attendance.Record(this, game, game.Crowd);
         Book.Absorb(sit.Stats);
+        LogGame(game, sit);
         GamesPlayed++;
 
         // Once the human's game is in the books the rest of the date plays out and the calendar

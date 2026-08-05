@@ -434,6 +434,7 @@ public partial class FranchiseScreen : Control
         }
 
         DrawSplits(card, ref y, p);
+        DrawRecentForm(card, ref y, p);
 
         var close = new Rect2(card.Position + new Vector2(card.Size.X - 96f, card.Size.Y - 52f), new Vector2(76f, 34f));
         Palette.Panel3D(this, close, Palette.PanelLight);
@@ -502,6 +503,52 @@ public partial class FranchiseScreen : Control
         if (!anything)
             Palette.Text(this, card.Position + new Vector2(20f, y),
                 "Nothing yet this season.", 12, Palette.InkDim);
+    }
+
+    /// <summary>
+    /// His last ten nights, oldest to newest, on one line.
+    ///
+    /// A season total says a man is hitting .240. It cannot say whether he arrived there by
+    /// hitting .240 every week or by going 2-for-40 in September, and those are different players
+    /// to put in a lineup. This is the smallest thing that answers it.
+    /// </summary>
+    private void DrawRecentForm(Rect2 card, ref float y, PlayerData p)
+    {
+        var recent = _season.Logs.Recent(p.Id, 10);
+        if (recent.Count == 0) return;
+
+        y += 16f;
+        Palette.Text(this, card.Position + new Vector2(20f, y),
+            $"LAST {recent.Count} — most recent on the right", 11, Palette.InkDim);
+        y += 20f;
+
+        // Recent() hands them back newest first; a form line reads the other way.
+        recent.Reverse();
+
+        float x = 20f;
+        foreach (var (game, line) in recent)
+        {
+            string cell;
+            Color tint;
+
+            if (line.Pitched)
+            {
+                var t = line.Pitching;
+                cell = $"{t.InningsText}/{t.EarnedRuns}";
+                tint = t.EarnedRuns == 0 ? Palette.Highlight
+                     : t.EarnedRuns >= 4 ? Palette.Warning : Palette.Ink;
+            }
+            else
+            {
+                var b = line.Batting;
+                cell = $"{b.Hits}-{b.AtBats}" + (b.HomeRuns > 0 ? "*" : "");
+                tint = b.HomeRuns > 0 ? Palette.Highlight
+                     : b.Hits == 0 && b.AtBats > 0 ? Palette.InkDim : Palette.Ink;
+            }
+
+            Palette.Text(this, card.Position + new Vector2(x, y), cell, 12, tint);
+            x += 58f;
+        }
     }
 
     private void StatRow(Rect2 card, ref float y, string[] cells, bool header = false)
