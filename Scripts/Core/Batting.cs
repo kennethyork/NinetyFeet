@@ -135,7 +135,7 @@ public static class SwingResolver
     /// stretched innings far enough to push the strikeout count 26% over as well, even though the
     /// strikeout *rate* per plate appearance was below the real one. One number caused both.
     /// </summary>
-    private const float WhiffFloor = 0.355f;
+    private const float WhiffFloor = 0.315f;
 
     /// <summary>The sweet-spot radius in plate-plane feet, for drawing the coverage indicator.</summary>
     /// <summary>
@@ -242,8 +242,22 @@ public static class SwingResolver
         // --- Placement: how close the bat was to the ball in the plate plane. ---
         Vector2 crossing = pitch.CrossPoint;
         Vector2 delta = cursor - crossing;
+
+        /// A barrel is struck slightly under the middle of the ball, not through it.
+        ///
+        /// Quality was measured from dead centre, and launch angle is driven by the same vertical
+        /// offset — so every ball hit high enough to carry was, by definition, a mishit, and left
+        /// the bat slowly. The two worked against each other: the only way to elevate was to miss.
+        /// That is why homers came in at half the real rate the moment the angles were widened,
+        /// and it is why the old model had to centre everything at 24 degrees to get any at all.
+        ///
+        /// Shifting the ideal contact point a quarter of a barrel below centre makes the best-struck
+        /// ball leave at about 30 degrees on its own, which is what a barrel actually is.
+        const float BarrelBelowCentre = 0.25f;
+        float idealY = delta.Y + BarrelBelowCentre * ((0.505f + contact * 0.125f) * profile.Barrel);
+
         // A little forgiveness horizontally — the bat is long.
-        float spatialDist = new Vector2(delta.X * 0.72f, delta.Y).Length();
+        float spatialDist = new Vector2(delta.X * 0.72f, idealY).Length();
         // Whiff-per-swing was running at 12% against a real 23%: hitters were making contact on
         // nearly everything, so far too many balls reached play and the hit total ran 18% over
         // even with BABIP correct. The sweet spot has to be small enough to be missed.
@@ -323,14 +337,27 @@ public static class SwingResolver
         // still sails foul through no fault of the hitter.
         spray *= Mathf.Lerp(1f, 0.82f, Mathf.Clamp((assist - 1f) / 0.6f, 0f, 1f));
 
-        // A swing has a slight uppercut, so squaring one up already lifts it. Squared-up contact
-        // needs to land near 26 degrees — the angle that actually carries — otherwise the only
-        // way to elevate is to miss the ball's centre, which kills exit velocity at the same time.
-        // A wider spread of launch angles, so fewer balls land in the ideal carrying band and
-        // the park does not give up five home runs a night.
-        float launch = 24f + profile.Launch - delta.Y * 22f + (rng.Bell() - 0.5f) * 22f;
+        // Where on the ball the bat arrives is what decides the angle. Under it and the ball goes
+        // up; over the top of it and the ball goes into the ground.
+        //
+        // This used to centre on 24 degrees with a shallow response, and the effect was that
+        // EVERY ball in play left the bat between 0 and 40 degrees — 99% of them between 10 and
+        // 40, with a mean near 25. There were no ground balls at all. Not few: none. Measured
+        // over 1,568 balls in play by --infield, the band under 10 degrees held 0.7% of them
+        // against a real 45%.
+        //
+        // Everything downstream followed from that. The infield never saw a ground ball, so it
+        // never recorded a ground out, so there were no force plays and no double plays — 0.05 a
+        // game against a real 1.44 — and the league's entire out total was carried by fly balls,
+        // 67% of balls in play caught in the air against a real 45%. Three separate defects that
+        // had been chased at the infield end for a long time were all this one line.
+        //
+        // Now centred near the real mean of about 12 degrees, with the vertical miss driving it
+        // hard enough to reach both ends: a ball struck under the middle carries, one struck over
+        // the top is beaten into the dirt.
+        float launch = 14f + profile.Launch - delta.Y * 62f + (rng.Bell() - 0.5f) * 58f;
         if (batter.Special == Special.MoonShot && squared > 0.7f) launch += 12f;
-        launch = Mathf.Clamp(launch, -22f, 62f);
+        launch = Mathf.Clamp(launch, -40f, 70f);
 
         // Tuned so an average ball leaves the bat around 85 mph and the very best around 112,
         // which lands average carry near 300 feet against the drag model above.

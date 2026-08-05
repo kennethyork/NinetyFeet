@@ -199,7 +199,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield",
     };
 
     private static bool IsVerificationRun()
@@ -306,6 +306,19 @@ public partial class Game : Node
             int pa = 60000;
             if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
             PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--infield [balls]` follows a ground ball through the defence, stage by stage. The
+        // league total cannot tell a fielder who never reaches the ball from one who reaches it
+        // and refuses the throw, and those are different bugs.
+        int inf = System.Array.IndexOf(args, "--infield");
+        if (inf >= 0)
+        {
+            int balls = 3000;
+            if (inf + 1 < args.Length && int.TryParse(args[inf + 1], out int ib)) balls = ib;
+            InfieldAudit.Run(Mathf.Clamp(balls, 200, 60000));
             GetTree().Quit();
             return;
         }

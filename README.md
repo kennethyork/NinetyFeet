@@ -269,20 +269,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.89 | 8.79 | +1.1% |
-| Hits | 16.64 | 16.39 | +1.5% |
-| Doubles | 2.90 | 3.20 | −9.3% |
-| Triples | 0.30 | 0.29 | +2.5% |
-| Home runs | 2.15 | 2.24 | −4.0% |
-| Walks | 5.59 | 6.15 | −9.1% |
-| Strikeouts | 18.08 | 16.96 | +6.6% |
-| Stolen bases | 1.44 | 1.49 | −3.4% |
-| Caught stealing | 0.34 | 0.51 | −33.3% |
-| Hit by pitch | 0.80 | 0.79 | +1.3% |
-| Wild pitches | 0.70 | 0.76 | −7.5% |
-| Sacrifice flies | 0.95 | 0.79 | +20.1% |
+| Runs | 8.30 | 8.79 | −5.6% |
+| Hits | 16.86 | 16.39 | +2.9% |
+| Doubles | 3.03 | 3.20 | −5.4% |
+| Triples | 0.26 | 0.29 | −9.4% |
+| Home runs | 2.09 | 2.24 | −6.5% |
+| Walks | 5.89 | 6.15 | −4.3% |
+| Strikeouts | 19.25 | 16.96 | **+13.5%** |
+| Stolen bases | 1.45 | 1.49 | −2.4% |
+| Caught stealing | 0.35 | 0.51 | −32.2% |
+| Hit by pitch | 0.84 | 0.79 | +6.0% |
+| Wild pitches | 0.59 | 0.76 | −21.8% |
+| Sacrifice flies | 0.47 | 0.79 | −40.7% |
 | Sacrifice bunts | 0.00 | 0.19 | −100% |
-| Grounded into DP | 0.04 | 1.44 | **−97.0%** |
+| Grounded into DP | 1.31 | 1.44 | −9.1% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -299,24 +299,37 @@ The absolute averages in the platoon audit run low because it scores batted ball
 model rather than the full defensive simulation — only the *split* is calibrated there. The
 league's real batting rates are the `--sim` table above.
 
-### The one that matters
+### Where the outs come from
 
-**The infield does not field.** Of every ball in play not caught on the fly, 95% goes down as a
-hit. The defence records 0.6 ground outs a game against a real figure near fifteen, there are
-almost no double plays, and 66% of balls in play are caught in the air against a real 45% — the
-league's entire out total is carried by fly balls. Run `--sim` and read the "where the outs come
-from" block.
+```
+balls in play 50.9/game — caught in the air 43% (real about 45%)
+of those not caught, an out 42% — 12.18/game (real is nearer 15)
+```
 
-This is why the double-play and sacrifice-bunt rows above are empty, and why bringing the infield
-in costs runs instead of saving them (`--defence` measures both). Part of the cause is found and
-written up at `PlaySimulation.ThrowTime`: the play is charged twice for the same glove-to-hand
-transfer, so on a routine ground ball the infielder decides he cannot get the batter and holds the
-ball. Removing that double-charge helps — ground outs go to 1.1 a game and runners retired on the
-bases from 0.8 to 1.8 — but it is only part of the fix, and on its own it drops league scoring 15%
-below the real rate. It is left in place, documented, rather than half-applied.
+This used to read 67% caught in the air and 0.6 ground outs a game, and the reason turned out to
+have nothing to do with the defence.
 
-Fixing it properly means giving the infield real range and then re-deriving the batted-ball
-calibration behind it. It is the single highest-value piece of work left in the simulation.
+**Every ball in play was leaving the bat between 0 and 40 degrees** — 99% of them between 10 and
+40, mean near 25. There were no ground balls. Not few: none. Measured over 1,568 balls in play,
+the band under 10 degrees held 0.7% of them against a real 45%. So the infield never saw a ground
+ball, never recorded a ground out, and never turned a double play; the league's entire out total
+was carried by fly balls. Three defects chased at the infield end for a long time were one line in
+the batting model.
+
+Two things were wrong with it. The launch angle barely responded to where the bat met the ball,
+and quality was measured from dead centre — so any ball hit high enough to carry was by definition
+a mishit and left the bat slowly. The two fought each other, and the only way to elevate was to
+miss. A barrel is struck about a quarter of a barrel *under* the middle of the ball, and it is
+modelled that way now.
+
+`--infield` follows a ground ball through the defence stage by stage. It is reached by a fielder
+100% of the time and the batter is retired on 73% of them, against a real figure near 75% — the
+infield was never broken. It had nothing to field.
+
+Rebuilding the batted-ball distribution meant re-deriving the whole offensive calibration, since
+every number in the table above had been tuned around a defence that could not record a ground
+out. Strikeouts are the one that has not come back: at +13.5% they are worse than the +6.6% before
+this work, and that is the next thing to fix.
 
 ### The harness does not play the same game the season does
 
@@ -330,7 +343,7 @@ reports, which is a large enough gap to be worth chasing rather than filing unde
 not been chased: making `--sim` sample weather would move every number in the table at once, and
 that is a deliberate re-calibration rather than a fix to slip in.
 
-Other known gaps: strikeouts run about 7% high and walks about 9% low. Caught stealing is a third
+Other known gaps: caught stealing is a third low, so runners succeed at 81% against a real 75%. Caught stealing is a third
 low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
 unlike everything else in that file, and are flagged there as needing a refetch.

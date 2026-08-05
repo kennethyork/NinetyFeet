@@ -218,7 +218,7 @@ public sealed class PlaySimulation
                 // closer to 30. This started at 14.5 + 13.5, which put an average fielder at 22.6
                 // — slower than the batter was running to first. Balls that should have been run
                 // down fell in, and the league's BABIP sat at .357 against a real .291.
-                Speed = 18.5f + player.Speed / 10f * 11.3f,
+                Speed = 16.6f + player.Speed / 10f * 10.1f,
                 ReactionLeft = Mathf.Max(0.05f, 0.34f - player.Fielding / 10f * 0.20f),
             });
         }
