@@ -262,7 +262,7 @@ public sealed class PlaySimulation
                 Forced = forceChain,
                 MaxBaseReached = b,
                 Speed = 21f + p.Speed / 10f * 9f,
-                Nerve = 0.76f + _rng.NextFloat() * 0.36f,
+                Nerve = 0.72f + _rng.NextFloat() * 0.28f,
             });
         }
 
@@ -674,7 +674,12 @@ public sealed class PlaySimulation
 
             // Only chase outs the defence can comfortably get. A real infielder concedes the bag
             // rather than air it out on a play he is going to lose anyway.
-            if (throwTime < runnerTime - 0.25f)
+            // A quarter of a second of daylight was demanded before anybody threw. That is a
+            // fielder declining every close play, and it is the wrong way round: the throw is
+            // made and the race decides it, because a runner who reaches the bag first is off the
+            // list before the ball arrives. Tightening it puts runners out and takes runs off the
+            // board without touching the bat.
+            if (throwTime < runnerTime - 0.10f)
             {
                 // Take the out you are sure of.
                 //
@@ -953,7 +958,7 @@ public sealed class PlaySimulation
         // baseball. These two multipliers are the old ones scaled back by the same factor the
         // base went up, so how boldly the batter runs is exactly where it was measured and only
         // the men already aboard have been given nerve.
-        if (r.IsBatter) aggression *= r.FromBase >= 2 ? 0.53f : 0.74f;
+        if (r.IsBatter) aggression *= r.FromBase >= 2 ? 0.565f : 0.80f;
 
         return runnerTime < BallArrivalTime(dest) * aggression;
     }
