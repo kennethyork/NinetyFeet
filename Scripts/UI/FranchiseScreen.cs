@@ -41,7 +41,11 @@ public partial class FranchiseScreen : Control
     private void Leave()
     {
         if (CloseOverlay != null) { CloseOverlay(); return; }
-        Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+        // Back to the season hub this was opened from. The clubhouse is a season screen; the
+        // title screen is not "back" from it.
+        Game.Instance.GoTo(Game.Instance.League != null
+            ? "res://Scenes/Season.tscn"
+            : "res://Scenes/MainMenu.tscn");
     }
 
     public override void _Ready()
@@ -94,7 +98,10 @@ public partial class FranchiseScreen : Control
         _clicks.Begin();
 
         var club = Teams.Get(_teamCursor);
-        Palette.Text(this, new Vector2(40f, 46f), "FRONT OFFICE", 26, Palette.Ink);
+        // This is the clubhouse — the roster, the lineup, the injuries. It called itself FRONT
+        // OFFICE, which is a different screen reached from a different link on the same nav bar.
+        // Two screens with one name is a good way to be sure nobody finds either.
+        Palette.Text(this, new Vector2(40f, 46f), "CLUBHOUSE", 26, Palette.Ink);
         Palette.Text(this, new Vector2(40f, 70f),
             $"{club.FullName}   ·   Year {_season.Year}   ·   {Calendar.Format(_season.Today)}",
             15, Palette.InkDim);
@@ -138,7 +145,9 @@ public partial class FranchiseScreen : Control
         var panel = new Rect2(new Vector2(40f, 146f), new Vector2(size.X - 80f, size.Y - 196f));
         Palette.Panel3D(this, panel, Palette.Panel);
 
-        var cols = new[] { 20f, 220f, 290f, 340f, 400f, 470f, 560f, 640f, 720f, 800f };
+        // CEILING had ninety pixels and prints things like "Everyday starter", which needs a
+        // hundred — so every scouting grade ran into the batting average beside it.
+        var cols = new[] { 20f, 220f, 290f, 340f, 400f, 470f, 612f, 674f, 732f, 800f };
         var heads = new[] { "PLAYER", "POS", "AGE", "OVR", "POT", "CEILING", "AVG", "HR", "RBI", "STATUS" };
         for (int i = 0; i < heads.Length; i++)
             Palette.Text(this, panel.Position + new Vector2(cols[i], 30f), heads[i], 11, Palette.InkDim);
@@ -495,8 +504,18 @@ public partial class FranchiseScreen : Control
 
         Palette.Text(this, panel.Position + new Vector2(20f, 30f), "CHAMPIONS", 11, Palette.InkDim);
 
+        // Bounded. A dynasty adds a champion every year for ever, and this drew all of them at
+        // 28 pixels apiece — by year twenty it was writing off the bottom of the panel and out of
+        // the window. The most recent are the ones anybody looks at.
         float y = 62f;
-        foreach (var (year, teamId) in _season.History.OrderByDescending(h => h.Year))
+        int fits = Mathf.Max(3, (int)((panel.Size.Y - 80f) / 28f));
+        var flags = _season.History.OrderByDescending(h => h.Year).ToList();
+
+        if (flags.Count > fits)
+            Palette.Text(this, panel.Position + new Vector2(panel.Size.X - 150f, 30f),
+                $"most recent {fits} of {flags.Count}", 11, Palette.InkDim);
+
+        foreach (var (year, teamId) in flags.Take(fits))
         {
             var club = Teams.Get(teamId);
             bool mine = teamId == _season.UserTeamId;

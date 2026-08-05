@@ -32,6 +32,11 @@ public partial class TeamSelect : Control
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
+
+        // The Control swallows every mouse event at its default filter, so _UnhandledInput never
+        // saw a click. This screen registers click targets for every club and none of them worked:
+        // it was keyboard-only without anybody deciding it should be.
+        MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
         _cursor = Game.Instance.AwayTeamId;
     }
