@@ -76,6 +76,9 @@ public partial class Hud : Node2D
         Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, line, 12, Palette.InkDim);
     }
 
+    /// <summary>How wide the score bug is. Everything inside it is positioned against this.</summary>
+    private const float BugWidth = 348f;
+
     private void DrawScoreBug(Vector2 at, GameSituation s)
     {
         var away = s.Away.Team;
@@ -83,7 +86,12 @@ public partial class Hud : Node2D
 
         // A little taller than it was: the velocity readout gets its own line rather than
         // printing on top of the out indicator.
-        var panel = new Rect2(at, new Vector2(310f, 114f));
+        //
+        // And wide enough for its own contents. The challenge pips sat 7 pixels past the right
+        // edge — three dots per club hanging in the air outside the box they belong to — because
+        // they were positioned from a number that was never checked against the panel's width.
+        // 348 clears the rightmost pip with a margin rather than by a hair.
+        var panel = new Rect2(at, new Vector2(BugWidth, 114f));
         Palette.Panel3D(this, panel, Palette.Panel);
 
         // Two club rows with the score.
@@ -135,7 +143,7 @@ public partial class Hud : Node2D
             float y = at.Y + 12f + club * 34f;
 
             for (int i = 0; i < 3; i++)
-                DrawCircle(new Vector2(at.X + 296f + i * 9f, y), 3.2f,
+                DrawCircle(new Vector2(at.X + BugWidth - 30f + i * 9f, y), 3.2f,
                     i < left ? Palette.Highlight : Palette.PanelLight);
         }
     }
@@ -242,7 +250,7 @@ public partial class Hud : Node2D
         float beat = 0.5f + 0.5f * Mathf.Sin(_pulse * 6f);
         var tint = new Color(0.45f, 1f, 0.55f, 0.65f + beat * 0.35f);
 
-        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(310f, 26f));
+        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, 26f));
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.Text(this, rect.Position + new Vector2(10f, 18f),
             $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
