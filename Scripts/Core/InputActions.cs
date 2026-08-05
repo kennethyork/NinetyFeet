@@ -56,13 +56,17 @@ public static class InputActions
 
     public static void Register()
     {
-        Bind(AimUp, Key.W, Key.Up);
-        Bind(AimDown, Key.S, Key.Down);
-        // The left arrow is the steal sign, so it cannot also aim. WASD still aims in full, and
-        // the other three arrows are untouched — binding one key to two live actions would have
-        // sent the runner every time somebody nudged the bat inside.
+        // Aiming is the mouse, with WASD as the fallback. The arrows are not part of it.
+        //
+        // Handing the left arrow to the steal left the aim keys as A plus three arrows, which is
+        // the kind of asymmetry that happens when a binding is changed one key at a time. Batting
+        // does not need the arrows at all, so they become the manager's cluster instead: the four
+        // decisions you make between pitches, together, under one hand, instead of scattered
+        // across G, H, Q and E where nobody found them.
+        Bind(AimUp, Key.W);
+        Bind(AimDown, Key.S);
         Bind(AimLeft, Key.A);
-        Bind(AimRight, Key.D, Key.Right);
+        Bind(AimRight, Key.D);
         Bind(Action, Key.Space);
         Bind(SwingPower, Key.F);
         Bind(SwingContact, Key.C);
@@ -110,15 +114,15 @@ public static class InputActions
         Bind(ThrowSecond, Key.Key2);
         Bind(ThrowThird, Key.Key3);
 
-        Bind(SendRunners, Key.E);
-        Bind(HoldRunners, Key.Q);
+        Bind(SendRunners, Key.E, Key.Up);
+        Bind(HoldRunners, Key.Q, Key.Down);
         Bind(Pause, Key.Escape);
         Bind(PowerUp, Key.Shift, Key.Tab);
         BindPad(PowerUp, JoyButton.RightShoulder);
 
         // The manager's keys sit under the left hand, away from the swing.
         Bind(Steal, Key.G, Key.Left);
-        Bind(PinchHit, Key.H);
+        Bind(PinchHit, Key.H, Key.Right);
         Bind(ChangePitcher, Key.P);
         Bind(MoundVisit, Key.V);
         Bind(IntentionalWalk, Key.I);
