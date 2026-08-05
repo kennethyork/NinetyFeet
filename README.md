@@ -269,13 +269,13 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 9.35 | 8.79 | +6.4% |
-| Hits | 17.25 | 16.39 | +5.2% |
-| Doubles | 2.87 | 3.20 | −10.2% |
-| Triples | 0.17 | 0.29 | −40.9% |
-| Home runs | 2.27 | 2.24 | +1.3% |
-| Walks | 5.81 | 6.15 | −5.5% |
-| Strikeouts | 17.26 | 16.96 | +1.8% |
+| Runs | 9.53 | 8.79 | **+8.4%** |
+| Hits | 17.39 | 16.39 | +6.1% |
+| Doubles | 2.91 | 3.20 | −9.0% |
+| Triples | 0.16 | 0.29 | −44.8% |
+| Home runs | 2.32 | 2.24 | +3.6% |
+| Walks | 5.83 | 6.15 | −5.2% |
+| Strikeouts | 17.41 | 16.96 | +2.6% |
 | Stolen bases | 1.49 | 1.49 | −0.3% |
 | Caught stealing | 0.34 | 0.51 | −33.9% |
 | Hit by pitch | 0.86 | 0.79 | +8.9% |
@@ -369,8 +369,14 @@ other side: the batter-runner is deliberately held to his old scale, since a man
 gamble at the plate will also stretch a double into a triple, and letting him do so put triples at
 1.48 a game against a real 0.29.
 
-Other known gaps: hits run about 5% high, and caught stealing is a third low, so runners succeed at
-81% against a real 75%. Sacrifice flies are 43% low and the computer never lays down a sacrifice
+**Run scoring is the thing to fix next.** It has drifted to +8.4% across a run of gameplay fixes —
+each one correct on its own terms and each one worth a point or two, because a defence that
+concedes a run rather than chasing a marginal out at the plate is right and also scores more. The
+bat is not the place to take it back out: that was tried and measured and it flattened home runs to
+−18% and doubles to −23%. It wants its own pass on baserunning and outfield positioning.
+
+Other known gaps: hits run about 6% high, triples 45% low, and caught stealing is a third low, so
+runners succeed at 81% against a real 75%. Sacrifice flies are 43% low and the computer never lays down a sacrifice
 bunt at all. Caught stealing is a third
 low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,

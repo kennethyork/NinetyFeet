@@ -676,7 +676,37 @@ public sealed class PlaySimulation
             // rather than air it out on a play he is going to lose anyway.
             if (throwTime < runnerTime - 0.25f)
             {
-                float value = r.ToBase * 10f + (runnerTime - throwTime);
+                // Take the out you are sure of.
+                //
+                // This used to score by which base was furthest along — r.ToBase * 10 — so the
+                // lead runner won whenever he was catchable at all, and a bang-bang play at the
+                // plate beat a certain out at first every single time. A real infielder does the
+                // opposite unless the run decides something: he banks the out and concedes the
+                // run, and only goes home when he has him or when the run cannot be given away.
+                //
+                // Certainty is the margin he has to spare, and it now dominates. The base still
+                // counts for something, so a comfortable play on the lead runner is still the
+                // right one — it is only the marginal ones that are now declined.
+                float margin = runnerTime - throwTime;
+
+                // Only the play at the plate is second-guessed. Scoring the whole decision by
+                // certainty instead of by base was tried and was much worse: a force at second
+                // usually has a thinner margin than the batter at first, so the defence took the
+                // sure out every time and the double play went with it — 0.47 a game against a
+                // real 1.44. The lead-runner preference is what turns two, and it stays.
+                if (bag == 0)
+                {
+                    // Whether this run can still decide anything. Four up in the third is not the
+                    // same as one up in the ninth, and the same throw is right in one and wrong
+                    // in the other. When it cannot, a close play at the plate is declined and the
+                    // sure out is taken instead — which is what an infielder actually does.
+                    int lead = _sit.FieldingScore - _sit.BattingScore;
+                    bool decisive = lead is >= -1 and <= 3
+                                 || _sit.Inning >= _sit.ScheduledInnings - 1;
+                    if (!decisive && margin < 0.6f) continue;
+                }
+
+                float value = r.ToBase * 10f + margin;
                 if (value > bestValue) { bestValue = value; best = bag; }
             }
         }
