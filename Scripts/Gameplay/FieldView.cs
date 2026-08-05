@@ -574,6 +574,38 @@ public partial class FieldView : Node2D
         }
     }
 
+    /// <summary>
+    /// Whether this runner is going in head first. He slides when he is nearly at the bag and the
+    /// throw is anywhere near him — sliding into an uncontested base is something only a video
+    /// game does, and sliding into home from ninety feet out is worse.
+    /// </summary>
+    private bool Sliding(RunnerAgent r)
+    {
+        var play = Scene.Play;
+        if (play == null || r.IsOut || r.Held) return false;
+        if (r.Progress < 0.78f) return false;
+
+        Vector2 bag = FieldGeometry.Bases[r.ToBase % 4];
+        if (play.BallSpot.DistanceTo(bag) < 60f) return true;
+
+        foreach (var f in play.Fielders)
+            if (f.HasBall && f.Spot.DistanceTo(bag) < 75f) return true;
+
+        return false;
+    }
+
+    /// <summary>The dirt he kicks up. Cheap, and it is half of what sells a slide.</summary>
+    private void DrawSlideDust(Vector2 at, float facing)
+    {
+        for (int i = 0; i < 6; i++)
+        {
+            float k = i / 5f;
+            var puff = at + new Vector2(-facing * (8f + k * 30f) * _scale, (3f - k * 4f) * _scale);
+            DrawCircle(puff, (3f + k * 6f) * _scale,
+                new Color(0.80f, 0.68f, 0.50f, 0.30f * (1f - k)));
+        }
+    }
+
     private void DrawRunners()
     {
         var team = Scene.Situation.KitOf(Scene.Situation.BattingTeam);
@@ -593,9 +625,23 @@ public partial class FieldView : Node2D
                 ? (FieldGeometry.Bases[0].X >= r.Spot.X ? 1f : -1f)
                 : (next.X >= r.Spot.X ? 1f : -1f);
 
+            // Sliding into a close bag. A real drawn pose this time — hips down, lead leg out,
+            // back leg folded under — rather than a run cycle rotated onto its side.
+            if (Sliding(r))
+            {
+                DrawSlideDust(at, facing);
+                pose = Pose.Slide;
+            }
+
             // A runner watches the ball, which is exactly what he is doing when he decides whether
             // to go. A man who has been put out has stopped caring and looks at the plate.
+            //
+            // His legs also run at his own cadence: the cycle is driven by how far he has actually
+            // travelled rather than by a clock every man on the field shared, so a burner's feet
+            // move faster than a catcher's.
+            float beat = (r.Progress * FieldGeometry.BasePathLength + r.FromBase * 90f) * 0.42f;
             CartoonPlayer.Draw(this, at, 0.42f, facing, pose, shirt, r.Player, _time,
+                motionPhase: pose == Pose.Run ? beat : 0f,
                 lookAt: r.IsOut ? ToScreen(FieldGeometry.Bases[0]) : BallEye());
 
             if (!r.IsOut)

@@ -4,7 +4,7 @@ using SandlotSlugfest.Data;
 
 namespace SandlotSlugfest.UI;
 
-public enum Pose { Idle, Stance, Swing, Windup, Pitch, Run, Field, Cheer }
+public enum Pose { Idle, Stance, Swing, Windup, Pitch, Run, Field, Cheer, Slide }
 
 /// <summary>
 /// Draws the sandlot kids: oversized heads, little bodies, chunky limbs and thick outlines.
@@ -227,6 +227,17 @@ public static class CartoonPlayer
         Vector2 shoulder = hip + new Vector2(0f, -30f * s * look.Height);
         Vector2 head = shoulder + new Vector2(facing * 1.5f * s, -26f * s * look.HeadSize);
 
+        // A slide is its own shape rather than a standing man turned on his side. The hips drop
+        // almost to the dirt and trail behind, the torso reclines back over them, and the head
+        // comes up off the ground — which is what a man sliding actually looks like and what
+        // rotating a run cycle by sixty-five degrees emphatically does not.
+        if (pose == Pose.Slide)
+        {
+            hip = feet + new Vector2(-facing * 20f * s, -13f * s * look.Height);
+            shoulder = hip + new Vector2(-facing * 20f * s, -19f * s * look.Height);
+            head = shoulder + new Vector2(-facing * 5f * s, -23f * s * look.HeadSize);
+        }
+
         // Poses lean the whole body, which reads better than moving limbs alone. A swing rotates
         // through: loaded back at the start, open and out over the front foot at the finish.
         float lean = pose switch
@@ -235,6 +246,7 @@ public static class CartoonPlayer
             Pose.Pitch => Mathf.Lerp(-facing * 0.22f, facing * 0.46f, PitchEase(motionPhase)),
             Pose.Windup => -facing * 0.18f,
             Pose.Run => facing * 0.30f,
+            Pose.Slide => -facing * 0.62f,
             Pose.Field => 0.10f,
             _ => 0f,
         };
@@ -288,6 +300,28 @@ public static class CartoonPlayer
         }
 
         var pantColor = new Color("#eceadf");
+
+        // The slide's legs are posed outright rather than cycled: the lead leg reaching for the
+        // bag with the foot barely off the dirt, the back leg folded under the hip.
+        if (pose == Pose.Slide)
+        {
+            float f = facing >= 0f ? 1f : -1f;
+
+            Vector2 leadFoot = hip + new Vector2(f * 46f * s, 9f * s);
+            Vector2 leadKnee = hip + new Vector2(f * 24f * s, 3f * s);
+            Limb(c, hip + new Vector2(0f, 2f * s), leadKnee, 6.5f * s, pantColor, s, seed + 61);
+            Limb(c, leadKnee, leadFoot, 5.5f * s, pantColor, s, seed + 62);
+
+            Vector2 tuckKnee = hip + new Vector2(f * 15f * s, 12f * s);
+            Vector2 tuckFoot = hip + new Vector2(-f * 4f * s, 15f * s);
+            Limb(c, hip + new Vector2(0f, 4f * s), tuckKnee, 6.5f * s, pantColor, s, seed + 63);
+            Limb(c, tuckKnee, tuckFoot, 5.5f * s, pantColor, s, seed + 64);
+
+            DrawShoe(c, tuckFoot, s, facing, team, seed + 65);
+            DrawShoe(c, leadFoot, s, facing, team, seed + 66);
+            return;
+        }
+
         for (int side = -1; side <= 1; side += 2)
         {
             float dx = side * spread + (side > 0 ? stride : -stride);
@@ -512,6 +546,9 @@ public static class CartoonPlayer
                                            * 18f * s, 6f * s),
                      shoulder + new Vector2(-Mathf.Sin(motionPhase > 0f ? motionPhase : time * 12f)
                                            * 18f * s, 6f * s)),
+        // One arm up and back for balance, the other reaching in at the bag.
+        Pose.Slide => (shoulder + new Vector2(-facing * 20f * s, -18f * s),
+                       shoulder + new Vector2(facing * 16f * s, 4f * s)),
         Pose.Field => (shoulder + new Vector2(-16f * s, 16f * s),
                        shoulder + new Vector2(16f * s, 16f * s)),
         Pose.Cheer => (shoulder + new Vector2(-20f * s, -26f * s),
