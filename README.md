@@ -276,20 +276,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.24 | 8.79 | −6.3% |
+| Runs | 8.17 | 8.79 | −7.0% |
 | Hits | 15.11 | 16.39 | −7.8% |
-| Doubles | 2.95 | 3.20 | −7.8% |
-| Triples | 0.32 | 0.29 | +10.3% |
-| Home runs | 2.12 | 2.24 | −5.4% |
-| Walks | 5.59 | 6.15 | −9.1% |
-| Strikeouts | 16.75 | 16.96 | −1.2% |
-| Stolen bases | 1.35 | 1.49 | −9.3% |
-| Caught stealing | 0.28 | 0.51 | −45.7% |
-| Hit by pitch | 0.83 | 0.79 | +4.9% |
-| Wild pitches | 0.54 | 0.76 | −28.9% |
-| Sacrifice flies | 0.36 | 0.79 | −54.4% |
-| Sacrifice bunts | 0.00 | 0.19 | −100% |
-| Grounded into DP | 1.63 | 1.44 | +13.3% |
+| Doubles | 2.91 | 3.20 | −9.0% |
+| Triples | 0.30 | 0.29 | +4.4% |
+| Home runs | 2.16 | 2.24 | −3.6% |
+| Walks | 5.49 | 6.15 | −10.7% |
+| Strikeouts | 16.55 | 16.96 | −2.4% |
+| Stolen bases | 1.28 | 1.49 | −13.9% |
+| Caught stealing | 0.28 | 0.51 | −44.5% |
+| Hit by pitch | 0.81 | 0.79 | +3.1% |
+| Wild pitches | 0.55 | 0.76 | −27.8% |
+| Sacrifice flies | 0.35 | 0.79 | −56.2% |
+| Sacrifice bunts | 0.14 | 0.19 | −24.8% |
+| Grounded into DP | 1.56 | 1.44 | +8.1% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -396,7 +396,9 @@ extra base is a separate knob from how boldly the men already aboard do, and aft
 rebuild it needed resetting rather than inheriting its old value.
 
 Other known gaps: caught stealing is 40% low, so runners succeed at 82% against a real 75%.
-Sacrifice flies are 45% low and the computer never lays down a sacrifice bunt at all.
+Sacrifice flies are 56% low. The sacrifice bunt now exists — it did not, because the only man who
+would lay one down was a pitcher and the designated hitter means a pitcher almost never bats — but
+at 0.14 a game against a real 0.19 it is still called for too rarely.
 The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
 unlike everything else in that file, and are flagged there as needing a refetch.

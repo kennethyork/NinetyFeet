@@ -53,6 +53,7 @@ public partial class Hud : Node2D
             DrawPowerUpChip(size, s.Batter);
 
         DrawParkStrip(size);
+        DrawFirstGameHelp(size);
     }
 
     /// <summary>
@@ -74,6 +75,65 @@ public partial class Hud : Node2D
         var rect = new Rect2(new Vector2(size.X * 0.5f - w * 0.5f, size.Y - 30f), new Vector2(w, 22f));
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, line, 12, Palette.InkDim);
+    }
+
+    private bool _helpDone;
+    private float _helpShown;
+
+    /// <summary>
+    /// What to press, once, the first time somebody plays.
+    ///
+    /// There is a controls screen and nothing else, so every verb the game has beyond swinging
+    /// was undiscoverable: nobody works out that Y moves the defence or U gets a reliever up by
+    /// pressing keys at random. A game that never tells you what it can do is a game where most
+    /// of what it can do never happens.
+    ///
+    /// Shown for one game and then never again, and dismissed by any key.
+    /// </summary>
+    private void DrawFirstGameHelp(Vector2 size)
+    {
+        if (_helpDone || Core.Settings.LoadSeenHelp()) return;
+        if (Scene.Phase == AtBatPhase.Over) return;
+
+        _helpShown += (float)GetProcessDeltaTime();
+        if (_helpShown > 22f || Input.IsAnythingPressed())
+        {
+            _helpDone = true;
+            Core.Settings.SaveSeenHelp();
+            return;
+        }
+
+        string[] lines =
+        {
+            "AT THE PLATE   mouse or WASD aims  ·  click or space swings",
+            "               F power  ·  C contact  ·  B bunt",
+            "MANAGING       \u2190 steal  ·  \u2192 pinch hit  ·  \u2191\u2193 send or hold the runners",
+            "IN THE FIELD   Y moves the defence  ·  U gets somebody up in the pen",
+            "ON THE MOUND   1-4 pitches  ·  P change  ·  V mound visit  ·  I walk him",
+            "",
+            "Any key to dismiss. It will not come back.",
+        };
+
+        float w = 470f, h = 34f + lines.Length * 19f;
+        var at = new Vector2(size.X * 0.5f - w * 0.5f, size.Y * 0.5f - h * 0.5f);
+
+        float fade = Mathf.Min(1f, _helpShown / 0.4f) * Mathf.Min(1f, (22f - _helpShown) / 1.2f);
+        var panel = Palette.Panel; panel.A *= 0.96f * fade;
+        Palette.Panel3D(this, new Rect2(at, new Vector2(w, h)), panel);
+
+        var ink = Palette.Ink; ink.A *= fade;
+        var dim = Palette.InkDim; dim.A *= fade;
+
+        Palette.Text(this, at + new Vector2(18f, 26f), "THE KEYS WORTH KNOWING", 13,
+            new Color(Palette.Highlight) { A = fade });
+
+        float y = 48f;
+        foreach (string line in lines)
+        {
+            Palette.Text(this, at + new Vector2(18f, y), line, 12,
+                line.StartsWith("Any key") ? dim : ink);
+            y += 19f;
+        }
     }
 
     /// <summary>How wide the score bug is. Everything inside it is positioned against this.</summary>

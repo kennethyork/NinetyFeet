@@ -166,6 +166,22 @@ public static class Settings
         cfg.Save(Path);
     }
 
+    /// <summary>Whether the first-game help card has been dismissed.</summary>
+    public static bool LoadSeenHelp()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return false;
+        return (bool)cfg.GetValue("game", "seenhelp", false);
+    }
+
+    public static void SaveSeenHelp()
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "seenhelp", true);
+        cfg.Save(Path);
+    }
+
     /// <summary>Which league slot was last open.</summary>
     public static int LoadSlot()
     {

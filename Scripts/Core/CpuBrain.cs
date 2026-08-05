@@ -191,6 +191,29 @@ public static class CpuBrain
             plan.WillSwing = true;
         }
 
+        // And so, occasionally, will a hitter with no bat and a runner to move over.
+        //
+        // Sacrifice bunts read 0.00 a game against a real 0.19, because the only man who would
+        // lay one down was a pitcher — and with the designated hitter, a pitcher almost never
+        // comes to the plate. So the play simply did not exist in this league.
+        //
+        // Hedged tightly on purpose. It is a bad play in almost every situation and a real bench
+        // only calls for it in the one where it is not: a weak hitter, late, in a game close
+        // enough that one run is the whole argument.
+        bool moveHimOver = s.Outs < 2
+                        && s.Strikes < 2
+                        && (s.RunnerOn(2) || (s.RunnerOn(1) && !s.RunnerOn(3)))
+                        && s.Inning >= 6
+                        && Mathf.Abs(s.BattingScore - s.FieldingScore) <= 1;
+
+        if (moveHimOver && batter.Position != Data.Position.P
+                        && batter.Power <= 4 && batter.Contact <= 6
+                        && rng.Chance(0.26f))
+        {
+            plan.Bunt = true;
+            plan.WillSwing = true;
+        }
+
         return plan;
     }
 
