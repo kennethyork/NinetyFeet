@@ -269,20 +269,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 9.09 | 8.79 | +3.4% |
-| Hits | 16.93 | 16.39 | +3.3% |
-| Doubles | 2.95 | 3.20 | −7.9% |
-| Triples | 0.26 | 0.29 | −11.3% |
-| Home runs | 2.32 | 2.24 | +3.4% |
-| Walks | 5.79 | 6.15 | −5.9% |
-| Strikeouts | 16.98 | 16.96 | +0.1% |
-| Stolen bases | 1.45 | 1.49 | −2.8% |
-| Caught stealing | 0.31 | 0.51 | −39.5% |
-| Hit by pitch | 0.81 | 0.79 | +3.1% |
-| Wild pitches | 0.64 | 0.76 | −15.8% |
-| Sacrifice flies | 0.44 | 0.79 | −44.7% |
+| Runs | 8.24 | 8.79 | −6.3% |
+| Hits | 15.11 | 16.39 | −7.8% |
+| Doubles | 2.95 | 3.20 | −7.8% |
+| Triples | 0.32 | 0.29 | +10.3% |
+| Home runs | 2.12 | 2.24 | −5.4% |
+| Walks | 5.59 | 6.15 | −9.1% |
+| Strikeouts | 16.75 | 16.96 | −1.2% |
+| Stolen bases | 1.35 | 1.49 | −9.3% |
+| Caught stealing | 0.28 | 0.51 | −45.7% |
+| Hit by pitch | 0.83 | 0.79 | +4.9% |
+| Wild pitches | 0.54 | 0.76 | −28.9% |
+| Sacrifice flies | 0.36 | 0.79 | −54.4% |
 | Sacrifice bunts | 0.00 | 0.19 | −100% |
-| Grounded into DP | 1.42 | 1.44 | −1.2% |
+| Grounded into DP | 1.63 | 1.44 | +13.3% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -368,6 +368,18 @@ deader game than a slightly high-scoring one. Triples are 41% low, which is the 
 other side: the batter-runner is deliberately held to his old scale, since a man bold enough to
 gamble at the plate will also stretch a double into a triple, and letting him do so put triples at
 1.48 a game against a real 0.29.
+
+An infielder who fields a ground ball cleanly now throws it. He used to hold it on 16.3% of them
+— one in six, a man standing on the dirt with the ball in his glove watching the batter jog to
+first, which is the most obviously wrong thing in the game to look at however respectable the
+league's totals are. Every throw option had to clear a time margin first, and when none did he
+simply declined. He now throws at the lead forced runner anyway and the race decides it, since a
+runner who reaches the bag before the ball is off the list by the time it arrives.
+
+That made the defence about ten per cent better and the league is currently light across the board
+by six to eight per cent because of it. Both bat levers were tried to bring it back and both send
+home runs past +20%, so it is left where the measurement puts it rather than papered over. **The
+run environment is the open item.**
 
 Run scoring drifted to +8.4% across the gameplay fixes and was brought back to +3.4% on the
 baserunning side rather than by detuning the bat — the defence now attempts a throw with a tenth of

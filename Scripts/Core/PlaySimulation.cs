@@ -716,6 +716,29 @@ public sealed class PlaySimulation
             }
         }
 
+        // An infielder who has fielded it cleanly throws it. He does not concede.
+        //
+        // Every option here has to clear a margin before it is taken, and when none of them does
+        // the fielder simply held the ball — on 16.3% of all ground balls, measured. With the
+        // bases empty that is a man standing on the dirt with the ball in his glove watching the
+        // batter jog to first, which is the single most obviously wrong thing in the game to look
+        // at, however respectable the league's totals are.
+        //
+        // He throws at the lead forced runner anyway and the race decides it: UpdateThrow only
+        // retires a man who is still between bags when the ball arrives, so a throw he was always
+        // going to lose costs nothing but the throw. Kept to the infield, or outfielders start
+        // firing hopeless balls to first.
+        if (best < 0)
+        {
+            var forced = Runners
+                .Where(r => !r.IsOut && !r.Scored && !r.Held && r.Forced)
+                .OrderBy(r => r.ToBase)
+                .FirstOrDefault();
+
+            if (forced != null && BallSpot.Length() < 200f)
+                return forced.ToBase > 3 ? 0 : forced.ToBase;
+        }
+
         // If nothing is catchable, throw the ball back toward the infield to stop the bleeding.
         if (best < 0 && BallSpot.Length() > 160f) return 2;
         return best;
