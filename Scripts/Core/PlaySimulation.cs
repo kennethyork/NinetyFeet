@@ -56,6 +56,17 @@ public sealed class RunnerAgent
     /// thrown out stretching for one more.</summary>
     public int MaxBaseReached;
 
+    /// <summary>
+    /// How this man reads the play tonight, as a multiplier on his willingness to go. Rolled once
+    /// when the ball is struck, not every frame, or he would dither on the bag.
+    ///
+    /// This is the whole reason a close play at the plate can exist. Without it a runner and the
+    /// defence both worked the decision out from the same estimator and always agreed, so a man
+    /// only ever ran when he could not be caught and the throw was therefore never worth making.
+    /// A third-base coach is guessing, and he is wrong often enough to matter.
+    /// </summary>
+    public float Nerve = 1f;
+
     public float BaseSpeed => Player.Special switch
     {
         Special.TurboLegs => Speed * 1.18f,
@@ -251,6 +262,7 @@ public sealed class PlaySimulation
                 Forced = forceChain,
                 MaxBaseReached = b,
                 Speed = 21f + p.Speed / 10f * 9f,
+                Nerve = 0.76f + _rng.NextFloat() * 0.36f,
             });
         }
 
@@ -871,7 +883,20 @@ public sealed class PlaySimulation
         // Near break-even, with the quick guys willing to take a little risk. Anything much
         // above 1.0 means deliberately running into outs, since the defence throws whenever it
         // can beat the runner.
-        float aggression = 0.42f + r.Player.Speed / 10f * 0.12f;
+        // Near break-even and genuinely uncertain, rather than a guarantee.
+        //
+        // This sat at 0.42 to 0.54, which meant a runner only left the bag when he was about
+        // twice as fast as the throw. The defence's own test is the mirror of it and calls the
+        // same estimator, so the two could never both be satisfied: any runner who had chosen to
+        // run had already proved the throw could not get him. Measured over 5,000 batted balls,
+        // the defence threw home 0 times and to third 0 times. Every throw in the game went to a
+        // man with no choice — the batter, forced to first.
+        //
+        // Nerve straddles break-even, so the bold ones go when it is close and the throw becomes
+        // worth making. Raising the base is cheaper than it looks: DistanceToNextBag already gives
+        // a runner his secondary lead, which is why moving this from 0.54 to 0.82 once changed
+        // league scoring by five hundredths of a run a game.
+        float aggression = (0.66f + r.Player.Speed / 10f * 0.14f) * r.Nerve;
         if (r.Player.Special == Special.PinchRunner) aggression += 0.22f;   // huge jump
 
         // The batter-runner is the one man on the field with no head start — he begins at the
@@ -890,7 +915,15 @@ public sealed class PlaySimulation
         // Raised when the defence stopped sending outfielders in to cover bases. With the outfield
         // actually manned, a ball in the gap is cut off far sooner, and the batter has to be
         // correspondingly bolder about taking two — doubles fell 19% on the day fielding was fixed.
-        if (r.IsBatter) aggression *= r.FromBase >= 2 ? 0.80f : 1.22f;
+        // The batter-runner is deliberately left on the old scale.
+        //
+        // Raising the base aggression for everybody sent triples to 1.48 a game against a real
+        // 0.29 — a batter who will gamble on a close play at the plate will also gamble on
+        // stretching a double into a triple, and that is the single most punished decision in
+        // baseball. These two multipliers are the old ones scaled back by the same factor the
+        // base went up, so how boldly the batter runs is exactly where it was measured and only
+        // the men already aboard have been given nerve.
+        if (r.IsBatter) aggression *= r.FromBase >= 2 ? 0.53f : 0.74f;
 
         return runnerTime < BallArrivalTime(dest) * aggression;
     }

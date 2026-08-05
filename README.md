@@ -269,13 +269,13 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 8.87 | 8.79 | +0.9% |
-| Hits | 17.73 | 16.39 | +8.2% |
-| Doubles | 3.46 | 3.20 | +8.0% |
-| Triples | 0.22 | 0.29 | −24.1% |
-| Home runs | 2.31 | 2.24 | +3.3% |
-| Walks | 5.71 | 6.15 | −7.2% |
-| Strikeouts | 17.37 | 16.96 | +2.4% |
+| Runs | 9.35 | 8.79 | +6.4% |
+| Hits | 17.25 | 16.39 | +5.2% |
+| Doubles | 2.87 | 3.20 | −10.2% |
+| Triples | 0.17 | 0.29 | −40.9% |
+| Home runs | 2.27 | 2.24 | +1.3% |
+| Walks | 5.81 | 6.15 | −5.5% |
+| Strikeouts | 17.26 | 16.96 | +1.8% |
 | Stolen bases | 1.49 | 1.49 | −0.3% |
 | Caught stealing | 0.34 | 0.51 | −33.9% |
 | Hit by pitch | 0.86 | 0.79 | +8.9% |
@@ -346,10 +346,32 @@ against the 8.2 the harness was reporting. It now samples the same summer temper
 the same mostly-gentle wind that `Weather.For` gives a real date, so the calibration table above is
 measured against the game the season actually plays.
 
-Other known gaps: hits and doubles run about 8% high while runs are right, so the run environment
-is correct but a little too much of it arrives on contact. Caught stealing is a third low, so
-runners succeed at 81% against a real 75%. Sacrifice flies are 44% low and the computer never lays
-down a sacrifice bunt at all. Caught stealing is a third
+### There was never a close play at the plate
+
+Measured over 5,000 batted balls, the defence threw home 0 times and to third 0 times. Every throw
+in the game went to a man with no choice in the matter — the batter, forced to first.
+
+It was not a bug in a line. A runner decided to go when `runnerTime < BallArrivalTime × aggression`
+with aggression around 0.42, so he only left the bag when he was about twice as fast as the throw.
+The defence decided to throw when `BallArrivalTime < runnerTime − 0.25`. Both call the same
+estimator, so any runner who had chosen to run had already proved the throw could not get him, and
+the throw was never worth making.
+
+Runners now carry a `Nerve` rolled once when the ball is struck, which straddles break-even — a
+third-base coach is guessing, and he is wrong often enough to matter. The defence throws home 254
+times and to third 423 times across 350 games.
+
+It cost something and the cost is here rather than hidden: runs went from +0.9% to +6.4%, because
+runners who advance score. Trying to take that back out of the bat instead was measured and was
+worse — it held runs at +0.2% and dropped home runs to −18% and doubles to −23%, which is a
+deader game than a slightly high-scoring one. Triples are 41% low, which is the same knob from the
+other side: the batter-runner is deliberately held to his old scale, since a man bold enough to
+gamble at the plate will also stretch a double into a triple, and letting him do so put triples at
+1.48 a game against a real 0.29.
+
+Other known gaps: hits run about 5% high, and caught stealing is a third low, so runners succeed at
+81% against a real 75%. Sacrifice flies are 43% low and the computer never lays down a sacrifice
+bunt at all. Caught stealing is a third
 low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
 unlike everything else in that file, and are flagged there as needing a refetch.

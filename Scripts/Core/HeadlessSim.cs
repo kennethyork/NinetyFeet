@@ -601,6 +601,10 @@ public static class HeadlessSim
                    $"not caught {_notCaught * 100f / bip:F0}%\n" +
                    $"  of those not caught, an out {_notCaughtOut * 100f / Mathf.Max(_notCaught, 1):F0}% " +
                    $"— {(float)_notCaughtOut / games:F2}/game (real is nearer 15)\n" +
+                   $"  the defence threw home {PlaySimulation.ThrowsMade[0]}, " +
+                   $"to third {PlaySimulation.ThrowsMade[3]}, " +
+                   $"to second {PlaySimulation.ThrowsMade[2]}, " +
+                   $"to first {PlaySimulation.ThrowsMade[1]}\n" +
                    $"  with a man on first: {(float)_onFirst / games:F2} balls in play, " +
                    $"{(float)_onFirstUnderTwo / games:F2} under two out, " +
                    $"{(float)_forceChances / games:F2} retired, " +
