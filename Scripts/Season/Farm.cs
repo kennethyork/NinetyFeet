@@ -207,17 +207,18 @@ public static class Farm
         var men = Of(teamId, level);
         if (men.Count < 10) return null;
 
+        var affiliate = Data.Affiliates.For(teamId, (int)level);
         var team = new TeamData
         {
             Id = parent.Id,
-            City = parent.City,
-            Nickname = $"{parent.Nickname} ({Name(level)})",
+            City = affiliate.City,
+            Nickname = affiliate.Nickname,
             Abbrev = parent.Abbrev,
             League = parent.League,
             Division = parent.Division,
             Primary = parent.Primary,
             Secondary = parent.Secondary,
-            Motto = $"The {Name(level)} club.",
+            Motto = $"{Name(level)} affiliate of the {parent.FullName}.",
         };
 
         var roster = new Roster { Team = team };

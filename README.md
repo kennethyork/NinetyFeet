@@ -45,6 +45,15 @@ everybody in this league and that stays true.
 replication. Both peers build the identical league and trade only what each player decides; the
 host is a sequencer, not the simulation.
 
+**Career** — one player, from the bottom of somebody's farm system to wherever he gets to. You do
+not pick where you play: you are drafted, told which rung you are on, and moved when the club
+decides you have earned it. Measured over forty careers, 36 reach the majors after about six years
+and 4 are released without ever arriving.
+
+**Moments** — one situation, one question, ninety seconds. Bottom of the ninth with the tying run
+on third; a save situation with the tying run on second and nobody out. They pay into the same
+reward programme as the rest of the collection.
+
 **Exhibition** — any two clubs, any length.
 
 ---
@@ -52,7 +61,7 @@ host is a sequencer, not the simulation.
 ## The league
 
 Thirty-two clubs in real major-league markets — the thirty current ones plus Montreal and
-Nashville. Names, colours and marks are all original.
+Nashville. Names, colours and marks are all original, parent clubs and affiliates alike.
 
 Rosters are 26 men with 13-man staffs: five starters, a closer, two setup men, three in middle
 relief and two long men, each with a role the bullpen logic actually respects. A few clubs open
@@ -66,9 +75,55 @@ he is — a power arm lives off a fastball and a slider, a sinkerballer wants gr
 veteran survives on a cutter and a changeup. About a third of hitters bat left and one in ten
 switches, which matters because the platoon is modelled (see below).
 
-A three-rung farm system — Triple-A, Double-A, High-A — with its own rosters, its own seasons,
-its own standings, and scouting that only tells you what your scouts actually know. You can play
-or watch any of your affiliates' games.
+### The clubs, and their farm systems
+
+Each club carries three affiliates, and every one of them is a real club: it has a roster, plays a
+schedule, keeps a record, and can be watched or managed for a night. A prospect climbs Wisconsin
+before he sees Milwaukee.
+
+| | Club | | Triple-A | Double-A | High-A |
+| --- | --- | --- | --- | --- | --- |
+| AL E | **Baltimore Blue Crabs** | BAL | Chesapeake Skipjacks | Annapolis Watermen | Ocean City Sandpipers |
+| AL E | **Boston Lobsters** | BOS | Worcester Bay Staters | Portland Lightkeepers | Lowell Millhands |
+| AL E | **Bronx Bombardiers** | BRX | Scranton Anthracite | Trenton Ironworks | Poughkeepsie Riverfolk |
+| AL E | **Tampa Bay Thunderheads** | TAM | Sarasota Squalls | Ocala Thunderclaps | Fort Myers Gale |
+| AL E | **Toronto Maple Bats** | TOR | Hamilton Steel Cats | London Timberjacks | Sudbury Sap Runners |
+| AL E | **Montreal Voyageurs** | MTL | Quebec Portagers | Sherbrooke Trappers | Gatineau Canoemen |
+| AL E | **Cleveland Rockers** | CLE | Akron Amplifiers | Youngstown Backbeat | Sandusky Breakers |
+| AL E | **Detroit Motorheads** | DET | Toledo Gearheads | Flint Pistons | Kalamazoo Sparkplugs |
+| AL W | **South Side Sluggers** | SSS | Joliet Stockyards | Rockford Foundrymen | Peoria Haymakers |
+| AL W | **Kansas City Smoke** | KCS | Wichita Brisket | Springfield Embers | Topeka Kindling |
+| AL W | **Minnesota Loons** | MIN | Duluth Ore Boats | Rochester Northern Lights | Mankato Goslings |
+| AL W | **Houston Moonshots** | HOU | Galveston Gantry | Beaumont Booster Stage | Waco Countdown |
+| AL W | **Anaheim Angelfish** | ANA | Riverside Tide Pools | Bakersfield Kelp | Ventura Anemones |
+| AL W | **Oakland Oaks** | OAK | Modesto Acorns | Fresno Saplings | Stockton Grove Hands |
+| AL W | **Seattle Sasquatch** | SEA | Tacoma Timberline | Spokane Trailblazers | Olympia Footprints |
+| AL W | **Texas Twisters** | TEX | Amarillo Dust Devils | Lubbock Funnel | Abilene Windrows |
+| NL E | **Atlanta Peaches** | ATL | Macon Preserves | Augusta Orchardmen | Columbus Cobblers |
+| NL E | **Miami Flamingos** | MIA | Fort Lauderdale Wading Birds | Naples Spoonbills | Key West Fledglings |
+| NL E | **Queens Apples** | QNS | Syracuse Orchard | Binghamton Cider Press | Coney Island Crabapples |
+| NL E | **Philadelphia Liberty Bells** | PHI | Allentown Foundry Bells | Reading Clappers | Camden Chimes |
+| NL E | **Washington Monuments** | WAS | Richmond Obelisks | Harrisburg Cornerstones | Norfolk Pediments |
+| NL E | **Pittsburgh Ironmen** | PIT | Altoona Blast Furnace | Erie Puddlers | Wheeling Rivetheads |
+| NL E | **Cincinnati Riverboats** | CIN | Louisville Paddlewheels | Dayton Deckhands | Evansville Steamers |
+| NL E | **Nashville Hot Chickens** | NSH | Knoxville Cayenne | Chattanooga Skillets | Jackson Brine |
+| NL W | **North Side Ivy** | NSI | Des Moines Trellis | Springfield Creepers | South Bend Tendrils |
+| NL W | **Milwaukee Cheeseheads** | MIL | Madison Curds | Green Bay Cheddar | Appleton Whey |
+| NL W | **St. Louis Archers** | STL | Memphis Fletchers | Columbia Quivers | Cape Girardeau Bowstrings |
+| NL W | **Phoenix Roadrunners** | PHX | Tucson Coyotes | Yuma Ocotillo | Flagstaff Chaparral |
+| NL W | **Denver Mountaineers** | DEN | Colorado Springs Switchbacks | Pueblo Timberline | Grand Junction Cairns |
+| NL W | **Hollywood Stars** | HOL | Pasadena Klieg Lights | Bakersfield Second Unit | Long Beach Extras |
+| NL W | **San Diego Surfers** | SD | Chula Vista Longboards | Escondido Undertow | Oceanside Shorebreak |
+| NL W | **San Francisco Fog** | SF | Sacramento Delta Mist | Stockton Marine Layer | Santa Rosa Haar |
+
+Affiliate towns are real places in each parent's region — that is geography, not a trademark — and
+the nicknames are invented, leaning the way minor-league names actually lean: local industry, local
+food, local weather, local jokes. A Milwaukee farmhand comes up through Appleton, Green Bay and
+Madison playing for the Whey, the Cheddar and the Curds.
+
+Affiliate sizes are 20 at Triple-A, 22 at Double-A and 24 at High-A, with roster spots at 28, 30
+and 32 — the headroom is what lets you option a man down. `--farm` checks that all 96 can field a
+side.
 
 ---
 
@@ -76,17 +131,17 @@ or watch any of your affiliates' games.
 
 | Where | Key | Does |
 | --- | --- | --- |
-| At the plate | Mouse | Aim the hitting reticle |
-| | Left click / Space | Normal swing |
-| | F | Power swing — smaller barrel, more damage |
-| | C | Contact swing — bigger barrel, less power |
-| | B | Bunt |
-| | WASD / arrows | Aim without a mouse |
+| At the plate | Mouse or left stick | Aim the hitting reticle — whichever you touch keeps it |
+| | Left click / Space / A | Normal swing |
+| | Right click / F / Y | Power swing — smaller barrel, more damage |
+| | Middle click / C / X | Contact swing — bigger barrel, less power |
+| | B / left bumper | Bunt |
+| | WASD | Aim without a mouse |
 | | Shift / Tab | Spend the signature move |
 | | R | Challenge the call |
-| Managing at the plate | G | Send the runner |
-| | H | Pinch hit (before the first pitch only) |
-| | Q / E | Hold runners / send runners |
+| **Managing** | ← | **Steal** — send the runner |
+| the arrow keys | → | Pinch hit (before the first pitch only) |
+| | ↑ / ↓ | Send the runners / hold them |
 | On the mound | 1 2 3 4 | This pitcher's own repertoire, in order |
 | | Mouse | Aim the pitch |
 | | Left click / Space | Deal |
@@ -156,6 +211,8 @@ godot471cs --headless --path . -- --audit-outs 40  # every half inning must reco
 godot471cs --headless --path . -- --unique         # no duplicate names or faces
 godot471cs --headless --path . -- --pen 60         # bullpen usage and roster integrity
 godot471cs --headless --path . -- --farm           # can all 96 affiliates field a side?
+godot471cs --headless --path . -- --plate          # the batting view, in milliseconds and pixels
+godot471cs --headless --path . -- --careermode 40  # whole careers, played end to end
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40
