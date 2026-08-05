@@ -79,9 +79,20 @@ public readonly struct DifficultyTuning
         //
         // The whiff rescue in the resolver is skipped entirely at assist 1, so a bad swing is a
         // miss rather than a foul. That is the whole difference in feel.
+        // The hardest level, and it has to be hardest on every axis rather than only the two that
+        // were thought about when it was added. As written it had the bat and the timing window at
+        // their floor and then quietly handed back four advantages: your own pitches landed nearer
+        // the target than on Legend, the opposition pitched worse, its hitters read worse, and the
+        // ball arrived slower. A setting that sits at the bottom of the list calling itself "no
+        // help at all" while being easier than the one above it in four ways out of six is simply
+        // lying about what it is.
+        //
+        // Bat and timing sit at 1.00 — the floor, and not a coincidence: that is the exact bat the
+        // simulation itself swings, so a human here plays on the terms every calibrated rate in
+        // this game was measured against. Everything else goes one step past Legend.
         Difficulty.Simulation => new DifficultyTuning("Simulation",
-            "No help at all — the same bat the simulation swings. Hard, and honest.",
-            1f, 1f, 0.45f, 0.85f, 0.85f, pitchSpeed: 1f),
+            "No assists at all, and the sharpest opposition. The game the simulation plays.",
+            1f, 1f, 0.66f, 0.55f, 0.62f, pitchSpeed: 1.22f),
 
         // Pro sat where an average player never missed at all — three quarters of every swing in
         // play — so it was tightened. That went too far the other way: four swings in ten came

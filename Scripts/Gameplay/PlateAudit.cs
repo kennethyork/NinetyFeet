@@ -244,6 +244,66 @@ public static class PlateAudit
 
         GD.Print("\n  for scale: one frame at 60 fps is 17 ms, and a person's click varies by " +
                  "about 30 ms\n  even when they know exactly when to go.");
+
+        Ramp();
+    }
+
+    /// <summary>
+    /// Every knob, at every level, checked for going the right way.
+    ///
+    /// A difficulty setting has one job: everything it touches has to get harder as you climb.
+    /// Simulation was added with the bat and the timing window thought about and the other four
+    /// knobs left where they fell, so it ended up easier than Legend at pitching accuracy, the
+    /// opposition's command, the opposition's eye, and velocity — while sitting at the bottom of
+    /// the list describing itself as no help at all. Nothing caught it because nothing looked.
+    /// </summary>
+    private static void Ramp()
+    {
+        var levels = new[]
+        {
+            Difficulty.Rookie, Difficulty.Pro, Difficulty.AllStar,
+            Difficulty.Legend, Difficulty.Simulation,
+        };
+
+        // Each knob, and which way it must move as the difficulty rises.
+        var knobs = new (string Name, System.Func<DifficultyTuning, float> Read, int Way)[]
+        {
+            ("your bat", t => t.BatAssist, -1),
+            ("your timing", t => t.TimingAssist, -1),
+            ("your command", t => t.HumanCommand, +1),
+            ("their command", t => t.CpuCommand, -1),
+            ("their eye", t => t.CpuRead, -1),
+            ("their velocity", t => t.PitchSpeed, +1),
+        };
+
+        GD.Print("\n-- the difficulty ramp --");
+        GD.Print($"     {"",-14}" + string.Concat(System.Array.ConvertAll(levels,
+            l => $"{DifficultyTuning.For(l).Name,12}")));
+
+        bool clean = true;
+
+        foreach (var (name, read, way) in knobs)
+        {
+            var values = System.Array.ConvertAll(levels, l => read(DifficultyTuning.For(l)));
+
+            string row = $"     {name,-14}";
+            foreach (float v in values) row += $"{v,12:F2}";
+
+            string fault = "";
+            for (int i = 1; i < values.Length; i++)
+                if ((values[i] - values[i - 1]) * way <= 0f)
+                {
+                    fault = $"   <- goes the wrong way at {DifficultyTuning.For(levels[i]).Name}";
+                    clean = false;
+                    break;
+                }
+
+            GD.Print(row + fault);
+        }
+
+        GD.Print(clean
+            ? "  VERDICT: every knob gets harder at every step. The levels do what they say."
+            : "  VERDICT: FAILED — a level is easier than the one below it on some axis.");
     }
 
     private static float Flight(float mph) =>
