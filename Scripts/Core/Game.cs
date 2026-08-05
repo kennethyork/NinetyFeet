@@ -144,6 +144,27 @@ public partial class Game : Node
 
     public void SaveLeague() => SaveGame.Save(League);
 
+    /// <summary>
+    /// Puts the current league away and opens another slot, building a fresh one if that slot is
+    /// empty. The league in progress is written out first — switching must never be how somebody
+    /// loses a season.
+    /// </summary>
+    public void SwitchLeague(int slot)
+    {
+        if (slot == SaveGame.Slot) return;
+
+        if (League != null) SaveGame.Save(League);
+        SaveGame.Slot = slot;
+
+        League = SaveGame.Load();
+        if (League == null)
+        {
+            League = new SeasonState();
+            League.StartNew(RosterGenerator.DefaultLeagueSeed, HomeTeamId, _seasonLength, _innings);
+        }
+        LeagueSeed = League.LeagueSeed;
+    }
+
     /// <summary>Result of the most recent completed game, shown on the results screen.</summary>
     public string LastResultHeadline = "";
     public string LastResultLine = "";
@@ -169,6 +190,9 @@ public partial class Game : Node
         // source, not whatever this machine's owner has called his team.
         Data.TeamEdits.Enabled = !IsVerificationRun();
         Data.TeamEdits.Load();
+
+        // Which of the four leagues was last open. Read before anything tries to load one.
+        if (!IsVerificationRun()) SaveGame.RestoreSlot();
 
         // Pick up a season in progress, or start a fresh league.
         //
@@ -199,7 +223,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots",
     };
 
     private static bool IsVerificationRun()
@@ -319,6 +343,14 @@ public partial class Game : Node
             int balls = 3000;
             if (inf + 1 < args.Length && int.TryParse(args[inf + 1], out int ib)) balls = ib;
             InfieldAudit.Run(Mathf.Clamp(balls, 200, 60000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--slots` checks four leagues can exist without destroying one another.
+        if (System.Array.IndexOf(args, "--slots") >= 0)
+        {
+            Season.SlotAudit.Run();
             GetTree().Quit();
             return;
         }

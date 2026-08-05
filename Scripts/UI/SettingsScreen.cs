@@ -100,6 +100,13 @@ public partial class SettingsScreen : Control
         for (int i = 0; i < Data.Teams.All.Count; i++)
             if (Data.TeamEdits.For(i) != null) edited++;
 
+        Row("League", $"Slot {Season.SaveGame.Slot + 1} of {Season.SaveGame.Slots}",
+            Season.SaveGame.Describe(Season.SaveGame.Slot) +
+            "  ·  click to move to the next one; the one you leave is saved first",
+            ref y,
+            () => Game.Instance.SwitchLeague(
+                (Season.SaveGame.Slot + 1) % Season.SaveGame.Slots));
+
         Row("Clubs", edited == 0 ? "As they shipped" : $"{edited} edited",
             "Rename and recolour any of the thirty-two. Nothing here changes how a club plays.",
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));

@@ -85,6 +85,12 @@ winter; loyalty and morale decide what he will re-sign for. None of it touches h
 — a league whose run environment moved with how happy everybody was would be a league whose
 calibration could not be trusted.
 
+**Four leagues at once** — there was one. A single `season.json`, so a dynasty you had run for ten
+seasons was the only league that could exist, and starting a fresh one to try something meant
+destroying it. Slots are chosen in Settings and the league you leave is written out first, because
+switching must never be how somebody loses a season. Slot one keeps the original filename, so every
+league that existed before this still opens.
+
 **Your clubs** — any of the thirty-two can be renamed and recoloured, from Settings. What can be
 edited stops at the name, the abbreviation and the two colours: a club's league, division and
 playing biases are what make the thirty-two different from one another as opponents, and letting
@@ -259,6 +265,7 @@ godot471cs --headless --path . -- --boxes 20       # box scores must add up to t
 godot471cs --headless --path . -- --defence 4000   # what each fielding alignment actually does
 godot471cs --headless --path . -- --people 4       # is personality a mechanic or a label?
 godot471cs --headless --path . -- --clubs          # the club editor renames and nothing else
+godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --netplay host --minutes 40
 godot471cs --headless --path . -- --netplay join 127.0.0.1 --minutes 40

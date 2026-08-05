@@ -166,6 +166,22 @@ public static class Settings
         cfg.Save(Path);
     }
 
+    /// <summary>Which league slot was last open.</summary>
+    public static int LoadSlot()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return 0;
+        return (int)cfg.GetValue("game", "slot", 0);
+    }
+
+    public static void SaveSlot(int slot)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "slot", slot);
+        cfg.Save(Path);
+    }
+
     public static bool LoadAutoFielding()
     {
         var cfg = new ConfigFile();

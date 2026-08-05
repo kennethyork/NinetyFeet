@@ -13,7 +13,71 @@ namespace SandlotSlugfest.Season;
 /// </summary>
 public static class SaveGame
 {
-    private const string Path = "user://season.json";
+    /// <summary>
+    /// How many leagues can be kept at once.
+    ///
+    /// There was one. A single user://season.json, so a dynasty you had run for ten seasons was
+    /// the only league that could exist — starting a fresh one to try something meant destroying
+    /// it, and there was no way to keep last year's franchise while beginning a new club.
+    /// </summary>
+    public const int Slots = 4;
+
+    /// <summary>
+    /// Which league is open, 0 to <see cref="Slots"/>-1. Persisted, so the game reopens the one
+    /// you were last in.
+    /// </summary>
+    public static int Slot
+    {
+        get => _slot;
+        set
+        {
+            _slot = Mathf.Clamp(value, 0, Slots - 1);
+            Core.Settings.SaveSlot(_slot);
+        }
+    }
+
+    private static int _slot = -1;
+
+    /// <summary>Reads the remembered slot without writing it back.</summary>
+    public static void RestoreSlot() => _slot = Mathf.Clamp(Core.Settings.LoadSlot(), 0, Slots - 1);
+
+    /// <summary>
+    /// The first slot keeps the original filename. Anything else would orphan every league that
+    /// existed before there was more than one.
+    /// </summary>
+    public static string PathFor(int slot) =>
+        slot <= 0 ? "user://season.json" : $"user://season{slot + 1}.json";
+
+    private static string Path => PathFor(_slot < 0 ? 0 : _slot);
+
+    /// <summary>Whether a given slot holds a league, for the picker.</summary>
+    public static bool Occupied(int slot) => FileAccess.FileExists(PathFor(slot));
+
+    /// <summary>
+    /// A one-line description of what is in a slot, read without loading the whole league — the
+    /// picker would otherwise have to build four complete leagues to draw itself.
+    /// </summary>
+    public static string Describe(int slot)
+    {
+        if (!Occupied(slot)) return "empty";
+
+        using var file = FileAccess.Open(PathFor(slot), FileAccess.ModeFlags.Read);
+        if (file == null) return "unreadable";
+
+        try
+        {
+            var dto = JsonSerializer.Deserialize<SaveDto>(file.GetAsText());
+            if (dto == null) return "unreadable";
+
+            var club = Teams.Get(Mathf.Clamp(dto.UserTeamId, 0, Teams.All.Count - 1));
+            int played = dto.Schedule?.Count(g => g.P) ?? 0;
+            return $"{club.FullName} · year {Mathf.Max(1, dto.Year)} · {played} games played";
+        }
+        catch
+        {
+            return "unreadable";
+        }
+    }
 
     private sealed class PlayerDto
     {
