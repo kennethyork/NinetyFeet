@@ -107,6 +107,39 @@ public readonly struct DifficultyTuning
 }
 
 /// <summary>Difficulty is a preference, not season state, so it lives in its own settings file.</summary>
+/// <summary>
+/// How a hitter is asked to hit.
+///
+/// The Show's real idea is not any one of its interfaces, it is that it ships several and lets you
+/// choose — and the choice is honest in a way a difficulty slider is not. Timing is easier because
+/// it asks less of you, not because the game has quietly widened your bat behind your back.
+///
+/// Every one of these produces the same two numbers the swing resolver has always taken: where the
+/// bat was and when it came through. Nothing below the interface changes, which is also why none
+/// of it can move the league's calibration — the computer's at-bats do not pass through here.
+/// </summary>
+public enum HittingStyle
+{
+    /// <summary>Aim the bat anywhere in the plate plane. The most control and the most to do.</summary>
+    Zone,
+
+    /// <summary>Nudge up, down, in or away. Coarse placement, and far less to manage.</summary>
+    Directional,
+
+    /// <summary>No aiming at all. Swing at the right moment and the bat goes where the ball is.</summary>
+    Timing,
+}
+
+/// <summary>How a pitcher is asked to pitch. See <see cref="HittingStyle"/> for the reasoning.</summary>
+public enum PitchingStyle
+{
+    /// <summary>Pick the pitch, aim it, throw it. What this game has always had.</summary>
+    Classic,
+
+    /// <summary>A meter: start it, stop it for power, stop it again for accuracy.</summary>
+    Meter,
+}
+
 public static class Settings
 {
     private const string Path = "user://settings.cfg";
@@ -170,6 +203,36 @@ public static class Settings
     /// Whether the designated hitter is in force. On by default, as it is everywhere in the real
     /// game now, but a league that wants the pitcher to bat can have it.
     /// </summary>
+    public static HittingStyle LoadHitting()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return HittingStyle.Zone;
+        return (HittingStyle)Mathf.Clamp((int)cfg.GetValue("game", "hitstyle", 0), 0, 2);
+    }
+
+    public static void SaveHitting(HittingStyle style)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "hitstyle", (int)style);
+        cfg.Save(Path);
+    }
+
+    public static PitchingStyle LoadPitching()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return PitchingStyle.Classic;
+        return (PitchingStyle)Mathf.Clamp((int)cfg.GetValue("game", "pitchstyle", 0), 0, 1);
+    }
+
+    public static void SavePitching(PitchingStyle style)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "pitchstyle", (int)style);
+        cfg.Save(Path);
+    }
+
     public static bool UseDesignatedHitter()
     {
         var cfg = new ConfigFile();

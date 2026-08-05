@@ -362,6 +362,10 @@ public partial class GameScene : Node2D
 
         FieldGeometry.SetConditions(Conditions.Wind, Conditions.TemperatureF);
 
+        // Read once, here, rather than every frame: changing how you hit in the middle of an
+        // at-bat is not a thing anybody wants and reading a config file per frame is not either.
+        HitStyle = Settings.LoadHitting();
+
         // Which month this is, so the at-bats land in the right monthly split. A friendly or a
         // moment has no calendar behind it and stays in the first bucket.
         Situation.Month = Game.Instance.League != null
@@ -1434,11 +1438,46 @@ public partial class GameScene : Node2D
     /// Moves the bat around the zone. The mouse drives it directly — point where you want to
     /// swing — and the arrow keys still work for anyone who prefers them.
     /// </summary>
+    /// <summary>Which of the three ways of hitting is in force. Read once a game, not per frame.</summary>
+    public HittingStyle HitStyle { get; private set; } = HittingStyle.Zone;
+
     private void MoveBatCursor(float dt)
     {
         var beforeCursor = BatCursor;
         Vector2 mouse = _batting.GetGlobalMousePosition();
         Vector2 stick = AimStick();
+
+        // --- Timing: there is no aiming. ---
+        //
+        // The bat goes where the ball is going, and the only question left is when it comes
+        // through. Everything the resolver does with placement still happens; the placement is
+        // simply handed over. This is the setting that makes the game playable with one button,
+        // and it is easier because it asks less of you rather than because anything was widened.
+        if (HitStyle == HittingStyle.Timing)
+        {
+            if (CurrentPitch != null) BatCursor = CurrentPitch.CrossPoint;
+            return;
+        }
+
+        // --- Directional: four coarse quadrants rather than a free point. ---
+        //
+        // Up or down for high and low, left or right for in and away, and nothing in between. A
+        // guess at where the pitch is going rather than a hand on it — which is what a real hitter
+        // has, and it sits between the other two rather than being a lesser version of either.
+        if (HitStyle == HittingStyle.Directional)
+        {
+            Vector2 want = new(0f, (Pitch.ZoneBottom + Pitch.ZoneTop) * 0.5f);
+            if (stick.LengthSquared() > 0.09f)
+            {
+                want.X += Mathf.Sign(stick.X) * (Mathf.Abs(stick.X) > 0.3f ? 0.62f : 0f);
+                want.Y += Mathf.Sign(stick.Y) * (Mathf.Abs(stick.Y) > 0.3f ? 0.78f : 0f);
+            }
+
+            // Eased rather than snapped, so a late change of mind costs something.
+            BatCursor = BatCursor.Lerp(want, Mathf.Min(1f, dt * 9f));
+            if (BatCursor.DistanceSquaredTo(beforeCursor) > 0.0001f) _batterMoved = true;
+            return;
+        }
 
         if (MouseIsAiming(mouse, stick))
         {

@@ -100,6 +100,26 @@ public partial class SettingsScreen : Control
         for (int i = 0; i < Data.Teams.All.Count; i++)
             if (Data.TeamEdits.For(i) != null) edited++;
 
+        var hs = Settings.LoadHitting();
+        Row("Hitting", hs switch
+            {
+                HittingStyle.Timing => "Timing",
+                HittingStyle.Directional => "Directional",
+                _ => "Zone",
+            },
+            hs switch
+            {
+                HittingStyle.Timing => "No aiming. Swing at the right moment and the bat finds it.",
+                HittingStyle.Directional => "Nudge up, down, in or away. A guess, not a hand on it.",
+                _ => "Aim the bat anywhere. The most control, and the most to do.",
+            },
+            ref y, () => Settings.SaveHitting(hs switch
+            {
+                HittingStyle.Zone => HittingStyle.Directional,
+                HittingStyle.Directional => HittingStyle.Timing,
+                _ => HittingStyle.Zone,
+            }));
+
         bool dh = Settings.UseDesignatedHitter();
         Row("Designated hitter", dh ? "On" : "Off",
             dh ? "Nine hitters; the pitcher does not bat."

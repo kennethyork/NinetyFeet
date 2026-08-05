@@ -227,7 +227,8 @@ side.
 
 | Where | Key | Does |
 | --- | --- | --- |
-| At the plate | Mouse or left stick | Aim the hitting reticle — whichever you touch keeps it |
+| At the plate | (Settings) | **Zone**, **Directional** or **Timing** — pick how much aiming you want |
+| | Mouse or left stick | Aim the hitting reticle — whichever you touch keeps it |
 | | Left click / Space / A | Normal swing |
 | | Right click / F / Y | Power swing — smaller barrel, more damage |
 | | Middle click / C / X | Contact swing — bigger barrel, less power |
