@@ -54,9 +54,10 @@ each after every day. Forty days, 576 games, identical every single day.
 It then puts one of them through its own save file and reads it back, because two machines agreeing
 while both stay running is not enough — people quit and come back, and if a league is not the same
 after a round trip the two sides split apart the moment one of them closes the game, with the
-netcode seeing nothing because both are behaving perfectly.
+netcode seeing nothing because both are behaving perfectly. Forty days match, and so does the
+league after a save and a load.
 
-**That check currently fails, and it found a real bug on the way.** Injuries and pitcher workload
+**Getting there found three real bugs.** Injuries and pitcher workload
 were never written to the save at all: a man on the shelf came back healthy on reload and every arm
 came back fresh however hard it had just been used, which also quietly reset the workload the
 pitching coach reads before he writes to you. Fixed. **Player ids used to collide, and that is fixed.** Two causes, both of them the same mistake in
@@ -70,12 +71,15 @@ faces, and reads zero.
 That was never only a save bug: the stat book, the box scores, the game logs and the splits are all
 keyed by player, so a collision merged two men's careers wherever it happened.
 
-**One cause remains and is not fixed.** Loading a league calls `TradeEngine.Rebuild`, which
-recomputes every pitcher's staff role from his ratings — while roster generation assigns roles by
-the order arms are built in. So a starter comes back a long man, which moves his overall, because a
-reliever is not judged on how long he can go. The honest fix is to make generation call `Rebuild`
-too, so one function decides staff structure everywhere; it wants a calibration pass behind it,
-since a pitcher's role feeds his overall and the bullpen's usage.
+**The round trip passes.** The last cause was the load path reassigning jobs: `TradeEngine.Rebuild`
+puts a club back together — the staff, the lineup, the order — and on the way decided every
+pitcher's role again from his ratings, which is not its call to make on a league that already had
+one. Generation hands out roles by the order arms are built in; Rebuild ranks them by stuff, so a
+starter came back a long man and his overall moved with him. The saved role wins now.
+
+Restoring generation's answer on load, rather than making generation call `Rebuild`, keeps the fix
+to the load path — `Rebuild` also rewrites the batting order, and handing it the lineup would throw
+away the leadoff, three-hole and cleanup logic a roster is built with.
 
 **Online** — two machines, one ballgame, by decision exchange over a shared seed rather than state
 replication. Both peers build the identical league and trade only what each player decides; the

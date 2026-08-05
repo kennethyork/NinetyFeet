@@ -462,6 +462,11 @@ public static class SaveGame
             season.Playoffs.ChampionId = dto.ChampionId;
         }
 
+        // What each man's job was when the league was put down, so that reconstructing his club
+        // does not quietly reassign it.
+        var savedRoles = new Dictionary<int, int>();
+        foreach (var d in dto.Players ?? new List<PlayerDto>()) savedRoles[d.Id] = d.Role;
+
         // Rebuild every player, then hand them to the club that owns them.
         var byId = new Dictionary<int, PlayerData>();
         foreach (var pd in dto.Players)
@@ -485,6 +490,21 @@ public static class SaveGame
                 if (byId.TryGetValue(id, out var p)) roster.Players.Add(p);
 
             TradeEngine.Rebuild(roster);
+
+            // Rebuild is here to put the club back together — the staff, the lineup, the order —
+            // but on the way it decides every pitcher's job again from his ratings, and that is
+            // not its call to make on a league that already had one. Generation hands out roles by
+            // the order arms are built in; Rebuild ranks them by stuff. So a starter came back a
+            // long man, which moves his overall, because a reliever is not judged on how long he
+            // can go. --determinism caught it as a league that was not itself after a reload.
+            //
+            // The saved role wins. Restoring generation's answer here rather than making
+            // generation call Rebuild keeps the fix to the load path: Rebuild also rewrites the
+            // batting order, and handing it the lineup would throw away the leadoff, three-hole
+            // and cleanup logic the roster was built with.
+            foreach (var p in roster.Players)
+                if (savedRoles.TryGetValue(p.Id, out int r))
+                    p.Role = (StaffRole)Mathf.Clamp(r, 0, 4);
 
             var farm = Farm.Of(td.Id);
             foreach (int id in td.FarmIds ?? System.Array.Empty<int>())
