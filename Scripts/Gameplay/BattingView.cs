@@ -413,15 +413,17 @@ public partial class BattingView : Node2D
         Vector2 bottomRight = ToScreen(new Vector2(Pitch.ZoneHalfWidth, Pitch.ZoneBottom));
         var rect = new Rect2(topLeft, bottomRight - topLeft);
 
-        // Drawn a little inside the true zone. The frame is a sighting aid, not a ruling — at full
-        // size it filled the middle of the screen and crowded the pitch it is meant to frame.
-        const float Inset = 0.86f;
-        var centre = rect.Position + rect.Size * 0.5f;
-        rect = new Rect2(centre - rect.Size * 0.5f * Inset, rect.Size * Inset);
-
-        // A framed zone rather than a filled 3x3 grid. The heavy version read as a debug
-        // overlay sitting on top of the game, and it competed with the reticle for attention.
-        DrawRect(rect, new Color(1f, 1f, 1f, 0.30f), false, 1.4f);
+        // The true zone, to the inch.
+        //
+        // This was drawn at 0.86 of full size — fourteen per cent inside the boundary the umpire
+        // actually rules on — on the grounds that at full size it crowded the pitch. That is a
+        // reason to draw it more lightly, not to draw it in the wrong place. A hitter judging
+        // balls and strikes against this frame was being lied to on every borderline pitch: he
+        // laid off something visibly outside the box and was rung up, and there was no way to
+        // learn his way out of it, because the thing he was learning was false.
+        //
+        // Full size, drawn lighter. If it competes with the reticle the answer is a fainter line.
+        DrawRect(rect, new Color(1f, 1f, 1f, 0.26f), false, 1.4f);
 
         float tickX = rect.Size.X * 0.22f, tickY = rect.Size.Y * 0.22f;
         var bright = new Color(1f, 1f, 1f, 0.72f);
@@ -507,13 +509,26 @@ public partial class BattingView : Node2D
         Vector2 platePoint = pitch.PositionAt(t);
         Vector2 target = ToScreen(platePoint);
 
-        // Where the pitch is going to cross. Faint, and only a mark — it says where to put the bat,
-        // not when to swing.
-        if (Scene.HumanBatting && t > 0.20f && t < 1.30f)
+        // Where the pitch is going to end up.
+        //
+        // This existed at twenty-six per cent opacity, which is to say it did not exist. Without
+        // it a hitter cannot tell a ball from a strike until the pitch has arrived, because for
+        // most of the flight the ball is nowhere near its plate position on screen — it converges
+        // only at the very end. "I cannot tell what is a strike" is that, exactly.
+        //
+        // So it is a real mark now, and it appears early enough to be acted on. It says where,
+        // never when: the timing still has to come off the ball.
+        if (Scene.HumanBatting && t > 0.14f && t < 1.30f)
         {
             Vector2 mark = ToScreen(pitch.CrossPoint);
-            float fade = Mathf.Clamp((t - 0.20f) / 0.25f, 0f, 1f);
-            DrawArc(mark, 15f, 0f, Mathf.Tau, 22, new Color(1f, 1f, 1f, fade * 0.26f), 1.4f);
+            float fade = Mathf.Clamp((t - 0.14f) / 0.16f, 0f, 1f);
+
+            var tint = new Color(1f, 1f, 1f, fade * 0.60f);
+            DrawArc(mark, 13f, 0f, Mathf.Tau, 24, tint, 2f);
+            DrawLine(mark - new Vector2(19f, 0f), mark - new Vector2(7f, 0f), tint, 1.8f);
+            DrawLine(mark + new Vector2(7f, 0f), mark + new Vector2(19f, 0f), tint, 1.8f);
+            DrawLine(mark - new Vector2(0f, 19f), mark - new Vector2(0f, 7f), tint, 1.8f);
+            DrawLine(mark + new Vector2(0f, 7f), mark + new Vector2(0f, 19f), tint, 1.8f);
         }
 
         // Both the position and the apparent size follow 1 / distance, so the ball reads as
