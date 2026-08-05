@@ -100,6 +100,14 @@ public partial class SettingsScreen : Control
         for (int i = 0; i < Data.Teams.All.Count; i++)
             if (Data.TeamEdits.For(i) != null) edited++;
 
+        var ps = Settings.LoadPitching();
+        Row("Pitching", ps == PitchingStyle.Meter ? "Meter" : "Classic",
+            ps == PitchingStyle.Meter
+                ? "Start it, stop it at the top for power, stop it on the mark for command."
+                : "Pick the pitch, aim it, throw it.",
+            ref y, () => Settings.SavePitching(
+                ps == PitchingStyle.Meter ? PitchingStyle.Classic : PitchingStyle.Meter));
+
         var hs = Settings.LoadHitting();
         Row("Hitting", hs switch
             {

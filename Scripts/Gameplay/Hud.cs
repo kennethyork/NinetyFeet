@@ -52,6 +52,7 @@ public partial class Hud : Node2D
         if (Scene.HumanBatting && Scene.Phase is AtBatPhase.PitchSelect or AtBatPhase.PitchFlight)
             DrawPowerUpChip(size, s.Batter);
 
+        DrawPitchMeter(size);
         DrawParkStrip(size);
         DrawFirstGameHelp(size);
     }
@@ -75,6 +76,51 @@ public partial class Hud : Node2D
         var rect = new Rect2(new Vector2(size.X * 0.5f - w * 0.5f, size.Y - 30f), new Vector2(w, 22f));
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, line, 12, Palette.InkDim);
+    }
+
+    /// <summary>
+    /// The meter, when that is how this pitcher throws.
+    ///
+    /// Drawn as a bar with the mark at the bottom, because the mark is where the command stop
+    /// wants to land and putting it there makes the second press the hard one — which is the
+    /// right way round. A pitcher's problem is rarely how hard he can throw.
+    /// </summary>
+    private void DrawPitchMeter(Vector2 size)
+    {
+        if (Scene.PitchStyle != Core.PitchingStyle.Meter || Scene.Online) return;
+        if (!Scene.HumanPitching || Scene.Phase != AtBatPhase.PitchSelect) return;
+
+        var at = new Vector2(size.X - 92f, size.Y * 0.5f - 110f);
+        var frame = new Rect2(at, new Vector2(26f, 220f));
+        Palette.Panel3D(this, frame, Palette.Panel);
+
+        // The mark: stop it here and the pitch goes where you aimed.
+        DrawRect(new Rect2(at + new Vector2(-4f, frame.Size.Y - 16f), new Vector2(34f, 3f)),
+            Palette.Highlight);
+
+        if (Scene.MeterStage > 0)
+        {
+            float h = (frame.Size.Y - 20f) * Mathf.Clamp(Scene.MeterAt, 0f, 1f);
+            var fill = Scene.MeterStage == 1 ? new Color("#5fb3d0") : new Color("#e08a26");
+            DrawRect(new Rect2(at + new Vector2(5f, frame.Size.Y - 16f - h),
+                new Vector2(16f, h)), fill);
+        }
+
+        if (Scene.MeterStage == 2 && Scene.MeterPower > 0f)
+        {
+            float py = frame.Size.Y - 16f - (frame.Size.Y - 20f) * Scene.MeterPower;
+            DrawRect(new Rect2(at + new Vector2(0f, py), new Vector2(26f, 2f)),
+                new Color(1f, 1f, 1f, 0.6f));
+        }
+
+        string caption = Scene.MeterStage switch
+        {
+            1 => "power",
+            2 => "on the mark",
+            _ => "space to start",
+        };
+        Palette.TextCentered(this, at + new Vector2(13f, frame.Size.Y + 16f), caption, 11,
+            Scene.MeterStage == 2 ? Palette.Highlight : Palette.InkDim);
     }
 
     private bool _helpDone;

@@ -239,7 +239,8 @@ side.
 | **Managing** | ← | **Steal** — send the runner |
 | the arrow keys | → | Pinch hit (before the first pitch only) |
 | | ↑ / ↓ | Send the runners / hold them |
-| On the mound | 1 2 3 4 | This pitcher's own repertoire, in order |
+| On the mound | (Settings) | **Classic** or **Meter** — aim and throw, or work the bar |
+| | 1 2 3 4 | This pitcher's own repertoire, in order |
 | | Mouse | Aim the pitch |
 | | Left click / Space | Deal |
 | | P | Go to the pen — the manager walks out |

@@ -365,6 +365,7 @@ public partial class GameScene : Node2D
         // Read once, here, rather than every frame: changing how you hit in the middle of an
         // at-bat is not a thing anybody wants and reading a config file per frame is not either.
         HitStyle = Settings.LoadHitting();
+        PitchStyle = Settings.LoadPitching();
 
         // Which month this is, so the at-bats land in the right monthly split. A friendly or a
         // moment has no calendar behind it and stays in the first bucket.
@@ -990,6 +991,17 @@ public partial class GameScene : Node2D
 
             PitchClock -= dt;
 
+            // --- The meter, when that is how this pitcher is being asked to throw. ---
+            //
+            // Offline only, and for the same reason as the defence and the pen: the meter decides
+            // how much command the pitch has, so two machines running it separately would resolve
+            // the same pitch differently. Sending it means a payload of its own.
+            if (PitchStyle == PitchingStyle.Meter && !Online)
+            {
+                UpdatePitchMeter(dt);
+                if (_meterStage != 0) return;
+            }
+
             if (Input.IsActionJustPressed(InputActions.Action)) { CommitPitch(); return; }
 
             // Time up: a pitch-timer violation by the pitcher is an automatic ball. Online it is
@@ -1314,6 +1326,92 @@ public partial class GameScene : Node2D
         }
     }
 
+    // -----------------------------------------------------------------------
+    // The pitching meter
+    // -----------------------------------------------------------------------
+
+    /// <summary>Which way this pitcher is being asked to throw. Read once a game.</summary>
+    public PitchingStyle PitchStyle { get; private set; } = PitchingStyle.Classic;
+
+    /// <summary>0 not started, 1 climbing for power, 2 coming back down for command.</summary>
+    public int MeterStage => _meterStage;
+
+    /// <summary>Where the bar is, 0 to 1, for whoever draws it.</summary>
+    public float MeterAt => _meterT;
+
+    /// <summary>What the power stop came out at, once it has been taken.</summary>
+    public float MeterPower => _meterPower;
+
+    private int _meterStage;
+    private float _meterT;
+    private float _meterPower;
+
+    /// <summary>
+    /// How far off the pitch ended up, 0 for a perfect one. Fed into the same term fatigue uses,
+    /// because a pitcher who has lost his command and one who is tired miss in the same way.
+    /// </summary>
+    private float _meterMiss;
+
+    private const float MeterSpeed = 1.55f;      // full sweep in about two thirds of a second
+
+    /// <summary>
+    /// Start it, stop it at the top for everything you have, stop it again on the mark for where
+    /// you meant it.
+    ///
+    /// The power stop is the easy one and the command stop is the one that costs you, which is
+    /// the right way round: a pitcher's problem is rarely how hard he can throw. Missing the mark
+    /// does not move the ball somewhere random — it widens the spread around where he aimed,
+    /// which is what losing your release point actually does.
+    /// </summary>
+    private void UpdatePitchMeter(float dt)
+    {
+        bool hit = Input.IsActionJustPressed(InputActions.Action);
+
+        switch (_meterStage)
+        {
+            case 0:
+                if (!hit) return;
+                _meterStage = 1;
+                _meterT = 0f;
+                _meterMiss = 0f;
+                return;
+
+            case 1:
+                _meterT += MeterSpeed * dt;
+                if (_meterT >= 1f) { _meterT = 1f; _meterPower = 1f; _meterStage = 2; return; }
+                if (!hit) return;
+                _meterPower = _meterT;
+                _meterStage = 2;
+                return;
+
+            default:
+                _meterT -= MeterSpeed * dt;
+
+                // Let go of it entirely and it is a pitch with nothing on it and no idea where.
+                if (_meterT <= 0f)
+                {
+                    _meterT = 0f;
+                    _meterMiss = 1f;
+                    Finish();
+                    return;
+                }
+
+                if (!hit) return;
+
+                // The mark is the bottom of the bar. How far above it he stopped is his miss, and
+                // a weak power stop makes the whole thing harder to control.
+                _meterMiss = Mathf.Clamp(_meterT * (1.35f - _meterPower * 0.35f), 0f, 1f);
+                Finish();
+                return;
+        }
+
+        void Finish()
+        {
+            _meterStage = 0;
+            CommitPitch();
+        }
+    }
+
     private void ReleasePitch()
     {
         // The side in the field sets itself before the ball is thrown. A human managing the
@@ -1347,7 +1445,9 @@ public partial class GameScene : Node2D
         // A man rushed in from the pen has not found his release point yet. It reads as fatigue
         // because that is exactly what it looks like from the batter's box — the ball is up and
         // it is not where he meant it — and it goes away over about ten pitches.
-        float fatigue = powered ? 0f : CpuBrain.Fatigue(pitcher, thrown) + Pen.Coldness(pitcher, thrown);
+        float fatigue = powered ? 0f : CpuBrain.Fatigue(pitcher, thrown) + Pen.Coldness(pitcher, thrown)
+                                       + _meterMiss * 0.55f;
+        _meterMiss = 0f;
 
         // A human who aimed the reticle deliberately should get the pitch they asked for. The
         // pitcher's control rating still matters, just far less violently than for the CPU.
