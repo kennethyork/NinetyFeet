@@ -385,6 +385,76 @@ public partial class NetLink : Node
     /// <summary>Set once the two machines have provably diverged.</summary>
     public bool Desynced { get; private set; }
 
+    // -----------------------------------------------------------------------
+    // A shared league, day by day
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// The day the two sides last agreed on, and the day they stopped.
+    ///
+    /// A shared league runs on the same principle as a shared game — both machines hold the same
+    /// league and exchange only what the humans decide — but over a season rather than an evening,
+    /// and that changes what a desync costs. Inside a game it costs the game and you see it at
+    /// once. Across a season it costs the season, and without this you would find out in August
+    /// when the two of you disagree about who is in first place.
+    /// </summary>
+    public int LastAgreedDay { get; private set; } = -1;
+
+    /// <summary>Set the first day the two leagues do not match, and never cleared.</summary>
+    public int DriftedOnDay { get; private set; } = -1;
+
+    public bool LeagueDrifted => DriftedOnDay >= 0;
+
+    private long? _localLeague;
+    private long? _remoteLeague;
+    private int _reportedDay = -1;
+
+    /// <summary>Sends this machine's fingerprint of the whole league for a given day.</summary>
+    public void ReportLeagueDay(int day, ulong fingerprint)
+    {
+        if (!IsOnline || LeagueDrifted) return;
+
+        _reportedDay = day;
+        _localLeague = unchecked((long)fingerprint);
+        Rpc(MethodName.ReceiveLeagueDay, day, _localLeague.Value);
+        CompareLeague(day);
+    }
+
+    [Rpc(MultiplayerApi.RpcMode.AnyPeer, CallLocal = false,
+         TransferMode = MultiplayerPeer.TransferModeEnum.Reliable)]
+    private void ReceiveLeagueDay(int day, long fingerprint)
+    {
+        // A day arriving out of step is itself a disagreement worth catching.
+        if (_reportedDay >= 0 && day != _reportedDay)
+        {
+            DriftedOnDay = System.Math.Min(day, _reportedDay);
+            Status = $"The two leagues are on different days ({_reportedDay} and {day}).";
+            Changed?.Invoke();
+            return;
+        }
+
+        _remoteLeague = fingerprint;
+        CompareLeague(day);
+    }
+
+    private void CompareLeague(int day)
+    {
+        if (_localLeague is not { } mine || _remoteLeague is not { } theirs) return;
+
+        if (mine == theirs) LastAgreedDay = day;
+        else
+        {
+            DriftedOnDay = day;
+            Status = $"The two leagues drifted apart on day {day}. Nothing after this can be trusted.";
+            GD.PushError($"League desync on day {day}: local {mine:X16} against remote {theirs:X16}");
+            Changed?.Invoke();
+        }
+
+        _localLeague = null;
+        _remoteLeague = null;
+        _reportedDay = -1;
+    }
+
     private void CompareFingerprints()
     {
         if (_localFingerprint is not { } mine || _remoteFingerprint is not { } theirs) return;

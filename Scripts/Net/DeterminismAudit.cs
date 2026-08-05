@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using SandlotSlugfest.Data;
 using SandlotSlugfest.Season;
@@ -59,6 +60,11 @@ public static class DeterminismAudit
         {
             GD.Print($"\n  {days} days, identical every single day.");
             GD.Print($"  final fingerprint {fa:X16} over {a.GamesPlayed} games played.");
+            // Drift detection is tested first, deliberately. Loading a league rebuilds rosters
+            // through the generator's cache, which both of these leagues are holding references
+            // into — so a save round trip run beforehand leaves the two of them genuinely
+            // different and the drift test would then be reporting that instead of its own nudge.
+            NoticesADrift(a, b);
             SurvivesASave(a, fa);
             GD.Print("\n  The season is replayable from its seed, which is what an online league");
             GD.Print("  needs: two machines can hold the same league and exchange only what the");
@@ -123,5 +129,45 @@ public static class DeterminismAudit
         GD.Print("  Two machines would drift apart the moment one of them closed the game, and");
         GD.Print("  the netcode would never see it — both sides would be behaving perfectly.");
         GD.Print(LeagueFingerprint.Diff(league, back));
+    }
+
+    /// <summary>
+    /// And it has to notice when they do come apart.
+    ///
+    /// A checksum that never fires is not a safety net, it is a decoration, and the way to find
+    /// out which one you have built is to break something on purpose. So one league is nudged —
+    /// a single player, a single stat, the smallest change that can be made — and the fingerprint
+    /// has to see it and the diff has to name the man.
+    ///
+    /// This matters more here than the matching case. Two leagues agreeing proves the simulation
+    /// is tidy today; a detector that works proves the season is safe tomorrow, when somebody
+    /// changes something that nobody thought of.
+    /// </summary>
+    private static void NoticesADrift(SeasonState a, SeasonState b)
+    {
+        var victim = b.RosterFor(0).Players.OrderBy(p => p.Id).FirstOrDefault();
+        if (victim == null) { GD.Print("\n  nobody to nudge; drift detection untested."); return; }
+
+        ulong before = LeagueFingerprint.Of(b);
+        b.Book.Batting(victim).Hits += 1;
+        ulong after = LeagueFingerprint.Of(b);
+
+        GD.Print($"\n  one hit added to {victim.Name}, and nothing else:");
+        GD.Print($"    {before:X16}  ->  {after:X16}   " +
+                 $"{(before != after ? "seen" : "NOT SEEN")}");
+
+        if (before == after)
+        {
+            GD.Print("  The fingerprint did not move. It cannot protect a league it cannot see.");
+            b.Book.Batting(victim).Hits -= 1;
+            return;
+        }
+
+        GD.Print("  and the diff says where:");
+        GD.Print(LeagueFingerprint.Diff(a, b, 2));
+
+        b.Book.Batting(victim).Hits -= 1;
+        GD.Print($"\n  put back:  {LeagueFingerprint.Of(b):X16}   " +
+                 $"{(LeagueFingerprint.Of(b) == before ? "matches again" : "DID NOT RECOVER")}");
     }
 }
