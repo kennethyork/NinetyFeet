@@ -130,6 +130,10 @@ public static class InfieldAudit
         GD.Print($"  average batter to first    {sumBatterTime / grounders:F2}s   " +
                  $"(the real thing is about 4.3)");
 
+        GD.Print($"\n  where the defence threw:  home {PlaySimulation.ThrowsMade[0]}   " +
+                 $"first {PlaySimulation.ThrowsMade[1]}   second {PlaySimulation.ThrowsMade[2]}   " +
+                 $"third {PlaySimulation.ThrowsMade[3]}   refused {PlaySimulation.ThrowsRefused}");
+
         GD.Print("\n  Real baseball retires the batter on roughly three ground balls in four.");
         GD.Print("  A large \"fielded, then held\" means the throw decision is refusing plays it");
         GD.Print("  should take; a large \"never reached\" means the infield has no range.");

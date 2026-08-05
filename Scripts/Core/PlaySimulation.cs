@@ -129,6 +129,10 @@ public sealed class PlaySimulation
     public float ThrowElapsed;
     public float ThrowDuration;
 
+    /// <summary>Diagnostic counters for --infield: where the defence actually throws.</summary>
+    public static readonly int[] ThrowsMade = new int[4];
+    public static int ThrowsRefused;
+
     public string LastEvent = "";
     public bool HumanControlsDefense;
     public bool HumanControlsOffense;
@@ -636,7 +640,8 @@ public sealed class PlaySimulation
         }
 
         int target = ChooseThrowTarget();
-        if (target < 0) return;   // nothing to get; let the play wind down
+        if (target < 0) { ThrowsRefused++; return; }   // nothing to get; let the play wind down
+        ThrowsMade[target]++;
         StartThrow(target);
     }
 
