@@ -58,6 +58,21 @@ public sealed class CareerState
 
     public bool Retired;
 
+    /// <summary>
+    /// The ceiling he was drafted with, and the best he ever actually got.
+    ///
+    /// PlayerData.Potential converges toward what a man has become from age 25 — the scouts stop
+    /// guessing once they can see — which is right for the league and useless over a career. It
+    /// meant a hitter drafted with a ceiling of 8 was told at thirty-eight that his ceiling was 3,
+    /// which is not a ceiling, it is a description of his decline. These two are the numbers a
+    /// career is actually judged by: what he was supposed to become, and what he did become.
+    /// </summary>
+    public int DraftCeiling = 8;
+    public int PeakOverall;
+
+    /// <summary>Why the career ended, when it was not simply age.</summary>
+    public string EndedBecause = "";
+
     public string Name => $"{FirstName} {LastName}";
 
     public string Where => Level == null
@@ -92,6 +107,8 @@ public sealed class CareerState
         public int Potential { get; set; }
         public int PlayerId { get; set; }
         public int LookSeed { get; set; }
+        public int DraftCeiling { get; set; }
+        public int PeakOverall { get; set; }
         public int Repertoire { get; set; }
         public int[] SeasonBat { get; set; }
         public int[] CareerBat { get; set; }
@@ -115,6 +132,8 @@ public sealed class CareerState
             Potential = Player?.Potential ?? 6,
             PlayerId = Player?.Id ?? 0,
             LookSeed = Player?.LookSeed ?? 0,
+            DraftCeiling = DraftCeiling,
+            PeakOverall = PeakOverall,
             Repertoire = Player?.Repertoire ?? 0b1111,
             Ratings = Player == null ? null : new[]
             {
@@ -159,6 +178,8 @@ public sealed class CareerState
             Age = Mathf.Max(16, dto.Age),
             GamesThisYear = dto.Games,
             Retired = dto.Retired,
+            DraftCeiling = dto.DraftCeiling <= 0 ? 8 : dto.DraftCeiling,
+            PeakOverall = dto.PeakOverall,
         };
 
         c.Player = new PlayerData

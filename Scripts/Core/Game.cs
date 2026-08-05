@@ -193,7 +193,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate",
+        "--platoon", "--farm", "--plate", "--careermode",
     };
 
     private static bool IsVerificationRun()
@@ -274,6 +274,17 @@ public partial class Game : Node
         }
 
         // `--pen [games]` audits how the league's pitching staffs are actually used over a season.
+        // `--careermode [n]` plays whole careers out, end to end.
+        int cm = System.Array.IndexOf(args, "--careermode");
+        if (cm >= 0)
+        {
+            int many = 12;
+            if (cm + 1 < args.Length && int.TryParse(args[cm + 1], out int k)) many = k;
+            Season.CareerModeAudit.Run(Mathf.Clamp(many, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
         // `--plate` measures the batting view in milliseconds and pixels.
         if (System.Array.IndexOf(args, "--plate") >= 0)
         {

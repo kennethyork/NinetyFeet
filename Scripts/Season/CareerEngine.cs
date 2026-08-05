@@ -74,12 +74,27 @@ public static class CareerEngine
             PitchPower = build.PitchPower,
             PitchControl = build.PitchControl,
             Stamina = build.Stamina,
-            Potential = build.Ceiling,
+            // What the scouts said, plus or minus what they got wrong.
+            //
+            // A build handing out a guaranteed ceiling of eight or nine meant every career ended
+            // in the majors — twenty-four out of twenty-four, measured. That is a conveyor belt,
+            // not a career. The number on the build is what you were told when you were drafted;
+            // the ceiling you actually have is rolled around it, so some men are better than the
+            // report and some never get there. The game already hides a prospect's ceiling from
+            // the club that drafted him; there is no reason it should not hide yours from you.
+            // Scouts are optimistic, so the report sits above the truth on average and the truth
+            // is spread widely around it. A ceiling of eight means "they think eight": you might
+            // be a nine, and you might be a five who never gets out of Double-A.
+            Potential = Mathf.Clamp(
+                Mathf.RoundToInt(build.Ceiling - 1.5f + (rng.Bell() - 0.5f) * 6f), 2, 10),
             Salary = Contracts.Minimum,
             ContractYears = 1,
             Role = build.Position == Position.P ? StaffRole.Starter : StaffRole.Starter,
             Repertoire = 0b1111,
         };
+
+        c.DraftCeiling = build.Ceiling;
+        c.PeakOverall = c.Player.Overall;
 
         // He joins the organisation like anybody else, at the bottom.
         Farm.Of(teamId, Farm.Level.HighA).Add(c.Player);
@@ -200,7 +215,7 @@ public static class CareerEngine
                 news.Add("Optioned back to Triple-A. It happens.");
             }
         }
-        else if (good || c.Player.Overall >= Farm.ReadyOverall)
+        else if ((good || c.Player.Overall >= Farm.ReadyOverall) && GoodEnoughFor(c))
         {
             var from = c.Level.Value;
             Farm.Of(c.TeamId, from).Remove(c.Player);
@@ -225,10 +240,37 @@ public static class CareerEngine
             news.Add("Held back. They want to see more.");
         }
 
+        if (c.Player.Overall > c.PeakOverall) c.PeakOverall = c.Player.Overall;
+
+        // Released.
+        //
+        // Every one of the first twelve careers played out reached the majors, which is not a
+        // career mode, it is a conveyor belt — the only way out was old age, so everybody who kept
+        // turning up eventually got a good enough season to climb. An organisation does not wait
+        // for ever. Past the age a level is for, without the rating that level promotes on, he is
+        // let go, which is what happens to most men who are drafted.
+        if (!c.InTheMajors && !c.Retired)
+        {
+            int tooOld = c.Level switch
+            {
+                Farm.Level.HighA => 24,
+                Farm.Level.DoubleA => 26,
+                _ => 28,
+            };
+
+            if (c.Age > tooOld && !GoodEnoughFor(c))
+            {
+                c.Retired = true;
+                c.EndedBecause = "released";
+                news.Add($"Released at {c.Age}. {Farm.Name(c.Level.Value)} is as far as it went.");
+            }
+        }
+
         // Retirement, eventually.
-        if (c.Age >= 38 && (c.Player.Overall <= 3 || rng.Chance((c.Age - 37) * 0.22f)))
+        if (!c.Retired && c.Age >= 38 && (c.Player.Overall <= 3 || rng.Chance((c.Age - 37) * 0.22f)))
         {
             c.Retired = true;
+            c.EndedBecause = "retired";
             news.Add($"Retired at {c.Age} after {c.Career.Games} games.");
         }
 
@@ -240,6 +282,22 @@ public static class CareerEngine
 
         return news;
     }
+
+    /// <summary>
+    /// Whether he is good enough for the rung above the one he is on.
+    ///
+    /// A promotion used to need only a hot forty games, and forty games carries enough noise that
+    /// anybody clears it eventually — measured, forty careers out of forty reached the majors,
+    /// which is not a career mode. Hitting is necessary and it is not sufficient: you also have to
+    /// be the player the next level is for. A man who cannot get there stalls, ages out and is
+    /// released, which is what happens to most of the people who are drafted.
+    /// </summary>
+    private static bool GoodEnoughFor(CareerState c) => c.Player.Overall >= (c.Level switch
+    {
+        Farm.Level.HighA => 4,      // to Double-A
+        Farm.Level.DoubleA => 5,    // to Triple-A
+        _ => 6,                     // to the big club
+    });
 
     /// <summary>One extra rating point for a season worth noticing.</summary>
     private static void Nudge(PlayerData p, ref Rng rng)
