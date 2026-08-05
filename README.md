@@ -269,20 +269,20 @@ Current `--sim 350`, both clubs combined per game:
 
 | | Ninety Feet | MLB 2024 | |
 | --- | --- | --- | --- |
-| Runs | 9.53 | 8.79 | **+8.4%** |
-| Hits | 17.39 | 16.39 | +6.1% |
-| Doubles | 2.91 | 3.20 | −9.0% |
-| Triples | 0.16 | 0.29 | −44.8% |
-| Home runs | 2.32 | 2.24 | +3.6% |
-| Walks | 5.83 | 6.15 | −5.2% |
-| Strikeouts | 17.41 | 16.96 | +2.6% |
-| Stolen bases | 1.49 | 1.49 | −0.3% |
-| Caught stealing | 0.34 | 0.51 | −33.9% |
-| Hit by pitch | 0.86 | 0.79 | +8.9% |
-| Wild pitches | 0.69 | 0.76 | −9.0% |
-| Sacrifice flies | 0.44 | 0.79 | −43.9% |
+| Runs | 9.09 | 8.79 | +3.4% |
+| Hits | 16.93 | 16.39 | +3.3% |
+| Doubles | 2.95 | 3.20 | −7.9% |
+| Triples | 0.26 | 0.29 | −11.3% |
+| Home runs | 2.32 | 2.24 | +3.4% |
+| Walks | 5.79 | 6.15 | −5.9% |
+| Strikeouts | 16.98 | 16.96 | +0.1% |
+| Stolen bases | 1.45 | 1.49 | −2.8% |
+| Caught stealing | 0.31 | 0.51 | −39.5% |
+| Hit by pitch | 0.81 | 0.79 | +3.1% |
+| Wild pitches | 0.64 | 0.76 | −15.8% |
+| Sacrifice flies | 0.44 | 0.79 | −44.7% |
 | Sacrifice bunts | 0.00 | 0.19 | −100% |
-| Grounded into DP | 1.39 | 1.44 | −3.4% |
+| Grounded into DP | 1.42 | 1.44 | −1.2% |
 
 Current `--platoon 400000`, batting average by matchup:
 
@@ -369,16 +369,16 @@ other side: the batter-runner is deliberately held to his old scale, since a man
 gamble at the plate will also stretch a double into a triple, and letting him do so put triples at
 1.48 a game against a real 0.29.
 
-**Run scoring is the thing to fix next.** It has drifted to +8.4% across a run of gameplay fixes —
-each one correct on its own terms and each one worth a point or two, because a defence that
-concedes a run rather than chasing a marginal out at the plate is right and also scores more. The
-bat is not the place to take it back out: that was tried and measured and it flattened home runs to
-−18% and doubles to −23%. It wants its own pass on baserunning and outfield positioning.
+Run scoring drifted to +8.4% across the gameplay fixes and was brought back to +3.4% on the
+baserunning side rather than by detuning the bat — the defence now attempts a throw with a tenth of
+a second of daylight instead of demanding a quarter, so close plays are played out and the race
+decides them. Triples came back from −45% at the same time: how boldly the batter-runner takes an
+extra base is a separate knob from how boldly the men already aboard do, and after the batted-ball
+rebuild it needed resetting rather than inheriting its old value.
 
-Other known gaps: hits run about 6% high, triples 45% low, and caught stealing is a third low, so
-runners succeed at 81% against a real 75%. Sacrifice flies are 43% low and the computer never lays down a sacrifice
-bunt at all. Caught stealing is a third
-low, so runners are succeeding at 82% against a real 75%. The hit-by-pitch, wild-pitch, sacrifice
+Other known gaps: caught stealing is 40% low, so runners succeed at 82% against a real 75%.
+Sacrifice flies are 45% low and the computer never lays down a sacrifice bunt at all.
+The hit-by-pitch, wild-pitch, sacrifice
 and double-play reference figures in `RealBaseball` are from memory rather than from the stats API,
 unlike everything else in that file, and are flagged there as needing a refetch.
 
