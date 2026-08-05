@@ -29,6 +29,29 @@ public static class PlateAudit
         ZoneTruth();
         Trackability();
         Windows();
+        SwingFeel();
+    }
+
+    /// <summary>
+    /// How long after the button the bat actually reaches the ball.
+    ///
+    /// This is what "the swing does not read as connected" turned out to be, and it was 260 ms —
+    /// longer than a human reaction time, on a swing lasting 420. The ball is at the plate when
+    /// you press; the bat arrived a quarter of a second after it had gone.
+    /// </summary>
+    private static void SwingFeel()
+    {
+        float delay = UI.CartoonPlayer.ContactDelayMs(GameScene.SwingDuration);
+
+        GD.Print("\n-- the swing --");
+        GD.Print($"  swing lasts {GameScene.SwingDuration * 1000f:F0} ms in total");
+        GD.Print($"  barrel reaches the plate {delay:F0} ms after the button");
+        GD.Print($"  the rest, {GameScene.SwingDuration * 1000f - delay:F0} ms, is follow-through");
+        GD.Print("  (it was 260 ms before — the ball had left the plate before the bat got there)");
+
+        GD.Print(delay <= 90f
+            ? "  VERDICT: the bat meets the ball. Within a couple of frames of the press."
+            : "  VERDICT: FAILED — the bat is late enough to feel disconnected from the button.");
     }
 
     // -----------------------------------------------------------------------

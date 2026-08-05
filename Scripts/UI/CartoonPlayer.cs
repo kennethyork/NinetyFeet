@@ -391,13 +391,34 @@ public static class CartoonPlayer
     /// Swing timing. Slow to load, explosive through the zone, decelerating into the
     /// follow-through — a linear sweep looks like a windscreen wiper, not a swing.
     /// </summary>
+    /// <summary>
+    /// How far through its arc the bat is, as a fraction of the swing's duration.
+    ///
+    /// The shape here decides whether a swing feels connected to the button, and the old one did
+    /// not. It spent the first 22% loading and did not bring the bat level until 62% of the way
+    /// through — 260 milliseconds after the click, on a 420 millisecond swing. The ball reaches
+    /// the plate at the moment you press. So you clicked, nothing happened for longer than a human
+    /// reaction time, and then the bat swept through air the ball had already left.
+    ///
+    /// The load has to go. A hitter's stride and coil happen *before* he commits, not after — by
+    /// the time he has decided to swing, the bat is already moving. The click is the commitment,
+    /// so the barrel is through the zone 67 milliseconds later and everything after that is
+    /// follow-through, which is the part that can take its time.
+    /// </summary>
+    private const float ContactAt = 0.16f;
+
+    /// <summary>Where in the arc the barrel is level with the plate.</summary>
+    private const float ContactEase = 0.762f;
+
     private static float SwingEase(float p)
     {
         p = Mathf.Clamp(p, 0f, 1f);
-        if (p < 0.22f) return Mathf.Lerp(0f, 0.08f, p / 0.22f);          // load
-        if (p < 0.55f) return Mathf.Lerp(0.08f, 0.72f, (p - 0.22f) / 0.33f);  // fire
-        return Mathf.Lerp(0.72f, 1f, (p - 0.55f) / 0.45f);              // follow through
+        if (p < ContactAt) return Mathf.Lerp(0f, ContactEase, p / ContactAt);
+        return Mathf.Lerp(ContactEase, 1f, (p - ContactAt) / (1f - ContactAt));
     }
+
+    /// <summary>Milliseconds from the button to the barrel crossing the plate, for --plate.</summary>
+    public static float ContactDelayMs(float swingDuration) => ContactAt * swingDuration * 1000f;
 
     /// <summary>
     /// Delivery timing: a slow gather and leg lift, then everything happens at once through
