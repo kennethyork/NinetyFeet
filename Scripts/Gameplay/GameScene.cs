@@ -196,6 +196,43 @@ public partial class GameScene : Node2D
     private float _playAccumulator;
     private bool _resultCameFromPlay;
     private Vector2 _lastMousePos;
+
+    /// <summary>Which device is currently aiming. Latched, so the two do not fight.</summary>
+    private enum Aiming { Mouse, Pad }
+
+    private Aiming _aimWith = Aiming.Mouse;
+
+    /// <summary>
+    /// Decides whether the mouse or the pad is driving the reticle this frame.
+    ///
+    /// This was "has the mouse moved more than one pixel", which is not a decision, it is a
+    /// coin toss: a pad player's cursor was snatched away and teleported by desk vibration, a
+    /// trackpad resting a thumb, or a mouse nudged by a cable — mid-pitch, every pitch. The pad
+    /// worked perfectly and felt broken, which is the worst way for something to be broken.
+    ///
+    /// So the device latches. It takes a deliberate movement to hand control to the mouse, and
+    /// any real stick deflection to hand it to the pad, and whichever one has it keeps it.
+    /// </summary>
+    private bool MouseIsAiming(Vector2 mouse, Vector2 stick)
+    {
+        // Six pixels is a movement; one is a table being leant on.
+        if (mouse.DistanceSquaredTo(_lastMousePos) > 36f)
+        {
+            _lastMousePos = mouse;
+            _aimWith = Aiming.Mouse;
+        }
+        else if (stick.LengthSquared() > 0.04f)
+        {
+            _aimWith = Aiming.Pad;
+        }
+
+        return _aimWith == Aiming.Mouse;
+    }
+
+    /// <summary>The aim stick, as a vector. Analog on a pad, full deflection on the keys.</summary>
+    private static Vector2 AimStick() => Input.GetVector(
+        InputActions.AimLeft, InputActions.AimRight,
+        InputActions.AimDown, InputActions.AimUp);
     private string _pendingHalfBanner;
 
     /// <summary>
@@ -838,20 +875,12 @@ public partial class GameScene : Node2D
 
         if (HumanPitching)
         {
-            // Aim with the mouse, or the arrow keys if the mouse is still.
+            // Mouse or pad, whichever has the latch.
             Vector2 mouse = _batting.GetGlobalMousePosition();
-            if (mouse.DistanceSquaredTo(_lastMousePos) > 1f)
-            {
-                _lastMousePos = mouse;
-                PitchAim = _batting.ScreenToPlate(mouse);
-            }
-            else
-            {
-                Vector2 aim = Input.GetVector(
-                    InputActions.AimLeft, InputActions.AimRight,
-                    InputActions.AimDown, InputActions.AimUp);
-                PitchAim += aim * 2.2f * dt;
-            }
+            Vector2 stick = AimStick();
+
+            if (MouseIsAiming(mouse, stick)) PitchAim = _batting.ScreenToPlate(mouse);
+            else PitchAim += stick * 3.4f * dt;
             PitchAim.X = Mathf.Clamp(PitchAim.X, -1.9f, 1.9f);
             PitchAim.Y = Mathf.Clamp(PitchAim.Y, 0.8f, 4.6f);
 
@@ -1317,20 +1346,19 @@ public partial class GameScene : Node2D
     {
         var beforeCursor = BatCursor;
         Vector2 mouse = _batting.GetGlobalMousePosition();
-        if (mouse.DistanceSquaredTo(_lastMousePos) > 1f)
+        Vector2 stick = AimStick();
+
+        if (MouseIsAiming(mouse, stick))
         {
-            _lastMousePos = mouse;
             BatCursor = _batting.ScreenToPlate(mouse);
         }
         else
         {
-            // GetVector is analog, so a gamepad stick nudges the bat proportionally while the
-            // arrow keys still read as full deflection.
-            const float CursorSpeed = 6.2f;   // feet per second
-            Vector2 aim = Input.GetVector(
-                InputActions.AimLeft, InputActions.AimRight,
-                InputActions.AimDown, InputActions.AimUp);
-            BatCursor += aim * CursorSpeed * dt;
+            // The stick has to cross the zone inside a pitch or it is not a way to play. The zone
+            // is about 1.7 feet across and a fastball is in the air a bit over a second, so 6.2
+            // feet a second left a pad player unable to reach the other corner in time.
+            const float CursorSpeed = 11.5f;   // feet per second at full deflection
+            BatCursor += stick * CursorSpeed * dt;
         }
 
         BatCursor.X = Mathf.Clamp(BatCursor.X, -2.2f, 2.2f);

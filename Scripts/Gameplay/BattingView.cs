@@ -621,11 +621,28 @@ public partial class BattingView : Node2D
             DrawLine(corner, corner + new Vector2(0f, -sy * arm), live, onTime ? 3f : 2.2f);
         }
 
-        // The full reach, as a thin ellipse. This is where the bat touches the ball at all, and it
-        // is the number difficulty actually moves — so on Rookie it is visibly large and on Legend
-        // it closes right down onto the bracket, which is the honest picture of what the setting
-        // does. It is an outline rather than a fill precisely so it does not hide the pitch.
-        DrawEllipseOutline(at, reach * Wide, reach, new Color(live.R, live.G, live.B, 0.16f), 1.4f);
+        // The full reach: where the bat touches the ball at all. This is the ring difficulty
+        // actually moves — a contact-7 hitter reaches 95 pixels on Pro and 62 on Simulation — and
+        // it was drawn at sixteen per cent opacity, which meant the one part of the reticle that
+        // responds to the setting was the one part nobody could see. The bracket inside it is the
+        // square-up radius and is deliberately identical at every difficulty, so with the outer
+        // ring invisible the whole indicator looked unchanged. It is a real ring now.
+        // Four short ticks at the compass points, and nothing else. A full ring at any weight
+        // reads as clutter over the pitch — drawn faintly it was invisible, drawn boldly it was
+        // worse than invisible. Ticks give the size without putting a second shape between the
+        // hitter and the ball, which is the thing he is actually trying to watch.
+        for (int i = 0; i < 4; i++)
+        {
+            bool horizontal = i < 2;
+            float sign = (i & 1) == 0 ? -1f : 1f;
+            Vector2 edge = horizontal
+                ? new Vector2(sign * reach * Wide, 0f)
+                : new Vector2(0f, sign * reach);
+            Vector2 inward = horizontal
+                ? new Vector2(-sign * 9f, 0f)
+                : new Vector2(0f, -sign * 9f);
+            DrawLine(at + edge, at + edge + inward, new Color(live.R, live.G, live.B, 0.34f), 2f);
+        }
 
         // A faint centre mark so the aim point is unambiguous without covering anything.
         DrawLine(at + new Vector2(-5f, 0f), at + new Vector2(5f, 0f), new Color(live.R, live.G, live.B, 0.85f), 1.6f);
