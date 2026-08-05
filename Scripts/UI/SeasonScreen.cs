@@ -280,6 +280,8 @@ public partial class SeasonScreen : Control
     {
         var links = new (string Label, string Scene)[]
         {
+            (Season.Inbox.Unread > 0 ? $"INBOX ({Season.Inbox.Unread})" : "INBOX",
+                "res://Scenes/Inbox.tscn"),
             ("CLUBHOUSE", "res://Scenes/Franchise.tscn"),
             ("FRONT OFFICE", "res://Scenes/FrontOffice.tscn"),
             ("LEAGUE OFFICE", "res://Scenes/LeagueOffice.tscn"),
@@ -301,9 +303,11 @@ public partial class SeasonScreen : Control
             bool shut = links[i].Label == "TRADE DESK" && !_season.TradesOpen;
 
             var rect = new Rect2(new Vector2(size.X - 128f - i * 134f, NavY), new Vector2(124f, 30f));
-            Palette.Panel3D(this, rect, shut ? Palette.Panel : Palette.PanelLight);
+            bool unread = links[i].Label.StartsWith("INBOX (");
+            Palette.Panel3D(this, rect,
+                unread ? Palette.Highlight.Darkened(0.35f) : shut ? Palette.Panel : Palette.PanelLight);
             Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, links[i].Label, 10,
-                shut ? Palette.InkDim : Palette.Ink);
+                unread ? Palette.Ink : shut ? Palette.InkDim : Palette.Ink);
 
             string target = links[i].Scene;
             _clicks.Add(rect, () => Game.Instance.GoTo(target));

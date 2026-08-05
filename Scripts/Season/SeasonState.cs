@@ -177,6 +177,10 @@ public sealed class SeasonState
         Farm.PlaySeason(this, gamesPerTeam, seed + 211);
         FarmSeason.Clear();
         Coaches.Stock(seed);
+
+        Inbox.Clear();
+        Inbox.OpeningDay(this);
+        Inbox.ScoutingReport(this);
     }
 
     /// <summary>
@@ -212,6 +216,14 @@ public sealed class SeasonState
             Report($"{enshrined.Name} is elected to the Hall of Fame", enshrined.Career, gone.TeamId);
         }
 
+        // The owner's verdict on the year that just finished, before the winter starts.
+        {
+            var mine = Book.Record(UserTeamId);
+            Inbox.SeasonReview(this, mine.Wins, mine.Losses,
+                Playoffs.Started && Playoffs.Series.Any(x => x.Involves(UserTeamId)),
+                Playoffs.ChampionId == UserTeamId);
+        }
+
         LastWinter = new List<string>();
 
         // The bill for a payroll comes before the winter's shopping, so a club that spent last year
@@ -231,6 +243,9 @@ public sealed class SeasonState
         // the year, the same as the big club's.
         Farm.PlaySeason(this, gamesPerTeam, LeagueSeed + Year * 211);
         FarmSeason.Clear();
+
+        Inbox.OpeningDay(this);
+        Inbox.ScoutingReport(this);
 
         // A new schedule each year, so the same club does not face the same opponents in the same
         // order every season.
@@ -376,6 +391,9 @@ public sealed class SeasonState
         // Double-A side has a record that means something by June rather than a table of numbers
         // that appears from nowhere in October.
         FarmSeason.PlayDay(this, CurrentDay);
+
+        // And anybody on the staff with something worth saying says it.
+        Inbox.Daily(this);
 
         bool wasOpen = CurrentDay <= TradeDeadlineDay;
         CurrentDay++;

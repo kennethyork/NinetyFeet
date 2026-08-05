@@ -169,6 +169,16 @@ public static class SaveGame
         /// <summary>Players belonging to nobody, by id. They are stored in <c>Players</c> too.</summary>
         public int[] FreeAgentIds { get; set; }
 
+        // The club's correspondence. A letter from the owner setting the year's expectations is
+        // worthless if it evaporates when you close the game.
+        public int[] MailFrom { get; set; }
+        public string[] MailSubject { get; set; }
+        public string[] MailBody { get; set; }
+        public int[] MailDay { get; set; }
+        public int[] MailYear { get; set; }
+        public bool[] MailRead { get; set; }
+        public string[] MailAbout { get; set; }
+
         public List<AwardDto> Awards { get; set; }
         public List<HallDto> Hall { get; set; }
         public List<RecordDto> Records { get; set; }
@@ -193,6 +203,13 @@ public static class SaveGame
             Innings = season.Innings,
             Players = new List<PlayerDto>(),
             TeamList = new List<TeamDto>(),
+            MailFrom = Inbox.Export().From,
+            MailSubject = Inbox.Export().Subject,
+            MailBody = Inbox.Export().Body,
+            MailDay = Inbox.Export().Day,
+            MailYear = Inbox.Export().Year,
+            MailRead = Inbox.Export().Read,
+            MailAbout = Inbox.Export().About,
             Schedule = season.Games.ConvertAll(g => new GameDto
             {
                 D = g.Day, A = g.AwayId, H = g.HomeId, P = g.Played, AR = g.AwayRuns,
@@ -453,6 +470,19 @@ public static class SaveGame
                         farm.Add(p);
                     }
                 }
+        }
+
+        Inbox.Import(dto.MailFrom, dto.MailSubject, dto.MailBody, dto.MailDay, dto.MailYear,
+            dto.MailRead, dto.MailAbout);
+
+        // A league that existed before there was an inbox has no correspondence, and would have
+        // none until the calendar rolled into a new year — an empty screen for a whole season.
+        // Seed it: the owner states his expectations and the scouts write up the best man in the
+        // system, both of which are true of the league as it stands right now.
+        if (Inbox.Messages.Count == 0)
+        {
+            Inbox.OpeningDay(season);
+            Inbox.ScoutingReport(season);
         }
 
         // Restore the calendar. A save written before there was one has no day recorded, so the
