@@ -13,30 +13,69 @@ public partial class LeagueBrowser : Control
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
+
+        // Without this the Control swallows every mouse event and _UnhandledInput never sees a
+        // click, so nothing on the screen is clickable — including the back button.
+        MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(false);
     }
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // A back button nothing can click is decoration.
+        if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventMouseButton { Pressed: true } wheel &&
+            wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            _rosterScroll = Mathf.Max(0,
+                _rosterScroll + (wheel.ButtonIndex == MouseButton.WheelDown ? 3 : -3));
+            QueueRedraw();
+            return;
+        }
+
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+        {
+            if (_clicks.Click(mb.Position)) QueueRedraw();
+            return;
+        }
+
         if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
 
         switch (key.PhysicalKeycode)
         {
             case Key.Escape or Key.Backspace:
-                Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+                Leave();
                 return;
-            case Key.Up or Key.W: _selected = Mathf.PosMod(_selected - 1, 32); break;
-            case Key.Down or Key.S: _selected = Mathf.PosMod(_selected + 1, 32); break;
-            case Key.Left or Key.A: _selected = Mathf.PosMod(_selected - 8, 32); break;
-            case Key.Right or Key.D: _selected = Mathf.PosMod(_selected + 8, 32); break;
+            case Key.Up or Key.W: _selected = Mathf.PosMod(_selected - 1, 32); _rosterScroll = 0; break;
+            case Key.Down or Key.S: _selected = Mathf.PosMod(_selected + 1, 32); _rosterScroll = 0; break;
+            case Key.Left or Key.A: _selected = Mathf.PosMod(_selected - 8, 32); _rosterScroll = 0; break;
+            case Key.Right or Key.D: _selected = Mathf.PosMod(_selected + 8, 32); _rosterScroll = 0; break;
         }
         QueueRedraw();
     }
+
+    /// <summary>
+    /// Back to the season, not the title screen — and there is a button for it now.
+    ///
+    /// This screen had no back button at all and Escape went to the main menu, so reaching it from
+    /// the season hub was a one-way trip: the only way back to your club was through the front
+    /// door again.
+    /// </summary>
+    private void Leave() => Game.Instance.GoTo(Game.Instance.League != null
+        ? "res://Scenes/Season.tscn"
+        : "res://Scenes/MainMenu.tscn");
+
+    private readonly ClickMap _clicks = new();
+
+    /// <summary>How far down the selected club's roster we have scrolled.</summary>
+    private int _rosterScroll;
 
     public override void _Draw()
     {
         Vector2 size = GetViewportRect().Size;
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
+        _clicks.Begin();
+        Palette.BackButton(this, size, _clicks, Leave);
 
         Palette.Text(this, new Vector2(40f, 48f), "THE LEAGUE", 28, Palette.Ink);
         Palette.Text(this, new Vector2(40f, 72f),
@@ -64,22 +103,26 @@ public partial class LeagueBrowser : Control
             {
                 lastLeague = team.League;
                 lastDivision = team.Division;
-                y += 14f;
+                y += 10f;
                 Palette.Text(this, new Vector2(x, y),
-                    Teams.DivisionName(team.League, team.Division).ToUpperInvariant(), 13, Palette.Highlight);
-                y += 16f;
+                    Teams.DivisionName(team.League, team.Division).ToUpperInvariant(), 12, Palette.Highlight);
+                y += 14f;
             }
 
             bool on = id == _selected;
-            var row = new Rect2(new Vector2(x - 6f, y - 13f), new Vector2(330f, 19f));
+            var row = new Rect2(new Vector2(x - 6f, y - 12f), new Vector2(330f, 16f));
             if (on) DrawRect(row, Palette.PanelLight);
 
-            DrawRect(new Rect2(new Vector2(x, y - 11f), new Vector2(5f, 14f)), team.Primary);
-            DrawRect(new Rect2(new Vector2(x + 6f, y - 11f), new Vector2(3f, 14f)), team.Secondary);
+            DrawRect(new Rect2(new Vector2(x, y - 10f), new Vector2(5f, 12f)), team.Primary);
+            DrawRect(new Rect2(new Vector2(x + 6f, y - 10f), new Vector2(3f, 12f)), team.Secondary);
 
-            Palette.Text(this, new Vector2(x + 16f, y), team.Abbrev, 13, on ? Palette.Highlight : Palette.InkDim);
-            Palette.Text(this, new Vector2(x + 52f, y), team.FullName, 14, on ? Palette.Ink : Palette.InkDim);
-            y += 19f;
+            Palette.Text(this, new Vector2(x + 16f, y), team.Abbrev, 12, on ? Palette.Highlight : Palette.InkDim);
+            Palette.Text(this, new Vector2(x + 52f, y), team.FullName, 13, on ? Palette.Ink : Palette.InkDim);
+
+            // Thirty-two clubs and four division headings at the old spacing needed 828 pixels in
+            // a 720-pixel screen, so the bottom of the National League West was printed straight
+            // through the footer. This fits.
+            y += 15f;
         }
     }
 
@@ -112,7 +155,18 @@ public partial class LeagueBrowser : Control
                 Palette.Highlight);
         y += 18f;
 
-        foreach (var p in roster.Players.OrderBy(p => p.Position).ThenByDescending(p => p.Overall))
+        // A club carries twenty-six to twenty-nine men and about twenty-three rows fit, so the
+        // bottom of every roster in the league was simply unreachable.
+        var men = roster.Players.OrderBy(p => p.Position).ThenByDescending(p => p.Overall).ToList();
+        int fits = Mathf.Max(4, (int)((panel.End.Y - 16f - y) / 19f));
+        _rosterScroll = Mathf.Clamp(_rosterScroll, 0, Mathf.Max(0, men.Count - fits));
+
+        if (men.Count > fits)
+            Palette.Text(this, panel.Position + new Vector2(panel.Size.X - 210f, 96f),
+                $"{_rosterScroll + 1}–{Mathf.Min(_rosterScroll + fits, men.Count)} of {men.Count}" +
+                "  ·  scroll", 12, Palette.InkDim);
+
+        foreach (var p in men.Skip(_rosterScroll).Take(fits))
         {
             float ry = y - panel.Position.Y;
             Palette.Text(this, panel.Position + new Vector2(cols[0], ry), p.PositionText, 13, Palette.InkDim);

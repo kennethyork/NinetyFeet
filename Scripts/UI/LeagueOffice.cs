@@ -33,7 +33,13 @@ public partial class LeagueOffice : Control
     private void Leave()
     {
         if (CloseOverlay != null) { CloseOverlay(); return; }
-        Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+
+        // Back to the season, not the title screen. This is reached from the season hub's office
+        // links, and dumping somebody on the main menu for pressing Escape is not "back" — it
+        // throws away where they were and makes them walk in again.
+        Game.Instance.GoTo(Game.Instance.League != null
+            ? "res://Scenes/Season.tscn"
+            : "res://Scenes/MainMenu.tscn");
     }
 
     public override void _Ready()
@@ -54,6 +60,13 @@ public partial class LeagueOffice : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+
+        if (@event is InputEventMouseButton { Pressed: true } wheel &&
+            wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            Scroll(wheel.ButtonIndex == MouseButton.WheelDown ? 60f : -60f);
+            return;
+        }
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             if (_clicks.Click(mb.Position)) QueueRedraw();
@@ -67,6 +80,9 @@ public partial class LeagueOffice : Control
             case Key.Escape or Key.Backspace:
                 Leave();
                 return;
+            case Key.Pagedown: Scroll(220f); return;
+            case Key.Pageup: Scroll(-220f); return;
+            case Key.Home: Scroll(-99999f); return;
             case Key.Left or Key.A:
                 _tab = (Tab)Mathf.PosMod((int)_tab - 1, 4);
                 break;
@@ -80,6 +96,24 @@ public partial class LeagueOffice : Control
                 _teamCursor = Mathf.PosMod(_teamCursor + 1, 32);
                 break;
         }
+        QueueRedraw();
+    }
+
+    /// <summary>
+    /// How far the tab's contents are scrolled, in pixels.
+    ///
+    /// A club's roster is nine hitters and thirteen arms with a header apiece, which is taller
+    /// than the screen, and there was no way to move — the men at the bottom of the staff simply
+    /// could not be looked at.
+    /// </summary>
+    private float _scroll;
+
+    /// <summary>How far past the bottom the current tab ran, measured while drawing it.</summary>
+    private float _overflow;
+
+    private void Scroll(float by)
+    {
+        _scroll = Mathf.Clamp(_scroll + by, 0f, Mathf.Max(0f, _overflow));
         QueueRedraw();
     }
 
@@ -97,6 +131,10 @@ public partial class LeagueOffice : Control
 
         DrawTabs(size);
 
+        // The tab's body scrolls; the title, tabs and footer do not. Anything that fits reports
+        // no overflow, so switching to it puts the scroll back to the top by itself.
+        _overflow = 0f;
+        DrawSetTransform(new Vector2(0f, -_scroll), 0f, Vector2.One);
         switch (_tab)
         {
             case Tab.Standings: DrawStandings(size); break;
@@ -104,6 +142,13 @@ public partial class LeagueOffice : Control
             case Tab.Pitching: DrawPitchingLeaders(size); break;
             case Tab.MyClub: DrawClubStats(size); break;
         }
+        DrawSetTransform(Vector2.Zero, 0f, Vector2.One);
+
+        if (_scroll > _overflow) _scroll = _overflow;
+
+        if (_overflow > 0f)
+            Palette.Text(this, new Vector2(size.X - 250f, size.Y - 22f),
+                "scroll wheel  ·  PgUp/PgDn  ·  Home", 13, Palette.InkDim);
 
         Palette.Text(this, new Vector2(40f, size.Y - 22f),
             "Left/Right to switch views  ·  Up/Down to pick a club  ·  Esc to go back",
@@ -330,5 +375,8 @@ public partial class LeagueOffice : Control
             Palette.Text(this, new Vector2(pxs[9], y), t.Outs > 0 ? t.Whip.ToString("F2") : "—", 12, Palette.InkDim);
             y += 19f;
         }
+
+        // How far past the bottom this ran, so the scroll knows where to stop.
+        _overflow = Mathf.Max(0f, y - (GetViewportRect().Size.Y - 60f));
     }
 }
