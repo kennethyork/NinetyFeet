@@ -126,7 +126,9 @@ public partial class Hud : Node2D
 
         DrawBaseDiamond(at + new Vector2(258f, 46f), s);
         DrawChallenges(at, s);
+        // Only one of these can apply: you are either at the plate or in the field.
         DrawStealPrompt(at, s);
+        DrawDefencePrompt(at, s);
     }
 
     /// <summary>
@@ -254,6 +256,47 @@ public partial class Hud : Node2D
         Palette.Panel3D(this, rect, Palette.Panel);
         Palette.Text(this, rect.Position + new Vector2(10f, 18f),
             $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+    }
+
+    /// <summary>
+    /// Where the defence is standing, while you are the one standing them there.
+    ///
+    /// The same reason as the steal sign: an alignment nobody is told about is an alignment
+    /// nobody uses. It prints what the shape costs as well as what it buys, because that is the
+    /// decision — every one of these trades range for something.
+    /// </summary>
+    private void DrawDefencePrompt(Vector2 at, GameSituation s)
+    {
+        if (!Scene.HumanPitching || Scene.Online) return;
+        if (Scene.Phase is not (AtBatPhase.PitchSelect or AtBatPhase.PitchFlight)) return;
+
+        bool set = s.Defence != Core.Alignment.Straight;
+        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, 26f));
+        Palette.Panel3D(this, rect, Palette.Panel);
+        Palette.Text(this, rect.Position + new Vector2(10f, 18f),
+            $"Y — DEFENCE   {Core.Positioning.Short(s.Defence)}", 13,
+            set ? Palette.Highlight : Palette.InkDim);
+
+        // The pen underneath it, with the warm-up drawn as a bar. Whether he is ready is the
+        // whole decision, and a number nobody can see is not a decision.
+        var pen = new Rect2(rect.Position + new Vector2(0f, 30f), new Vector2(BugWidth, 26f));
+        Palette.Panel3D(this, pen, Palette.Panel);
+
+        if (Scene.Pen.Warming == null)
+        {
+            Palette.Text(this, pen.Position + new Vector2(10f, 18f),
+                "U — GET SOMEBODY UP", 13, Palette.InkDim);
+            return;
+        }
+
+        float ready = Scene.Pen.Readiness;
+        var tint = Scene.Pen.IsOverworked ? Palette.Warning
+                 : Scene.Pen.IsReady ? Palette.Highlight
+                 : Palette.Ink;
+
+        DrawRect(new Rect2(pen.Position + new Vector2(6f, pen.Size.Y - 6f),
+            new Vector2((pen.Size.X - 12f) * ready, 3f)), tint);
+        Palette.Text(this, pen.Position + new Vector2(10f, 17f), Scene.Pen.Status(), 12, tint);
     }
 
     private void DrawBaseDiamond(Vector2 center, GameSituation s)

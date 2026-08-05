@@ -24,6 +24,8 @@ public partial class ControlsScreen : Control
         ("", "P", "Go to the pen — the manager walks out and takes the ball"),
         ("", "V", "Mound visit — settle him. Five a game; the sixth is a change"),
         ("", "I", "Put him on intentionally"),
+        ("", "U", "Get somebody up — press again to walk down the pen"),
+        ("", "(about an inning)", "Bring him in cold and he cannot find it for ten pitches"),
 
         ("MANAGING — THE ARROW KEYS", "Left / G", "STEAL — send the runner"),
         ("", "Right / H", "Pinch hit — only before the first pitch of an at-bat"),
@@ -32,6 +34,8 @@ public partial class ControlsScreen : Control
 
         ("IN THE FIELD", "1 2 3 4", "Throw to first, second, third, home"),
         ("", "(wait)", "The fielder makes the play himself"),
+        ("", "Y / back button", "Move the defence: DP depth, in, no doubles, shift"),
+        ("", "(it is real)", "They stand where you put them; nothing else changes"),
 
         ("ANYWHERE", "Esc", "Back out to the menu"),
         ("", "M", "Mute all sound"),

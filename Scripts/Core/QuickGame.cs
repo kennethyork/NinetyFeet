@@ -54,6 +54,10 @@ public static class QuickGame
             var pitch = PitchFactory.Create(pitcher, type, aim, CpuBrain.Fatigue(pitcher, thrown), ref rng);
 
             var batter = sit.Batter;
+
+            // The defence sets itself before the pitch, the way a bench does.
+            sit.Defence = Positioning.Suggested(sit);
+
             var plan = CpuBrain.PlanSwing(sit, batter, pitch, ref rng);
 
             if (plan.WillSwing)

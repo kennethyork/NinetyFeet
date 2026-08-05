@@ -70,6 +70,12 @@ public sealed class GameSituation
     /// </summary>
     public SplitContext Where => new(!TopHalf, Month, RunnerOn(2) || RunnerOn(3));
 
+    /// <summary>
+    /// Where the defence is standing. Set by whoever is managing that side before the pitch; the
+    /// play simulation reads it when it puts the fielders out.
+    /// </summary>
+    public Alignment Defence = Alignment.Straight;
+
     public PlayerData CurrentPitcher => FieldingTeam.CurrentPitcher;
 
     public Roster BattingTeam => TopHalf ? Away : Home;

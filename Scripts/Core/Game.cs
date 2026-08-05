@@ -193,7 +193,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence",
     };
 
     private static bool IsVerificationRun()
@@ -300,6 +300,18 @@ public partial class Game : Node
             int pa = 60000;
             if (plat + 1 < args.Length && int.TryParse(args[plat + 1], out int n)) pa = n;
             PlatoonAudit.Run(Mathf.Clamp(pa, 2000, 400000));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--defence [balls]` hits the same batted balls at every alignment and reports what each
+        // one actually did. There is no hidden bonus behind the alignments; this is the proof.
+        int def = System.Array.IndexOf(args, "--defence");
+        if (def >= 0)
+        {
+            int balls = 4000;
+            if (def + 1 < args.Length && int.TryParse(args[def + 1], out int db)) balls = db;
+            DefenceAudit.Run(Mathf.Clamp(balls, 200, 40000));
             GetTree().Quit();
             return;
         }

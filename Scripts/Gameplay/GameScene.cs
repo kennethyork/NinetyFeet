@@ -409,6 +409,7 @@ public partial class GameScene : Node2D
         if (VerdictTimer > 0f) VerdictTimer -= dt;
         if (SwingFeedbackTimer > 0f) SwingFeedbackTimer -= dt;
         if (ToastTimer > 0f) ToastTimer -= dt;
+        Pen.Update(dt);
 
         switch (Phase)
         {
@@ -724,7 +725,67 @@ public partial class GameScene : Node2D
 
         if (Input.IsActionJustPressed(InputActions.IntentionalWalk))
             Do(Net.NetVerb.IntentionalWalk, ApplyNetIntentionalWalk);
+
+        // --- Getting somebody up. ---
+        //
+        // Offline only, for the same reason as the alignment: how warm a reliever is changes the
+        // pitches he throws, so both machines have to agree on it or they diverge the moment he
+        // comes in. Online, a change is still instant.
+        if (!Online && Input.IsActionJustPressed(InputActions.WarmUp))
+        {
+            var next = NextArmToWarm();
+            if (next == null) Toast("Nobody left in the pen.", 1.6f);
+            else
+            {
+                Pen.StartWarming(next);
+                Toast($"{next.Name} ({PlayerData.RoleLabel(next.Role)}) is getting up.", 2f);
+                AddLog($"{next.Name} starts to warm.");
+            }
+        }
+
+        // --- Where the defence stands. ---
+        //
+        // Offline only, and deliberately. The alignment decides where nine men are standing when
+        // the ball is struck, so the two machines would resolve the same batted ball differently
+        // the instant one of them moved somebody — this is exactly the kind of per-machine
+        // decision that caused the last desync. Online, both sides read the same alignment out of
+        // the shared situation. Giving this to a networked manager means a verb of its own,
+        // ordered by the host like every other command.
+        if (!Online && Input.IsActionJustPressed(InputActions.SetDefence))
+        {
+            Situation.Defence = NextAlignment(Situation.Defence);
+            Toast($"Defence: {Positioning.Label(Situation.Defence)} — " +
+                  $"{Positioning.Why(Situation.Defence)}", 2.4f);
+        }
     }
+
+    /// <summary>
+    /// The next man to get up: whoever the bench would reach for, and pressing it again walks on
+    /// down the pen rather than naming the same arm twice.
+    /// </summary>
+    private PlayerData NextArmToWarm()
+    {
+        var side = Situation.FieldingTeam;
+        var available = side.Bullpen
+            .Where(p => p != side.CurrentPitcher && !side.UsedArms.Contains(p) && !p.IsInjured)
+            .ToList();
+
+        if (available.Count == 0) return null;
+        if (Pen.Warming == null) return side.BestAvailableReliever() ?? available[0];
+
+        int at = available.IndexOf(Pen.Warming);
+        return available[(at + 1) % available.Count];
+    }
+
+    /// <summary>Cycles round the alignments in the order a bench would run through them.</summary>
+    private static Alignment NextAlignment(Alignment from) => from switch
+    {
+        Alignment.Straight => Alignment.DoublePlay,
+        Alignment.DoublePlay => Alignment.InfieldIn,
+        Alignment.InfieldIn => Alignment.NoDoubles,
+        Alignment.NoDoubles => Alignment.Shift,
+        _ => Alignment.Straight,
+    };
 
     private void ApplyNetSteal()
     {
@@ -808,6 +869,12 @@ public partial class GameScene : Node2D
     public readonly MoundVisit Visit = new();
 
     /// <summary>
+    /// The pen. A reliever used to appear at his best the instant you named him, which removed
+    /// the only decision the bullpen is really about: committing to somebody an inning early.
+    /// </summary>
+    public readonly Bullpen Pen = new();
+
+    /// <summary>
     /// Runs the manager out to the mound and holds the game while he is there.
     ///
     /// Nothing may be pitched, aimed or decided during a visit — that is the point of it. The
@@ -826,6 +893,7 @@ public partial class GameScene : Node2D
         {
             if (Visit.IsChange && Visit.Incoming != null)
             {
+                Pen.BringIn(Visit.Incoming);
                 Situation.ChangePitcher(Visit.Incoming);
                 Toast($"{Visit.Incoming.ShortName} " +
                       $"({PlayerData.RoleLabel(Visit.Incoming.Role)}) comes in.", 2f);
@@ -1244,6 +1312,11 @@ public partial class GameScene : Node2D
 
     private void ReleasePitch()
     {
+        // The side in the field sets itself before the ball is thrown. A human managing the
+        // defence keeps whatever he called for; otherwise the bench decides, and both machines in
+        // a networked game read the same answer out of the same situation.
+        if (!HumanPitching || Online) Situation.Defence = Positioning.Suggested(Situation);
+
         var pitcher = Situation.FieldingTeam.CurrentPitcher;
         _pitchCounts.TryGetValue(pitcher, out int thrown);
         _pitchCounts[pitcher] = thrown + 1;
@@ -1267,7 +1340,10 @@ public partial class GameScene : Node2D
             Toast($"{pitcher.ShortName} — {PowerUpLedger.Describe(pitcher.Special).ToUpperInvariant()}!", 1.4f);
         }
 
-        float fatigue = powered ? 0f : CpuBrain.Fatigue(pitcher, thrown);
+        // A man rushed in from the pen has not found his release point yet. It reads as fatigue
+        // because that is exactly what it looks like from the batter's box — the ball is up and
+        // it is not where he meant it — and it goes away over about ten pitches.
+        float fatigue = powered ? 0f : CpuBrain.Fatigue(pitcher, thrown) + Pen.Coldness(pitcher, thrown);
 
         // A human who aimed the reticle deliberately should get the pitch they asked for. The
         // pitcher's control rating still matters, just far less violently than for the CPU.

@@ -50,6 +50,12 @@ public static class InputActions
     /// <summary>Put him on. A pitchout when there is a runner going.</summary>
     public const string IntentionalWalk = "intentional_walk";
 
+    /// <summary>Cycles where the defence is standing. Only means anything while you are in the field.</summary>
+    public const string SetDefence = "set_defence";
+
+    /// <summary>Gets the next arm up in the pen, and cycles through who is available.</summary>
+    public const string WarmUp = "warm_up";
+
     /// <summary>Also accepted as "confirm" on menus, alongside the action button.</summary>
     public const string Confirm = "confirm";
     public const string Back = "back";
@@ -126,6 +132,9 @@ public static class InputActions
         Bind(ChangePitcher, Key.P);
         Bind(MoundVisit, Key.V);
         Bind(IntentionalWalk, Key.I);
+        Bind(SetDefence, Key.Y);
+        BindPad(SetDefence, JoyButton.Back);
+        Bind(WarmUp, Key.U);
         BindPad(Steal, JoyButton.LeftStick);
         BindPad(PinchHit, JoyButton.RightStick);
 

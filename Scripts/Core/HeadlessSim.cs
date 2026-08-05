@@ -680,6 +680,7 @@ public static class HeadlessSim
             var pitch = PitchFactory.Create(pitcher, type, aim, CpuBrain.Fatigue(pitcher, thrown), ref rng);
 
             var batter = sit.Batter;
+            sit.Defence = Positioning.Suggested(sit);
             var plan = CpuBrain.PlanSwing(sit, batter, pitch, ref rng);
 
             sit.Stats.RecordPitch(pitcher);

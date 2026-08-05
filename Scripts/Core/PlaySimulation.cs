@@ -203,12 +203,17 @@ public sealed class PlaySimulation
         {
             var player = defense.Fielder(slot);
             if (player == null) continue;
+
+            // Where the manager put him, which used to be nowhere but his ordinary spot.
+            var post = Positioning.SpotFor(slot, sit.Defence,
+                Positioning.PullsLeft(sit.Batter, sit.CurrentPitcher));
+
             Fielders.Add(new FielderAgent
             {
                 Player = player,
                 Slot = slot,
-                Spot = FieldGeometry.StartingSpot(slot),
-                Target = FieldGeometry.StartingSpot(slot),
+                Spot = post,
+                Target = post,
                 // A major-league fielder covers ground at roughly 27 feet a second, and the best
                 // closer to 30. This started at 14.5 + 13.5, which put an average fielder at 22.6
                 // — slower than the batter was running to first. Balls that should have been run
