@@ -55,6 +55,7 @@ public partial class Game : Node
 
     /// <summary>Set by the netplay self-test: the next game plays itself.</summary>
     public bool AutoPlayNextGame;
+    /// <summary>A consequence-free exhibition with contextual lessons layered over live play.</summary>
     public bool TutorialMode;
     public bool LargeText { get; set; }
     public bool HighContrast { get; set; }
@@ -353,6 +354,7 @@ public partial class Game : Node
     private static bool IsVerificationRun()
     {
         var args = OS.GetCmdlineUserArgs();
+        if (args.Length == 0) Settings.ApplyDisplayMode();
 
         foreach (string flag in HarnessFlags)
             if (System.Array.IndexOf(args, flag) >= 0) return true;
@@ -377,12 +379,6 @@ public partial class Game : Node
         Vibration = Settings.Accessibility("vibration", true);
 
         var args = OS.GetCmdlineUserArgs();
-
-        // A normal launch resumes the remembered league without making the player find a load
-        // button every time. Command-line runs are tools, audits, screenshots or network tests
-        // and must keep control of their own destination.
-
-
 
         // `--fast N` runs the clock N times faster, for unattended verification runs.
         int fast = System.Array.IndexOf(args, "--fast");

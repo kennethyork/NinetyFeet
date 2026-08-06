@@ -105,6 +105,14 @@ public partial class SettingsScreen : Control
             g.ManagerOnly ? "You manage; games are simulated." : "You play your club's games.", ref y,
             () => g.ManagerOnly = !g.ManagerOnly);
 
+        if (!OS.HasFeature("mobile"))
+        {
+            bool fullscreen = Settings.LoadFullscreen();
+            Row("Display", fullscreen ? "Fullscreen" : "Windowed",
+                "Switches immediately. Your choice is restored next time.", ref y,
+                () => Settings.SaveFullscreen(!fullscreen));
+        }
+
         // --- Your league ---
         y += 14f;
         Section("YOUR LEAGUE", ref y);

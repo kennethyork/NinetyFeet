@@ -143,14 +143,41 @@ public enum PitchingStyle
 public static class Settings
 {
     private const string Path = "user://settings.cfg";
+
     public static bool Accessibility(string key, bool fallback = false)
     {
         var cfg = new ConfigFile();
-        return cfg.Load(Path) == Error.Ok ? (bool)cfg.GetValue("accessibility", key, fallback) : fallback;
+        return cfg.Load(Path) == Error.Ok
+            ? (bool)cfg.GetValue("accessibility", key, fallback) : fallback;
     }
+
     public static void SaveAccessibility(string key, bool value)
     {
-        var cfg = new ConfigFile(); cfg.Load(Path); cfg.SetValue("accessibility", key, value); cfg.Save(Path);
+        var cfg = new ConfigFile(); cfg.Load(Path);
+        cfg.SetValue("accessibility", key, value); cfg.Save(Path);
+    }
+
+    public static bool LoadFullscreen()
+    {
+        var cfg = new ConfigFile();
+        return cfg.Load(Path) == Error.Ok && (bool)cfg.GetValue("display", "fullscreen", false);
+    }
+
+    public static void SaveFullscreen(bool on)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("display", "fullscreen", on);
+        cfg.Save(Path);
+        ApplyDisplayMode(on);
+    }
+
+    public static void ApplyDisplayMode(bool? fullscreen = null)
+    {
+        if (OS.HasFeature("mobile") || DisplayServer.GetName() == "headless") return;
+        DisplayServer.WindowSetMode((fullscreen ?? LoadFullscreen())
+            ? DisplayServer.WindowMode.Fullscreen
+            : DisplayServer.WindowMode.Windowed);
     }
 
     public static Difficulty LoadDifficulty()
