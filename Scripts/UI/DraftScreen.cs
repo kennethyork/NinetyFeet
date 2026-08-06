@@ -38,6 +38,9 @@ public partial class DraftScreen : Control
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (_clicks.Controller(@event, () => Game.Instance.GoTo("res://Scenes/Season.tscn")))
+        { QueueRedraw(); return; }
+
         if (@event is InputEventMouseButton { Pressed: true } mb)
         {
             if (mb.ButtonIndex == MouseButton.WheelUp) { _scroll = Mathf.Max(0, _scroll - 3); QueueRedraw(); return; }
@@ -90,6 +93,7 @@ public partial class DraftScreen : Control
             15, ours ? Palette.Highlight : Palette.InkDim);
 
         Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/Season.tscn"));
+        _clicks.DrawFocus(this, Palette.Highlight);
 
         if (!_draft.Complete)
         {

@@ -34,6 +34,7 @@ public partial class CareerScreen : Control
 
         _career = CareerState.Load();
         _creating = _career == null;
+        if (_creating) { _first = "Ace"; _last = "Ackley"; }
         SetProcess(true);
     }
 
@@ -51,6 +52,8 @@ public partial class CareerScreen : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion mm) { if (_clicks.Hover(mm.Position)) QueueRedraw(); return; }
+        if (@event is InputEventJoypadButton && _clicks.Controller(@event, Leave))
+        { QueueRedraw(); return; }
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             if (_clicks.Click(mb.Position)) QueueRedraw();
@@ -110,6 +113,8 @@ public partial class CareerScreen : Control
 
         if (_notice != "")
             Palette.Text(this, new Vector2(40f, size.Y - 44f), _notice, 14, Palette.Highlight);
+
+        _clicks.DrawFocus(this, Palette.Highlight);
     }
 
     // -----------------------------------------------------------------------

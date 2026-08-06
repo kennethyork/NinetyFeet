@@ -6,6 +6,16 @@ namespace SandlotSlugfest.UI;
 /// <summary>Small, shared translations for custom-drawn menus that do not use Godot Controls.</summary>
 public static class ControllerNav
 {
+    public static bool TryPressedKey(InputEvent e, out Key key)
+    {
+        if (e is InputEventKey { Pressed: true, Echo: false } keyboard)
+        {
+            key = keyboard.PhysicalKeycode;
+            return true;
+        }
+        return TryKey(e, out key);
+    }
+
     public static bool TryKey(InputEvent e, out Key key)
     {
         key = Key.None;

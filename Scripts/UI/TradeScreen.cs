@@ -53,6 +53,16 @@ public partial class TradeScreen : Control
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (@event is InputEventJoypadButton { Pressed: true } pad)
+        {
+            switch (pad.ButtonIndex)
+            {
+                case JoyButton.A: ToggleSelection(); QueueRedraw(); return;
+                case JoyButton.X: ClearOffer(); QueueRedraw(); return;
+                case JoyButton.Y: SendOffer(); QueueRedraw(); return;
+            }
+        }
+
         // The wheel scrolls whichever pane the pointer is over, which is the one you mean.
         if (@event is InputEventMouseButton { Pressed: true } wheel &&
             wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
@@ -73,9 +83,9 @@ public partial class TradeScreen : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (!ControllerNav.TryPressedKey(@event, out Key pressed)) return;
 
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape:
                 Leave();

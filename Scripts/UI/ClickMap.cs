@@ -48,14 +48,14 @@ public sealed class ClickMap
     public bool Controller(InputEvent e, Action back)
     {
         if (e is not InputEventJoypadButton { Pressed: true } pad) return false;
-        if (_items.Count == 0) return true;
+        if (pad.ButtonIndex == JoyButton.B) { back?.Invoke(); return true; }
+        if (_items.Count == 0) return false;
         _focus = Mathf.Clamp(_focus, 0, _items.Count - 1);
         switch (pad.ButtonIndex)
         {
-            case JoyButton.DpadUp: _focus = Mathf.PosMod(_focus - 1, _items.Count); break;
-            case JoyButton.DpadDown: _focus = Mathf.PosMod(_focus + 1, _items.Count); break;
+            case JoyButton.DpadUp or JoyButton.DpadLeft: _focus = Mathf.PosMod(_focus - 1, _items.Count); break;
+            case JoyButton.DpadDown or JoyButton.DpadRight: _focus = Mathf.PosMod(_focus + 1, _items.Count); break;
             case JoyButton.A: _items[_focus].Click?.Invoke(); break;
-            case JoyButton.B: back?.Invoke(); break;
             default: return false;
         }
         return true;

@@ -64,15 +64,15 @@ public partial class ControlsScreen : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true } key) return;
+        if (!ControllerNav.TryPressedKey(@event, out Key pressed)) return;
 
-        if (key.PhysicalKeycode is Key.Escape or Key.Enter or Key.Space or Key.Backspace)
+        if (pressed is Key.Escape or Key.Enter or Key.Space or Key.Backspace)
         {
             Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
             return;
         }
 
-        if (_scroll.Key(key.PhysicalKeycode)) QueueRedraw();
+        if (_scroll.Key(pressed)) QueueRedraw();
     }
 
     public override void _Draw()

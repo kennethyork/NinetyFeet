@@ -74,6 +74,8 @@ public partial class FrontOffice : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventJoypadButton && _clicks.Controller(@event, Leave))
+        { QueueRedraw(); return; }
 
         if (@event is InputEventMouseButton { Pressed: true } wheel &&
             wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
@@ -90,9 +92,9 @@ public partial class FrontOffice : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (!ControllerNav.TryPressedKey(@event, out Key pressed)) return;
 
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape or Key.Backspace: Leave(); return;
             case Key.Left or Key.A:
@@ -184,6 +186,7 @@ public partial class FrontOffice : Control
         Palette.Text(this, new Vector2(40f, size.Y - 22f),
             "Left/Right to switch views  ·  click a name to act  ·  Esc to go back",
             14, Palette.InkDim);
+        _clicks.DrawFocus(this, Palette.Highlight);
     }
 
     private void DrawTabs(Vector2 size)

@@ -58,6 +58,9 @@ public partial class SeasonScreen : Control
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (_clicks.Controller(@event, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn")))
+        { QueueRedraw(); return; }
+
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             if (_clicks.Click(mb.Position)) QueueRedraw();
@@ -293,6 +296,7 @@ public partial class SeasonScreen : Control
         }
 
         Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+        _clicks.DrawFocus(this, Palette.Highlight);
 
         // Between games is exactly when a manager wants the roster and the league — having to go
         // back out to the main menu for them made them feel like a separate application.

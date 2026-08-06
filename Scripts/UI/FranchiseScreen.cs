@@ -80,6 +80,8 @@ public partial class FranchiseScreen : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventJoypadButton && _clicks.Controller(@event, Leave))
+        { QueueRedraw(); return; }
 
         if (_selected == null && _tab == Tab.Roster && _roster.Wheel(@event)) { QueueRedraw(); return; }
 
@@ -89,9 +91,9 @@ public partial class FranchiseScreen : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (!ControllerNav.TryPressedKey(@event, out Key pressed)) return;
 
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape or Key.Backspace:
                 if (_selected != null) { _selected = null; break; }
@@ -134,6 +136,7 @@ public partial class FranchiseScreen : Control
         }
 
         if (_selected != null) DrawPlayerCard(size);
+        _clicks.DrawFocus(this, Palette.Highlight);
     }
 
     private void DrawTabs(Vector2 size)

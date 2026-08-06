@@ -24,6 +24,8 @@ public partial class LeagueBrowser : Control
     {
         // A back button nothing can click is decoration.
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventJoypadButton && _clicks.Controller(@event, Leave))
+        { QueueRedraw(); return; }
         if (@event is InputEventMouseButton { Pressed: true } wheel &&
             wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
         {
@@ -39,9 +41,9 @@ public partial class LeagueBrowser : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        if (!ControllerNav.TryPressedKey(@event, out Key pressed)) return;
 
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape or Key.Backspace:
                 Leave();
@@ -90,6 +92,7 @@ public partial class LeagueBrowser : Control
 
         Palette.Text(this, new Vector2(40f, size.Y - 24f),
             "Up/Down to browse  ·  Left/Right to jump a division  ·  Esc to go back", 15, Palette.InkDim);
+        _clicks.DrawFocus(this, Palette.Highlight);
     }
 
     private void DrawTeamList(Vector2 size)

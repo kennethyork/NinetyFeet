@@ -76,6 +76,8 @@ public partial class TeamEditor : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+        if (@event is InputEventJoypadButton && _clicks.Controller(@event, Leave))
+        { QueueRedraw(); return; }
 
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
@@ -207,6 +209,7 @@ public partial class TeamEditor : Control
         Palette.Text(this, new Vector2(40f, size.Y - 22f),
             "Esc to go back  ·  edits are kept in their own file, so the originals are never lost",
             13, Palette.InkDim);
+        _clicks.DrawFocus(this, Palette.Highlight);
     }
 
     private void DrawPicker(Vector2 size)
