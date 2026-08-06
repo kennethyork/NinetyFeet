@@ -266,9 +266,13 @@ public partial class SeasonScreen : Control
             15, Palette.InkDim);
 
         // The date is the thing you advance, so it leads.
-        Palette.Text(this, new Vector2(size.X - 300f, 46f),
+        // Far enough left of the back button that a long date cannot reach it, measured from the
+        // same edge the button is.
+        float rightCol = size.X - 320f;
+
+        Palette.Text(this, new Vector2(rightCol, 46f),
             Calendar.Format(_season.Today), 20, Palette.Highlight);
-        Palette.Text(this, new Vector2(size.X - 300f, 68f),
+        Palette.Text(this, new Vector2(rightCol, 68f),
             $"Year {_season.Year}  ·  {Calendar.PhaseLabel(_season.Phase)}" +
             (Game.Instance.ManagerOnly ? "  ·  Manager" : ""), 13, Palette.InkDim);
 

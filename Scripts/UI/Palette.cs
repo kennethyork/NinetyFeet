@@ -218,7 +218,15 @@ public static class Palette
     public static void BackButton(CanvasItem canvas, Vector2 viewport, ClickMap clicks,
         System.Action onBack)
     {
-        var rect = new Rect2(new Vector2(viewport.X - 118f, 20f), new Vector2(96f, 32f));
+        // Anchored to the window, like the panels it sits above.
+        //
+        // Moving it onto the centred stage was tried and was wrong: the menus are not on the
+        // stage. Their panels are laid out as "forty in from each edge of the window", so a back
+        // button pinned to a centred design box sat forty pixels inside them horizontally and,
+        // on a tall window, two hundred and eighty pixels below the title it belongs beside. The
+        // stage is for the ballfield, whose proportions are the game. A menu simply fills.
+        var rect = new Rect2(new Vector2(viewport.X - 132f, 22f), new Vector2(104f, 34f));
+
         Panel3D(canvas, rect, PanelLight);
         TextCentered(canvas, rect.Position + rect.Size * 0.5f, "‹  BACK", 15, Ink);
         clicks.Add(rect, onBack);
