@@ -2035,20 +2035,22 @@ public partial class GameScene : Node2D
             _momentOuts, _momentHit);
         if (verdict == Moments.Verdict.Running) return;
 
+        bool completedBefore = Moments.Completed(moment);
         Moments.Finish(moment, verdict == Moments.Verdict.Won);
 
         if (verdict == Moments.Verdict.Won)
         {
-            int coins = moment.Coins;
+            int coins = completedBefore ? Mathf.Max(100, moment.Coins / 5) : moment.Coins;
             Cards.Collection.Load();
             Cards.Collection.Earn(coins);
-            if (moment.Pack >= 0) Cards.Collection.Stash(moment.Pack);
+            if (!completedBefore && moment.Pack >= 0) Cards.Collection.Stash(moment.Pack);
             Cards.Program.BookGame(true, 1, 0);
             Cards.Collection.Save();
 
             g.LastResultHeadline = $"{moment.Name} — done.";
-            g.LastResultLine = moment.Pack >= 0
+            g.LastResultLine = !completedBefore && moment.Pack >= 0
                 ? $"{Cards.Market.Coins(coins)} and a {Cards.Market.Packs[moment.Pack].Name}."
+                : completedBefore ? $"Replay complete — {Cards.Market.Coins(coins)} earned."
                 : $"{Cards.Market.Coins(coins)} earned.";
             CrowdSound(Sound.CrowdCheer, 0.9f);
         }

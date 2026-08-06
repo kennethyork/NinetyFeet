@@ -37,6 +37,10 @@ public partial class MomentsScreen : Control
             if (_clicks.Click(mb.Position)) QueueRedraw();
             return;
         }
+        if (@event is InputEventMouseButton { Pressed: true } wheel && wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            Select(Mathf.Clamp(_cursor + (wheel.ButtonIndex == MouseButton.WheelUp ? -1 : 1), 0, Moments.All.Length - 1)); QueueRedraw(); return;
+        }
 
         if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
 
@@ -61,8 +65,11 @@ public partial class MomentsScreen : Control
         Palette.Text(this, new Vector2(40f, 68f),
             "One situation. One question. Ninety seconds.", 14, Palette.InkDim);
 
-        float y = 130f;
-        for (int i = 0; i < Moments.All.Length; i++)
+        float y = 112f;
+        int visible = Mathf.Max(3, Mathf.FloorToInt((size.Y - 158f) / 92f));
+        int start = Mathf.Clamp(_cursor - visible / 2, 0, Mathf.Max(0, Moments.All.Length - visible));
+        int end = Mathf.Min(Moments.All.Length, start + visible);
+        for (int i = start; i < end; i++)
         {
             var m = Moments.All[i];
             bool on = i == _cursor;
@@ -108,7 +115,7 @@ public partial class MomentsScreen : Control
         }
 
         Palette.Text(this, new Vector2(40f, size.Y - 22f),
-            "Up/Down to choose  ·  Enter to play  ·  Esc to go back", 14, Palette.InkDim);
+            $"{_cursor + 1} of {Moments.All.Length}  ·  Up/Down or wheel  ·  Enter to play  ·  Esc to go back", 14, Palette.InkDim);
     }
 
     private void Play(Moment m)

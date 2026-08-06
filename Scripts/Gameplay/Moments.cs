@@ -146,6 +146,12 @@ public static class Moments
             Batting = false, Goal = MomentGoal.HoldTheLead, OutsAllowed = 3,
             Coins = 2200, Pack = 1,
         },
+        new() { Name = "SACRIFICE FLY", Blurb = "One out, a runner at third, and a run waiting for any ball hit deep enough.", Inning = 6, TopHalf = false, Outs = 1, OnThird = true, MyRuns = 2, TheirRuns = 2, Goal = MomentGoal.DriveARunIn, OutsAllowed = 2, Coins = 800 },
+        new() { Name = "TWO-OUT RALLY", Blurb = "Down a run with two aboard. There is no tomorrow if the next hitter fails.", Inning = 8, TopHalf = false, Outs = 2, OnFirst = true, OnSecond = true, MyRuns = 3, TheirRuns = 4, Goal = MomentGoal.TieOrLead, Coins = 1300 },
+        new() { Name = "EXTRA-INNING CHANCE", Blurb = "The tenth is tied and the winning run is already standing on second.", Inning = 10, TopHalf = false, Outs = 1, OnSecond = true, MyRuns = 4, TheirRuns = 4, Goal = MomentGoal.WinIt, OutsAllowed = 2, Coins = 1700, Pack = 0 },
+        new() { Name = "CLEAN NINTH", Blurb = "Bases empty, one-run lead. Retire the side and shake hands.", Inning = 9, TopHalf = true, Outs = 0, MyRuns = 2, TheirRuns = 1, Batting = false, Goal = MomentGoal.HoldTheLead, OutsAllowed = 3, Coins = 1600 },
+        new() { Name = "RUNNER ON THE MOVE", Blurb = "A fast runner is going from first. Put a ball somewhere he can keep running.", Inning = 5, TopHalf = true, Outs = 1, OnFirst = true, MyRuns = 1, TheirRuns = 2, Goal = MomentGoal.GetAHit, OutsAllowed = 2, Coins = 750 },
+        new() { Name = "ESCAPE THE JAM", Blurb = "Bases loaded, one out, and a one-run lead. Find two outs before they find home.", Inning = 7, TopHalf = true, Outs = 1, OnFirst = true, OnSecond = true, OnThird = true, MyRuns = 5, TheirRuns = 4, Batting = false, Goal = MomentGoal.HoldTheLead, OutsAllowed = 2, Coins = 2400, Pack = 1 },
     };
 
     /// <summary>Loads the permanent record for this mode, including the last highlighted moment.</summary>
