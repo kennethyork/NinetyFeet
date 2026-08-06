@@ -23,6 +23,7 @@ public partial class ScreenshotRunner : Node
     private bool _started;
     private bool _clicked;
     private bool _watching;
+    private bool _checkedThisShot;
 
     public override void _Ready()
     {
@@ -77,6 +78,7 @@ public partial class ScreenshotRunner : Node
         if (_watching)
         {
             _watching = false;
+            _checkedThisShot = true;
             var faults = UI.Palette.Report(GetViewport().GetVisibleRect().Size);
             GD.Print(faults.Count == 0
                 ? $"  [text] {Scene}: everything fits"
@@ -101,7 +103,7 @@ public partial class ScreenshotRunner : Node
         if (_timer < Interval) return;
         _timer = 0f;
 
-        if (CheckText && !_watching)
+        if (CheckText && !_checkedThisShot)
         {
             // Opened here and read on the very next frame, below. A whole capture interval of
             // frames would pile every redraw into one list — the title screen reported five
@@ -115,6 +117,7 @@ public partial class ScreenshotRunner : Node
         string path = $"{Directory}/shot_{_taken:D2}.png";
         image.SavePng(path);
         GD.Print($"saved {path}");
+        _checkedThisShot = false;
 
         if (++_taken >= Count) GetTree().Quit();
     }

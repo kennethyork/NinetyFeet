@@ -33,6 +33,7 @@ Capture at native 16:9 without debug overlays: a close batting view with timing 
 meter and strike zone; a diving fielding play; a Dynasty trade screen; standings and club identity;
 the Moments list with progress; the accessibility settings; and a phone screenshot showing touch
 controls. Do not show third-party names, logos, notifications, IP addresses or placeholder text.
+Initial renderer captures and reproduction commands are checked in under [`marketing/`](../marketing/README.md).
 
 ## Trailer outline
 
