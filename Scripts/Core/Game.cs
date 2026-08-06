@@ -273,7 +273,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent", "--extrabase", "--ballparks", "--size",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--namepool", "--names-template", "--talent", "--extrabase", "--ballparks", "--size",
 
         // The two-process league test builds its own shared league and must never read this
         // machine's save — both halves of it would otherwise start from whatever season happens
@@ -686,6 +686,27 @@ public partial class Game : Node
                 }
 
             var dupNames = names.Where(kv => kv.Value.Count > 1).ToList();
+
+            // And whether any two are the same player on paper.
+            //
+            // Distinct names, faces and identifiers only prove that two men are labelled apart.
+            // The question worth asking is whether the league ever produces the same ballplayer
+            // twice — same position, same eight ratings, same hand, same signature — because two
+            // men who are identical in every way that reaches the field are one man with two
+            // names however different their faces are.
+            var sheets = new System.Collections.Generic.Dictionary<string, System.Collections.Generic.List<string>>();
+            foreach (var t in Data.Teams.All)
+                foreach (var p in Data.RosterGenerator.For(t).Players)
+                {
+                    string sheet = $"{(int)p.Position}|{p.Contact}|{p.Power}|{p.Speed}|{p.Arm}|" +
+                                   $"{p.Fielding}|{p.PitchPower}|{p.PitchControl}|{p.Stamina}|" +
+                                   $"{(int)p.Bats}|{(int)p.Throws}|{(int)p.Special}";
+                    if (!sheets.TryGetValue(sheet, out var who))
+                        sheets[sheet] = who = new System.Collections.Generic.List<string>();
+                    who.Add($"{p.ShortName} ({t.Abbrev})");
+                }
+
+            var twins = sheets.Where(kv => kv.Value.Count > 1).OrderByDescending(kv => kv.Value.Count).ToList();
             int dupLooks = looks.Count(kv => kv.Value > 1);
 
             // Identifiers were never checked, and that is exactly where the collision was: a club
@@ -699,12 +720,25 @@ public partial class Game : Node
                      $"duplicate ids: {dupIds}");
             foreach (var kv in dupNames.Take(8))
                 GD.Print($"  {kv.Key} appears on {string.Join(", ", kv.Value)}");
+
+            GD.Print($"\nidentical on paper: {twins.Count} rating sheets shared by more than one " +
+                     $"man, covering {twins.Sum(kv => kv.Value.Count)} of {total} players " +
+                     $"({100f * twins.Sum(kv => kv.Value.Count) / total:0.0}%)");
+            foreach (var kv in twins.Take(6))
+                GD.Print($"  {string.Join(" = ", kv.Value)}");
+
+            if (twins.Count == 0)
+                GD.Print("  No two players in the league are the same ballplayer.");
             GetTree().Quit();
             return;
         }
 
-        // `--names` lists every first name actually in use, so the pool can be eyeballed.
-        if (System.Array.IndexOf(args, "--names") >= 0)
+        // `--namepool` lists every first name actually in use, so the pool can be eyeballed.
+        //
+        // This answered to --names until the roster-file audit was given the same flag and, being
+        // checked earlier, silently took it. Two harnesses under one name is not a clash that
+        // announces itself: the wrong one simply runs and prints something plausible.
+        if (System.Array.IndexOf(args, "--namepool") >= 0)
         {
             var used = new System.Collections.Generic.SortedSet<string>();
             int n = 0;

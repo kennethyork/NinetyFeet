@@ -398,7 +398,8 @@ from the seed rather than reading whatever save is on disk.
 godot471cs --headless --path . -- --sim 350        # league rates against real MLB 2024
 godot471cs --headless --path . -- --platoon 400000 # the left-right split
 godot471cs --headless --path . -- --audit-outs 40  # every half inning must record three outs
-godot471cs --headless --path . -- --unique         # no duplicate names or faces
+godot471cs --headless --path . -- --unique         # no duplicate names, faces, ids or rating sheets
+godot471cs --headless --path . -- --namepool       # every first name the pool actually uses
 godot471cs --headless --path . -- --pen 60         # bullpen usage and roster integrity
 godot471cs --headless --path . -- --farm           # can all 96 affiliates field a side?
 godot471cs --headless --path . -- --plate          # the batting view, in milliseconds and pixels
