@@ -448,11 +448,15 @@ public partial class BattingView : Node2D
         // 21 pixels inside the bottom of the strike zone, which is exactly where a hitter is
         // trying to judge a low pitch. He frames the bottom of the shot; he does not get to stand
         // in the part of it that is being read.
+        // With his back to us, which is the only way a catcher can be seen from behind the plate.
+        // He was drawn facing the camera, so the man receiving the pitch was looking away from the
+        // pitcher throwing it while everything else in the shot pointed the right way.
         CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, UI.Layout.Down(size, 1f) + 290f), 3.0f, 1f,
             Pose.Field, fieldTeam, catcher, _time,
             lookAt: Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
                 ? BallScreenPos()
-                : UI.Layout.At(size, 640f, 288f));
+                : UI.Layout.At(size, 640f, 288f),
+            fromBehind: true);
 
         // Name plate for the hitter, out to his side so it never covers him or the zone.
         float plateX = batterAt.X + sign * 132f;

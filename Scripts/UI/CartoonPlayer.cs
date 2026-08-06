@@ -207,9 +207,18 @@ public static class CartoonPlayer
     ///
     /// Null keeps the old behaviour — eyes follow the body.
     /// </param>
+    /// <param name="fromBehind">
+    /// Drawn with his back to the camera: no face, and the cap seen from the rear.
+    ///
+    /// The one man on the field this is true of is the catcher, and the batting view is shot from
+    /// behind him — so he was looking straight down the lens while the pitcher he is supposedly
+    /// receiving from is over his shoulder. Everything else in that shot is oriented correctly,
+    /// which is precisely what made him wrong rather than stylised.
+    /// </param>
     public static void Draw(CanvasItem c, Vector2 feet, float scale, float facing,
         Pose pose, TeamData team, PlayerData player, float time, bool withBat = false,
-        float motionPhase = 0f, Vector2? lookAt = null, float swingAim = 0f)
+        float motionPhase = 0f, Vector2? lookAt = null, float swingAim = 0f,
+        bool fromBehind = false)
     {
         // A named kid gets the look he was written with; everyone else gets one from his seed.
         var look = player is { LegendId: >= 0 }
@@ -263,7 +272,7 @@ public static class CartoonPlayer
         if (withBat) DrawBatInHands(c, backHand, frontHand, s, facing, pose, motionPhase);
 
         DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
-        DrawHead(c, head, s, facing, lookAt, look, team, pose, time);
+        DrawHead(c, head, s, facing, lookAt, look, team, pose, time, fromBehind);
     }
 
     private static void DrawShadow(CanvasItem c, Vector2 feet, float s, Look look)
@@ -717,7 +726,7 @@ public static class CartoonPlayer
     }
 
     private static void DrawHead(CanvasItem c, Vector2 head, float s, float facing, Vector2? lookAt,
-        Look look, TeamData team, Pose pose, float time)
+        Look look, TeamData team, Pose pose, float time, bool fromBehind = false)
     {
         // HeadWidth used to multiply into r alongside HeadSize, which scaled both axes — so it
         // was a second size knob, not a width knob, and every head in the league was the same
@@ -764,6 +773,14 @@ public static class CartoonPlayer
             }
         }
 
+        if (fromBehind)
+        {
+            // The back of a head: hair over the whole crown, the cap's rear, and the strap of a
+            // mask across it. No features — there are none on this side.
+            DrawBackOfHead(c, head, rx, r, s, team, look);
+            return;
+        }
+
         DrawFace(c, head, rx, r, s, facing, look, pose, time, gaze);
         DrawCap(c, head, rx, r, s, facing, gaze, team, look);
 
@@ -771,6 +788,60 @@ public static class CartoonPlayer
         // cap, which left every kid in the game bare-headed under identical headwear — the single
         // biggest reason they all looked alike.
         if (look.CapStyle != 2) DrawHairBelowCap(c, head, rx, r, s, look);
+    }
+
+    /// <summary>
+    /// The back of a man's head, for the one who has his back to us.
+    ///
+    /// Not the face with the features left off — the shapes are different. Hair covers the whole
+    /// crown rather than stopping at a hairline, the cap shows its rear seam and closure instead
+    /// of a brim, and a catcher's mask is two straps across the back of the skull. Getting this
+    /// wrong in the other direction — a blank oval — reads as a man with no face rather than a
+    /// man facing away.
+    /// </summary>
+    private static void DrawBackOfHead(CanvasItem c, Vector2 head, float rx, float r, float s,
+        TeamData team, Look look)
+    {
+        // Hair over the whole back of the skull, not just the crown.
+        if (look.HairStyle != 9)
+            Ink.Shape(c, Ink.Blob(head + new Vector2(0f, -r * 0.06f), rx * 0.94f, r * 0.92f, 20),
+                look.Hair, Outline, 2.0f * s, look.Seed + 61);
+
+        if (look.CapStyle != 2)
+        {
+            // The cap from behind: the same dome, closed off, with the adjuster gap at the bottom
+            // and the rear seam up the middle.
+            const int steps = 18;
+            var crown = new Vector2[steps + 1];
+            for (int i = 0; i <= steps; i++)
+            {
+                float a = Mathf.Pi + i / (float)steps * Mathf.Pi;
+                crown[i] = head + new Vector2(Mathf.Cos(a) * rx * 1.02f,
+                                              Mathf.Sin(a) * r * 1.02f - r * 0.06f);
+            }
+            FillOutlined(c, crown, team.Primary, s);
+
+            c.DrawLine(head + new Vector2(0f, -r * 1.00f), head + new Vector2(0f, -r * 0.10f),
+                team.Primary.Darkened(0.30f), 2.2f * s);
+            c.DrawCircle(head + new Vector2(0f, -r * 0.98f), 2.6f * s, team.Secondary);
+
+            // The gap at the back of a fitted cap, which is the detail that says "rear".
+            c.DrawRect(new Rect2(head.X - rx * 0.16f, head.Y - r * 0.22f, rx * 0.32f, r * 0.20f),
+                look.Hair.Darkened(0.2f));
+        }
+
+        // A mask harness: two straps across the back of the head, meeting a buckle.
+        var strapColour = new Color(0.13f, 0.14f, 0.16f);
+        foreach (float dy in new[] { -0.30f, 0.10f })
+            c.DrawLine(head + new Vector2(-rx * 1.00f, r * dy), head + new Vector2(rx * 1.00f, r * dy),
+                strapColour, 3.4f * s);
+
+        c.DrawLine(head + new Vector2(-rx * 0.30f, -r * 0.34f), head + new Vector2(-rx * 0.34f, r * 0.16f),
+            strapColour, 3.0f * s);
+        c.DrawLine(head + new Vector2(rx * 0.30f, -r * 0.34f), head + new Vector2(rx * 0.34f, r * 0.16f),
+            strapColour, 3.0f * s);
+
+        c.DrawCircle(head + new Vector2(0f, r * 0.10f), 4.2f * s, strapColour.Lightened(0.25f));
     }
 
     private static void DrawHair(CanvasItem c, Vector2 head, float rx, float r, float s, Look look)
