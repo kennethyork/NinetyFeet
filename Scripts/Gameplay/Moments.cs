@@ -85,6 +85,13 @@ public sealed class Moment
 /// <summary>The moments on offer, and the machinery for judging one.</summary>
 public static class Moments
 {
+    private const string SavePath = "user://moments.cfg";
+    private static readonly Dictionary<string, int> Attempts = new();
+    private static readonly Dictionary<string, int> Wins = new();
+    private static bool _loaded;
+
+    public static int Selected { get; private set; }
+
     public static readonly Moment[] All =
     {
         new()
@@ -140,6 +147,72 @@ public static class Moments
             Coins = 2200, Pack = 1,
         },
     };
+
+    /// <summary>Loads the permanent record for this mode, including the last highlighted moment.</summary>
+    public static void LoadProgress()
+    {
+        if (_loaded) return;
+        _loaded = true;
+
+        var cfg = new ConfigFile();
+        if (cfg.Load(SavePath) != Error.Ok) return;
+
+        Selected = Mathf.Clamp((int)cfg.GetValue("moments", "selected", 0), 0, All.Length - 1);
+        foreach (var moment in All)
+        {
+            Attempts[moment.Name] = (int)cfg.GetValue(moment.Name, "attempts", 0);
+            Wins[moment.Name] = (int)cfg.GetValue(moment.Name, "wins", 0);
+        }
+    }
+
+    public static void Select(int index)
+    {
+        LoadProgress();
+        Selected = Mathf.Clamp(index, 0, All.Length - 1);
+        SaveProgress();
+    }
+
+    public static void Begin(Moment moment)
+    {
+        LoadProgress();
+        int index = System.Array.IndexOf(All, moment);
+        if (index >= 0) Selected = index;
+        Attempts[moment.Name] = AttemptCount(moment) + 1;
+        SaveProgress();
+    }
+
+    public static void Finish(Moment moment, bool won)
+    {
+        LoadProgress();
+        if (won) Wins[moment.Name] = WinCount(moment) + 1;
+        SaveProgress();
+    }
+
+    public static int AttemptCount(Moment moment)
+    {
+        LoadProgress();
+        return Attempts.GetValueOrDefault(moment.Name);
+    }
+
+    public static int WinCount(Moment moment)
+    {
+        LoadProgress();
+        return Wins.GetValueOrDefault(moment.Name);
+    }
+
+    public static bool Completed(Moment moment) => WinCount(moment) > 0;
+
+    private static void SaveProgress()
+    {
+        var cfg = new ConfigFile();
+        cfg.SetValue("moments", "selected", Selected);
+        foreach (var moment in All)
+        {
+            cfg.SetValue(moment.Name, "attempts", Attempts.GetValueOrDefault(moment.Name));
+            cfg.SetValue(moment.Name, "wins", Wins.GetValueOrDefault(moment.Name));
+        }
+        cfg.Save(SavePath);
+    }
 
     // -----------------------------------------------------------------------
     // Setting one up

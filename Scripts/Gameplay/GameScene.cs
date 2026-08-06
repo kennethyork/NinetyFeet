@@ -2029,6 +2029,8 @@ public partial class GameScene : Node2D
             _momentOuts, _momentHit);
         if (verdict == Moments.Verdict.Running) return;
 
+        Moments.Finish(moment, verdict == Moments.Verdict.Won);
+
         if (verdict == Moments.Verdict.Won)
         {
             int coins = moment.Coins;

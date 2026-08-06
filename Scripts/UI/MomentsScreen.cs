@@ -23,6 +23,8 @@ public partial class MomentsScreen : Control
         SetAnchorsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
         Cards.Collection.Load();
+        Moments.LoadProgress();
+        _cursor = Moments.Selected;
     }
 
     private void Leave() => Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
@@ -41,8 +43,8 @@ public partial class MomentsScreen : Control
         switch (key.PhysicalKeycode)
         {
             case Key.Escape or Key.Backspace: Leave(); return;
-            case Key.Up or Key.W: _cursor = Mathf.Max(0, _cursor - 1); break;
-            case Key.Down or Key.S: _cursor = Mathf.Min(Moments.All.Length - 1, _cursor + 1); break;
+            case Key.Up or Key.W: Select(Mathf.Max(0, _cursor - 1)); break;
+            case Key.Down or Key.S: Select(Mathf.Min(Moments.All.Length - 1, _cursor + 1)); break;
             case Key.Enter or Key.Space: Play(Moments.All[_cursor]); return;
         }
         QueueRedraw();
@@ -86,13 +88,21 @@ public partial class MomentsScreen : Control
             var play = new Rect2(rect.Position + new Vector2(rect.Size.X - 150f, 26f),
                 new Vector2(126f, 34f));
             Palette.Panel3D(this, play, Palette.Highlight.Darkened(0.2f));
-            Palette.TextCentered(this, play.Position + play.Size * 0.5f, "PLAY IT", 14,
+            Palette.TextCentered(this, play.Position + play.Size * 0.5f,
+                Moments.Completed(m) ? "REPLAY" : "PLAY IT", 14,
                 Palette.Night);
+
+            int attempts = Moments.AttemptCount(m);
+            int wins = Moments.WinCount(m);
+            if (attempts > 0)
+                Palette.Text(this, rect.Position + new Vector2(rect.Size.X - 150f, 76f),
+                    wins > 0 ? $"COMPLETED · {wins}/{attempts}" : $"ATTEMPTS · {attempts}",
+                    11, wins > 0 ? Palette.Highlight : Palette.InkDim);
 
             var chosen = m;
             int index = i;
             _clicks.Add(play, () => Play(chosen));
-            _clicks.Add(rect, () => { _cursor = index; QueueRedraw(); });
+            _clicks.Add(rect, () => { Select(index); QueueRedraw(); });
 
             y += 92f;
         }
@@ -103,6 +113,7 @@ public partial class MomentsScreen : Control
 
     private void Play(Moment m)
     {
+        Moments.Begin(m);
         var g = Game.Instance;
 
         // Two clubs drawn from the league, so the men in it are real players with real ratings.
@@ -123,5 +134,11 @@ public partial class MomentsScreen : Control
         g.Mode = playerBatsTop ? ControlMode.PlayerVsCpu : ControlMode.CpuVsPlayer;
 
         g.GoTo("res://Scenes/Game.tscn");
+    }
+
+    private void Select(int index)
+    {
+        _cursor = index;
+        Moments.Select(index);
     }
 }
