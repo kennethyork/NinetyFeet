@@ -43,6 +43,9 @@ public partial class ScreenshotRunner : Node
     public bool HumanPitches;
     public bool AutoPlay;
     public bool ManualFielding;
+    public bool LargeText;
+    public bool HighContrast;
+    public bool ReducedMotion;
 
     /// <summary>
     /// Seconds to wait before navigating. Some screens cannot be captured the instant the game
@@ -83,6 +86,9 @@ public partial class ScreenshotRunner : Node
                 : ControlMode.CpuVsCpu;
             Game.Instance.AutoPlayNextGame = AutoPlay;
             if (ManualFielding) Game.Instance.AutoFielding = false;
+            if (LargeText) Game.Instance.LargeText = true;
+            if (HighContrast) Game.Instance.HighContrast = true;
+            if (ReducedMotion) Game.Instance.ReducedMotion = true;
             Game.Instance.GoTo(Scene);
             return;
         }

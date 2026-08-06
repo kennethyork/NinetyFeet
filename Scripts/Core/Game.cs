@@ -1260,6 +1260,9 @@ public partial class Game : Node
         runner.ManualFielding = System.Array.IndexOf(args, "--manual-fielding") >= 0;
         runner.CheckText = System.Array.IndexOf(args, "--textfit") >= 0;
         runner.SimulateTouch = System.Array.IndexOf(args, "--touch") >= 0;
+        runner.LargeText = System.Array.IndexOf(args, "--large-text") >= 0;
+        runner.HighContrast = System.Array.IndexOf(args, "--high-contrast") >= 0;
+        runner.ReducedMotion = System.Array.IndexOf(args, "--reduced-motion") >= 0;
 
         int sceneArg = System.Array.IndexOf(args, "--scene");
         if (sceneArg >= 0 && sceneArg + 1 < args.Length) runner.Scene = args[sceneArg + 1];
