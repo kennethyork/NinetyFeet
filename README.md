@@ -380,6 +380,7 @@ godot471cs --headless --path . -- --slots          # four leagues that cannot de
 godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
 godot471cs --headless --path . -- --talent        # written players against generated ones
+godot471cs --headless --path . -- --extrabase 300 # one change at a time, and what it does to 2B/3B
 godot471cs --headless --path . -- --names          # what your own roster file actually did
 godot471cs --headless --path . -- --names-template # write a blank one to fill in
 godot471cs --headless --path . -- --league 45      # two owners, one league, results crossing
@@ -396,20 +397,20 @@ has to use, since a written player takes a generated man's slot.
 
 | | Ninety Feet | MLB 2024 | | without written |
 | --- | --- | --- | --- | --- |
-| Runs | 8.39 | 8.79 | −4.6% | −5.2% |
-| Hits | 15.50 | 16.39 | −5.4% | −5.7% |
-| Doubles | 3.06 | 3.20 | −4.5% | −15.2% |
-| Triples | 0.28 | 0.29 | −4.3% | −35.3% |
-| Home runs | 2.18 | 2.24 | −2.7% | +1.3% |
-| Walks | 5.67 | 6.15 | −7.8% | −3.6% |
-| Strikeouts | 17.07 | 16.96 | +0.6% | −3.2% |
-| Stolen bases | 1.32 | 1.49 | −11.4% | −18.5% |
-| Caught stealing | 0.27 | 0.51 | −47.1% | −37.7% |
-| Hit by pitch | 0.76 | 0.79 | −3.5% | −2.2% |
-| Wild pitches | 0.54 | 0.76 | −28.6% | −25.7% |
-| Sacrifice flies | 0.35 | 0.79 | −56.0% | −49.1% |
-| Sacrifice bunts | 0.15 | 0.19 | −21.1% | −10.5% |
-| Grounded into DP | 1.63 | 1.44 | +13.4% | +23.3% |
+| Runs | 8.44 | 8.79 | −4.0% | −6.3% |
+| Hits | 15.64 | 16.39 | −4.6% | −6.5% |
+| Doubles | 3.23 | 3.20 | **+1.1%** | −10.7% |
+| Triples | 0.27 | 0.29 | −6.0% | −36.2% |
+| Home runs | 2.19 | 2.24 | −2.2% | −1.3% |
+| Walks | 5.70 | 6.15 | −7.4% | −3.4% |
+| Strikeouts | 17.16 | 16.96 | +1.2% | −4.1% |
+| Stolen bases | 1.30 | 1.49 | −12.8% | −18.1% |
+| Caught stealing | 0.27 | 0.51 | −47.1% | −38.2% |
+| Hit by pitch | 0.75 | 0.79 | −5.7% | −3.8% |
+| Wild pitches | 0.57 | 0.76 | −25.3% | −24.0% |
+| Sacrifice flies | 0.36 | 0.79 | −54.7% | −50.0% |
+| Sacrifice bunts | 0.16 | 0.19 | −17.1% | −14.5% |
+| Grounded into DP | 1.63 | 1.44 | +13.0% | +22.7% |
 
 **The calibration had been resting on the written cast, and nobody knew.** Turning the written
 players off used to move run scoring from four percent under the majors to twelve — the same
@@ -434,13 +435,28 @@ ones against 17.0%. ContactMaster widens the sweet spot by a third; VacuumGlove 
 fielder's catch radius. Asking the question before the shaping — the switch consumes no randomness,
 so every other draw in the league is untouched — closes the run gap from 8.4 points to 0.6.
 
-What is left is the doubles and triples in the last column, and they are left on purpose. A margin
-was tried, requiring a man to be *clearly* a glove player before his signature became his glove.
-It moved the league without improving it: triples came up from 35% light to 16%, doubles went from
-15% down to 19%, hits from 6% to 9%, strikeouts from 3% to 7%, and runs did not move at all.
-Trading glove specials for bat ones is not simply pro-offence — MoonShot lifts the ball to where it
-is caught, SprayHitter puts more of it in play. So it was reverted and the shortfall written down
-instead: a league without the written players scores the same and hits for less extra base.
+**And then the doubles, which took being wrong four times.** A league without the written players
+hit doubles fifteen percent light, so the search was for what the written players were contributing.
+`--extrabase` changes one thing at a time about an otherwise identical league, over the same
+matchups and seeds, and reads the answer off — an intervention rather than an argument, because the
+first attempt at this was reasoned from league averages and had to be reverted.
+
+It answered flatly. Strip *every special in the league* out of the written cast and it still hits
+3.05 doubles a game against its usual 3.03. It was never the specials. Nor was it the running
+specials, nor gap power: giving every man in every order TurboLegs — far past anything the
+generator would produce — bought back the doubles but sent triples to 1.31 a game against a real
+0.29. Bringing the generated men's gloves and arms down to the written cast's level, and stripping
+their glove specials as well, recovered less than half.
+
+What had been missed was that **both** leagues were short — 3.03 and 2.63 against a real 3.20 — so
+the thing to fix was a level, not a difference. `StretchToSecond`, the one number that decides
+whether a single becomes a double, was simply set a shade low at 0.80. At 0.84 the league hits
+3.23 doubles, which is the closest any statistic on this table has come to the majors.
+
+The triples in the last column are still short and are left that way. Triples *are* special-driven
+— take every special away and they collapse from 0.27 to 0.10 — so a league with fewer of the
+written cast's runners has fewer of them, and the shipped configuration is already within six
+percent of real. Fixing the one would overshoot the other.
 
 Current `--platoon 400000`, batting average by matchup:
 

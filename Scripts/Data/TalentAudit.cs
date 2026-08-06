@@ -138,6 +138,8 @@ public static class TalentAudit
         Line("lineup contact", lineupA, lineupB, p => p.Contact);
         Line("lineup power", lineupA, lineupB, p => p.Power);
         Line("lineup speed", lineupA, lineupB, p => p.Speed);
+        Line("lineup fielding", lineupA, lineupB, p => p.Fielding);
+        Line("lineup arm", lineupA, lineupB, p => p.Arm);
         Line("lineup overall", lineupA, lineupB, p => p.Overall);
 
         var rotA = Teams.All.SelectMany(t => withThem.RosterFor(t.Id).Rotation).ToList();

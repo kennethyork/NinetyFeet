@@ -932,6 +932,28 @@ public sealed class PlaySimulation
         RecomputeForces();
     }
 
+    /// <summary>
+    /// How boldly the batter-runner goes for second, and for third.
+    ///
+    /// Held apart from everyone else's nerve because these two numbers decide different
+    /// statistics — see the note in the method below. Fields rather than constants so the
+    /// extra-base experiment can vary them without editing the simulation it is measuring.
+    ///
+    /// Second was 0.80 and is 0.84. That was found by asking the wrong question for a long time.
+    /// A league without the written players hits doubles fifteen percent light, and the whole
+    /// investigation went looking for what the written players were contributing — their specials,
+    /// their gloves, their arms, their legs. The experiment answered flatly: with every special in
+    /// the league stripped out, the written cast still hit 3.05 doubles a game. It was never the
+    /// specials.
+    ///
+    /// What had been missed was that *both* leagues were short — 3.03 and 2.63 against a real 3.20
+    /// — so the thing to fix was a level, not a difference. This is the only number that decides
+    /// how a single becomes a double, and it was simply set a shade low.
+    /// </summary>
+    public static float StretchToSecond = 0.84f;
+    public static float StretchToThird = 0.565f;
+
+
     /// <summary>A runner takes the extra bag when the defence cannot get the ball there in time.</summary>
     private bool ShouldKeepRunning(RunnerAgent r)
     {
@@ -992,7 +1014,7 @@ public sealed class PlaySimulation
         // baseball. These two multipliers are the old ones scaled back by the same factor the
         // base went up, so how boldly the batter runs is exactly where it was measured and only
         // the men already aboard have been given nerve.
-        if (r.IsBatter) aggression *= r.FromBase >= 2 ? 0.565f : 0.80f;
+        if (r.IsBatter) aggression *= r.FromBase >= 2 ? StretchToThird : StretchToSecond;
 
         return runnerTime < BallArrivalTime(dest) * aggression;
     }

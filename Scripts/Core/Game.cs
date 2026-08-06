@@ -259,7 +259,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent", "--extrabase",
 
         // The two-process league test builds its own shared league and must never read this
         // machine's save — both halves of it would otherwise start from whatever season happens
@@ -433,6 +433,24 @@ public partial class Game : Node
             int days = 45;
             if (lg + 1 < args.Length && int.TryParse(args[lg + 1], out int ld)) days = ld;
             Net.LeagueAudit.Run(Mathf.Clamp(days, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--extrabase [games] [--only N]` changes one thing at a time about the league and reads
+        // off what happens to doubles and triples. An experiment, because reasoning from league
+        // averages already produced one change that had to be reverted.
+        int xb = System.Array.IndexOf(args, "--extrabase");
+        if (xb >= 0)
+        {
+            int many = 250;
+            if (xb + 1 < args.Length && int.TryParse(args[xb + 1], out int xn)) many = Mathf.Clamp(xn, 20, 500);
+
+            int only = -1;
+            int oi = System.Array.IndexOf(args, "--only");
+            if (oi >= 0 && oi + 1 < args.Length && int.TryParse(args[oi + 1], out int oc)) only = oc;
+
+            Data.ExtraBaseAudit.Run(many, only);
             GetTree().Quit();
             return;
         }

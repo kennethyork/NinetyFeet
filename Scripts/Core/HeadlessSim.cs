@@ -443,6 +443,32 @@ public static class HeadlessSim
         }
     }
 
+    /// <summary>
+    /// The calibration series, reporting only how hits were distributed.
+    ///
+    /// Same matchups and same seeds as <see cref="RunSeries"/>, so two roster configurations can
+    /// be played against each other and the difference read off. Used by the extra-base experiment,
+    /// which needs to change one thing about the league and nothing else about the run.
+    /// </summary>
+    public static (int Singles, int Doubles, int Triples, int HomeRuns) HitShape(int games)
+    {
+        int singles = 0, doubles = 0, triples = 0, homers = 0;
+
+        for (int i = 0; i < games; i++)
+        {
+            var away = Teams.Get((i * 7) % 32);
+            var home = Teams.Get((i * 7 + 13) % 32);
+            var r = PlayGame(away, home, seed: 1000 + i);
+
+            doubles += r.Doubles;
+            triples += r.Triples;
+            homers += r.HomeRuns;
+            singles += r.Hits - r.Doubles - r.Triples - r.HomeRuns;
+        }
+
+        return (singles, doubles, triples, homers);
+    }
+
     public static void RunSeries(int games)
     {
         var totals = new SeriesTotals();
