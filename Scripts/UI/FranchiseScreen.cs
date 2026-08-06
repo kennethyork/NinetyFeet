@@ -33,6 +33,7 @@ public partial class FranchiseScreen : Control
     private PlayerData _selected;
     private int _teamCursor;
     private readonly ClickMap _clicks = new();
+    private readonly Scroller _roster = new();
 
     /// <summary>
     /// Set when the screen is opened on top of a paused game rather than as its own scene. It then
@@ -79,6 +80,8 @@ public partial class FranchiseScreen : Control
     public override void _UnhandledInput(InputEvent @event)
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
+
+        if (_selected == null && _tab == Tab.Roster && _roster.Wheel(@event)) { QueueRedraw(); return; }
 
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
@@ -172,11 +175,24 @@ public partial class FranchiseScreen : Control
             .ThenByDescending(p => p.Overall)
             .ToList();
 
-        float y = 56f;
-        int rows = Mathf.FloorToInt((panel.Size.Y - 70f) / 26f);
+        // The roster scrolls rather than being cut off at whatever fits. A club carries twenty-six
+        // men and more in a week when several written players land on it; the old code took as
+        // many as the panel had room for and the rest were not on the screen at all — not hidden,
+        // not paged, simply absent, with nothing saying so.
+        // Far enough below the header band that a portrait — which is drawn seventeen pixels
+        // above its row's baseline — cannot poke out from under it.
+        float top = panel.Position.Y + 70f;
+        float floor = panel.End.Y - 26f;
+        float y = _roster.Begin(top, floor) - panel.Position.Y;
 
-        foreach (var p in ordered.Take(rows))
+        foreach (var p in ordered)
         {
+            // Rows outside the band are skipped rather than drawn and painted over. Covering them
+            // afterwards only works while the content stays inside the panel, and a roster
+            // scrolled up does not — it was being drawn across the club name and the tabs.
+            float at = panel.Position.Y + y;
+            if (at < top || at > floor) { y += 26f; continue; }
+
             var row = new Rect2(panel.Position + new Vector2(12f, y - 14f), new Vector2(panel.Size.X - 24f, 24f));
             if (p == _selected) DrawRect(row, Palette.PanelLight);
 
@@ -228,8 +244,13 @@ public partial class FranchiseScreen : Control
             y += 26f;
         }
 
+        _roster.End(y + panel.Position.Y);
+
+        _roster.Draw(this, panel.End.X - 14f, top, floor);
+
         Palette.Text(this, panel.Position + new Vector2(20f, panel.Size.Y - 16f),
-            "Click a player for his card.", 12, Palette.InkDim);
+            _roster.Overflows ? "Click a player for his card  ·  scroll for the rest of the roster"
+                              : "Click a player for his card.", 12, Palette.InkDim);
     }
 
     // -----------------------------------------------------------------------
@@ -404,7 +425,10 @@ public partial class FranchiseScreen : Control
         Palette.Text(this, card.Position + new Vector2(textX - card.Position.X, y),
             $"{p.Archetype} · {p.PotentialGrade}", 11, Palette.InkDim);
 
-        y = frame.End.Y - card.Position.Y + 18f;
+        // Below whichever ran longer, the portrait or the paragraph beside it. Taking the portrait
+        // alone put the archetype line straight through the traits line underneath it whenever the
+        // biography was short, which is most of them.
+        y = Mathf.Max(y + 16f, frame.End.Y - card.Position.Y + 14f);
 
         if (p.IsInjured)
         {

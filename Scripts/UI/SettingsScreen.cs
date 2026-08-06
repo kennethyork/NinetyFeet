@@ -24,6 +24,7 @@ public partial class SettingsScreen : Control
     };
 
     private readonly ClickMap _clicks = new();
+    private readonly Scroller _scroll = new();
 
     public override void _Ready()
     {
@@ -38,14 +39,23 @@ public partial class SettingsScreen : Control
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
 
+        if (_scroll.Wheel(@event)) { QueueRedraw(); return; }
+
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             if (_clicks.Click(mb.Position)) QueueRedraw();
             return;
         }
 
-        if (@event is InputEventKey { Pressed: true, PhysicalKeycode: Key.Escape or Key.Backspace })
+        if (@event is not InputEventKey { Pressed: true } key) return;
+
+        if (key.PhysicalKeycode is Key.Escape or Key.Backspace)
+        {
             Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+            return;
+        }
+
+        if (_scroll.Key(key.PhysicalKeycode)) QueueRedraw();
     }
 
     public override void _Draw()
@@ -54,14 +64,13 @@ public partial class SettingsScreen : Control
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
         _clicks.Begin();
 
-        Palette.Text(this, new Vector2(40f, 46f), "SETTINGS", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
-            "Changes apply to the next league you start, except sound, which is immediate.",
-            13, Palette.InkDim);
-        Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+        // The rows are drawn first and the header over them afterwards, because nothing here
+        // clips: a row scrolled above the top would otherwise print straight through the title.
+        const float Top = 116f;
+        float bottom = size.Y - 40f;
 
         var g = Game.Instance;
-        float y = 116f;
+        float y = _scroll.Begin(Top, bottom);
 
         // --- The game itself ---
         Section("THE GAME", ref y);
@@ -158,9 +167,8 @@ public partial class SettingsScreen : Control
                   + "  ·  a new league only; this one is already built",
             ref y, () => Settings.SaveWrittenPlayers(!written));
 
-        Row("Player names", Data.Rosters.Status(),
-            "Your own names, from a text file. Write a blank one from the club editor, fill it"
-            + " in, then start a new league — or apply it to this one from the same screen.",
+        Row("Player names", Data.Rosters.Any ? $"{Data.Rosters.Count} supplied" : "As generated",
+            Data.Rosters.Status() + "  ·  write a blank file from the club editor",
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
 
         int po = Settings.PlayoffLength();
@@ -199,8 +207,24 @@ public partial class SettingsScreen : Control
         Row("Music", Music.Instance is { Enabled: true } ? "On" : "Off", "", ref y,
             () => Music.Instance?.SetEnabled(!(Music.Instance?.Enabled ?? false)));
 
-        Palette.Text(this, new Vector2(40f, size.Y - 28f),
-            "Controls are listed on their own screen from the main menu.", 12, Palette.InkDim);
+        _scroll.End(y);
+
+        // Header and footer last, over the top of anything that scrolled up behind them.
+        DrawRect(new Rect2(0f, 0f, size.X, Top - 8f), Palette.Night);
+        DrawRect(new Rect2(0f, bottom, size.X, size.Y - bottom), Palette.Night);
+
+        Palette.Text(this, new Vector2(40f, 46f), "SETTINGS", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(40f, 70f),
+            "Changes apply to the next league you start, except sound, which is immediate.",
+            13, Palette.InkDim);
+        Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+
+        _scroll.Draw(this, Mathf.Min(872f, size.X - 32f), Top, bottom);
+
+        Palette.Text(this, new Vector2(40f, size.Y - 14f),
+            _scroll.Overflows
+                ? "Controls are on their own screen  ·  scroll for more"
+                : "Controls are listed on their own screen from the main menu.", 12, Palette.InkDim);
     }
 
     private void Section(string title, ref float y)
@@ -219,8 +243,16 @@ public partial class SettingsScreen : Control
         Palette.Text(this, rect.Position + new Vector2(16f, 26f), label, 15, Palette.Ink);
         Palette.Text(this, rect.Position + new Vector2(250f, 26f), value, 15, Palette.Highlight);
 
+        // The note starts after the value rather than at a fixed column. A value longer than the
+        // gap — "no user://rosters.txt — nobody has been renamed" is one — was printed straight
+        // through its own explanation, and neither half could be read.
         if (!string.IsNullOrEmpty(note))
-            Palette.Text(this, rect.Position + new Vector2(400f, 26f), note, 11, Palette.InkDim);
+        {
+            float noteX = Mathf.Max(400f, 250f + Palette.TextWidth(value, 15) + 18f);
+            float room = rect.Size.X - noteX - 12f;
+            Palette.Text(this, rect.Position + new Vector2(noteX, 26f),
+                Palette.Fit(note, 11, room), 11, Palette.InkDim);
+        }
 
         _clicks.Add(rect, onClick);
         y += 48f;

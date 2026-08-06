@@ -1178,6 +1178,12 @@ public partial class Game : Node
         int sceneArg = System.Array.IndexOf(args, "--scene");
         if (sceneArg >= 0 && sceneArg + 1 < args.Length) runner.Scene = args[sceneArg + 1];
 
+        int clickArg = System.Array.IndexOf(args, "--click");
+        if (clickArg >= 0 && clickArg + 2 < args.Length
+            && float.TryParse(args[clickArg + 1], out float cx)
+            && float.TryParse(args[clickArg + 2], out float cy))
+            runner.Click = new Vector2(cx, cy);
+
         int afterArg = System.Array.IndexOf(args, "--after");
         if (afterArg >= 0 && afterArg + 1 < args.Length && float.TryParse(args[afterArg + 1], out float wait))
             runner.StartAfter = Mathf.Clamp(wait, 0f, 120f);

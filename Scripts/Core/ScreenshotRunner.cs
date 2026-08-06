@@ -20,6 +20,7 @@ public partial class ScreenshotRunner : Node
     private float _timer;
     private int _taken;
     private bool _started;
+    private bool _clicked;
 
     public override void _Ready()
     {
@@ -37,6 +38,16 @@ public partial class ScreenshotRunner : Node
     /// to connect first, and going there early captures the offline season instead.
     /// </summary>
     public float StartAfter;
+
+    /// <summary>
+    /// A click to post once the scene is up, in viewport pixels, or negative for none.
+    ///
+    /// Several screens in this game only show their most important panel after you select
+    /// something — a player card, a trade offer, a box score — and a capture run could never reach
+    /// any of them. So the layouts most likely to be wrong were the ones that could not be
+    /// checked, which is precisely backwards.
+    /// </summary>
+    public Vector2 Click = new(-1f, -1f);
 
     public override void _Process(double delta)
     {
@@ -57,6 +68,19 @@ public partial class ScreenshotRunner : Node
         }
 
         _timer += (float)delta;
+
+        // Posted once, a beat after the scene is up so it has drawn and registered its hit boxes.
+        if (Click.X >= 0f && _timer > Interval * 0.5f && !_clicked)
+        {
+            _clicked = true;
+            foreach (bool down in new[] { true, false })
+                Input.ParseInputEvent(new InputEventMouseButton
+                {
+                    Position = Click, GlobalPosition = Click,
+                    ButtonIndex = MouseButton.Left, Pressed = down,
+                });
+        }
+
         if (_timer < Interval) return;
         _timer = 0f;
 

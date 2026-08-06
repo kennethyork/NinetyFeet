@@ -174,6 +174,14 @@ public partial class TeamSelect : Control
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
         _clicks.Begin();
 
+        // Escape has always worked here and nothing on screen said so. A way out you have to
+        // already know about is not a way out.
+        Palette.BackButton(this, size, _clicks, () =>
+        {
+            if (_stage == Stage.Away) Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+            else { _stage = Stage.Away; QueueRedraw(); }
+        });
+
         string title = _stage switch
         {
             Stage.Away => "CHOOSE THE VISITORS",

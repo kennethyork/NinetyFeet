@@ -43,25 +43,52 @@ public partial class ControlsScreen : Control
         ("", "- / =", "Volume down / up"),
     };
 
-    public override void _Ready() => SetAnchorsPreset(LayoutPreset.FullRect);
+    private readonly ClickMap _clicks = new();
+    private readonly Scroller _scroll = new();
+
+    public override void _Ready()
+    {
+        SetAnchorsPreset(LayoutPreset.FullRect);
+
+        // Without this the Control swallows every mouse event and the back button is a picture.
+        MouseFilter = MouseFilterEnum.Ignore;
+    }
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is InputEventKey { Pressed: true } key &&
-            key.PhysicalKeycode is Key.Escape or Key.Enter or Key.Space or Key.Backspace)
+        if (_scroll.Wheel(@event)) { QueueRedraw(); return; }
+
+        if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
+        {
+            if (_clicks.Click(mb.Position)) QueueRedraw();
+            return;
+        }
+
+        if (@event is not InputEventKey { Pressed: true } key) return;
+
+        if (key.PhysicalKeycode is Key.Escape or Key.Enter or Key.Space or Key.Backspace)
+        {
             Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+            return;
+        }
+
+        if (_scroll.Key(key.PhysicalKeycode)) QueueRedraw();
     }
 
     public override void _Draw()
     {
         Vector2 size = GetViewportRect().Size;
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
+        _clicks.Begin();
 
         float x = size.X * 0.5f - 300f;
-        float y = 90f;
 
-        Palette.Text(this, new Vector2(x, y), "CONTROLS", 30, Palette.Ink);
-        y += 48f;
+        // Twenty-odd rows at thirty pixels apiece is taller than a short window, and the ones
+        // past the bottom were simply unreachable — on the one screen whose entire job is telling
+        // you which key does what.
+        const float Top = 138f;
+        float bottom = size.Y - 56f;
+        float y = _scroll.Begin(Top, bottom);
 
         foreach (var (section, key, what) in Rows)
         {
@@ -79,6 +106,18 @@ public partial class ControlsScreen : Control
             y += 30f;
         }
 
-        Palette.Text(this, new Vector2(x, size.Y - 50f), "Press Esc or Space to go back", 15, Palette.InkDim);
+        _scroll.End(y);
+
+        // Header and footer over the top, since nothing here clips.
+        DrawRect(new Rect2(0f, 0f, size.X, Top - 10f), Palette.Night);
+        DrawRect(new Rect2(0f, bottom, size.X, size.Y - bottom), Palette.Night);
+
+        Palette.Text(this, new Vector2(x, 108f), "CONTROLS", 30, Palette.Ink);
+        Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+        _scroll.Draw(this, x + 600f, Top, bottom);
+
+        Palette.Text(this, new Vector2(x, size.Y - 26f),
+            _scroll.Overflows ? "Scroll for the rest  ·  Esc or Space to go back"
+                              : "Press Esc or Space to go back", 15, Palette.InkDim);
     }
 }

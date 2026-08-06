@@ -39,6 +39,26 @@ public static class Palette
     }
 
     /// <summary>
+    /// A string trimmed to fit a pixel width, with an ellipsis if anything was lost.
+    ///
+    /// Screens here draw at fixed positions with no clipping, so a string that is too long does
+    /// not overflow tidily — it prints across whatever is beside it and both become unreadable.
+    /// </summary>
+    public static string Fit(string text, int size, float width)
+    {
+        if (string.IsNullOrEmpty(text) || width <= 8f) return "";
+        if (TextWidth(text, size) <= width) return text;
+
+        for (int keep = text.Length - 1; keep > 1; keep--)
+        {
+            string cut = text[..keep].TrimEnd() + "…";
+            if (TextWidth(cut, size) <= width) return cut;
+        }
+
+        return "…";
+    }
+
+    /// <summary>
     /// A paragraph inside a given width, returning the y it finished on.
     ///
     /// Every screen in this game draws single lines at fixed positions, which is fine for a
