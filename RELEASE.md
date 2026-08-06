@@ -24,7 +24,7 @@ Checksums, so a buyer can tell a good download from a truncated one:
 
 ```
 d9ca71a8aed5856f04006320b5c9c1f20980bce3606fb59651024485d9c1f8c7  NinetyFeet-linux-x86_64.zip
-242a206b7671730acec043c88a447a70992bc1b42ba0b8a589b395320f2a1d83  NinetyFeet-windows-x86_64.zip
+c47d2a6124c54125b19a4c1c8e399967469472f4f2bd24f724342828960e845d  NinetyFeet-windows-x86_64.zip
 49f47ef85ec4c198e7d4c9b5b86bb1a1bcb40ca480db3f28c033d47917f83ef9  NinetyFeet-x86_64.AppImage
 ```
 
@@ -39,6 +39,11 @@ godot471cs --headless --export-release "Windows x86_64" build/windows/NinetyFeet
 `SandlotSlugfest.sln` has to exist. Without it the export completes, reports success, exits zero,
 and writes a binary with none of the game's C# in it — a program that opens a window and does
 nothing. The error is buried in the log among the progress lines. Check the log, not the exit code.
+
+**The Windows build is made by CI, not here.** `.github/workflows/windows.yml` builds it on a real
+Windows runner and then *runs* it, requiring forty games through the out audit before the artifact
+is uploaded. A build exported from Linux and never started is not a build anybody should be
+charged for; the zip in `dist/` is the one that came off that job and passed.
 
 ## Selling it from your own site, today
 
