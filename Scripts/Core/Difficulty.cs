@@ -180,6 +180,21 @@ public static class Settings
             : DisplayServer.WindowMode.Windowed);
     }
 
+    public static bool ResumeSelectionExists(string section)
+    {
+        var cfg = new ConfigFile();
+        return cfg.Load(Path) == Error.Ok && cfg.HasSection(section);
+    }
+
+    public static void DeleteResumeSelection(string section)
+    {
+        if (section is not ("exhibition" or "online")) return;
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok || !cfg.HasSection(section)) return;
+        cfg.EraseSection(section);
+        cfg.Save(Path);
+    }
+
     public static Difficulty LoadDifficulty()
     {
         var cfg = new ConfigFile();

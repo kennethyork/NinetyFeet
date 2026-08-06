@@ -19,4 +19,6 @@ godot --path . -- --shot marketing/screenshots/moments 1 1 \
 
 `--textfit` performs one layout report before each image. Settings uses a custom manually clipped
 scroller, so the checker also sees intentionally off-screen rows; inspect its visible PNG alongside
-the report. Never capture private IP addresses or third-party roster content.
+the report. `--scroll N`, `--controller-nav N` and `--touch` exercise scrolled, controller-focused
+and touch-converted states before capture. Never capture private IP addresses or third-party roster
+content.

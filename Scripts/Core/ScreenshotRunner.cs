@@ -24,6 +24,12 @@ public partial class ScreenshotRunner : Node
     private bool _clicked;
     private bool _watching;
     private bool _checkedThisShot;
+    private bool _scrolled;
+    private int _controllerSent;
+
+    /// <summary>Mouse-wheel notches to post before capture; positive moves down.</summary>
+    public int ScrollSteps;
+    public int ControllerSteps;
 
     public override void _Ready()
     {
@@ -51,6 +57,7 @@ public partial class ScreenshotRunner : Node
     /// checked, which is precisely backwards.
     /// </summary>
     public Vector2 Click = new(-1f, -1f);
+    public bool SimulateTouch;
 
     /// <summary>Report text that runs off the screen or across other text, per capture.</summary>
     public bool CheckText;
@@ -88,16 +95,44 @@ public partial class ScreenshotRunner : Node
 
         _timer += (float)delta;
 
+        if (ControllerSteps != 0 && _controllerSent < Mathf.Abs(ControllerSteps)
+            && _timer > Interval * 0.25f)
+        {
+            var button = ControllerSteps > 0 ? JoyButton.DpadDown : JoyButton.DpadUp;
+            Input.ParseInputEvent(new InputEventJoypadButton
+                { ButtonIndex = button, Pressed = true });
+            Input.ParseInputEvent(new InputEventJoypadButton
+                { ButtonIndex = button, Pressed = false });
+            _controllerSent++;
+            if (_controllerSent >= Mathf.Abs(ControllerSteps)) _scrolled = true;
+            return;
+        }
+
+        if (ScrollSteps != 0 && ControllerSteps == 0 && !_scrolled && _timer > Interval * 0.25f)
+        {
+            _scrolled = true;
+            var button = ScrollSteps > 0 ? MouseButton.WheelDown : MouseButton.WheelUp;
+            for (int n = 0; n < Mathf.Abs(ScrollSteps); n++)
+                Input.ParseInputEvent(new InputEventMouseButton
+                {
+                    Position = GetViewport().GetVisibleRect().Size * 0.5f,
+                    ButtonIndex = button,
+                    Pressed = true,
+                });
+        }
+
         // Posted once, a beat after the scene is up so it has drawn and registered its hit boxes.
         if (Click.X >= 0f && _timer > Interval * 0.5f && !_clicked)
         {
             _clicked = true;
             foreach (bool down in new[] { true, false })
-                Input.ParseInputEvent(new InputEventMouseButton
-                {
-                    Position = Click, GlobalPosition = Click,
-                    ButtonIndex = MouseButton.Left, Pressed = down,
-                });
+                Input.ParseInputEvent(SimulateTouch
+                    ? new InputEventScreenTouch { Index = 0, Position = Click, Pressed = down }
+                    : new InputEventMouseButton
+                    {
+                        Position = Click, GlobalPosition = Click,
+                        ButtonIndex = MouseButton.Left, Pressed = down,
+                    });
         }
 
         if (_timer < Interval) return;

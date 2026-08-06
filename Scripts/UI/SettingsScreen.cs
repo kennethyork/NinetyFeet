@@ -25,7 +25,7 @@ public partial class SettingsScreen : Control
 
     private readonly ClickMap _clicks = new();
     private readonly Scroller _scroll = new();
-    private bool _deleteLeagueArmed;
+    private string _armedReset = "";
 
     public override void _Ready()
     {
@@ -41,7 +41,12 @@ public partial class SettingsScreen : Control
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
 
         if (_clicks.Controller(@event, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn")))
-        { QueueRedraw(); return; }
+        {
+            if (_clicks.FocusedRect is Rect2 focused)
+                _scroll.Reveal(focused, 116f, GetViewportRect().Size.Y - 40f);
+            QueueRedraw();
+            return;
+        }
 
         if (_scroll.Wheel(@event)) { QueueRedraw(); return; }
 
@@ -192,24 +197,29 @@ public partial class SettingsScreen : Control
             () => Game.Instance.SwitchLeague(
                 (Season.SaveGame.Slot + 1) % Season.SaveGame.Slots));
 
-        bool hasLeague = SaveGame.Occupied(SaveGame.Slot);
-        Row("Delete saved league",
-            !hasLeague ? "No save in this slot" : _deleteLeagueArmed ? "TAP AGAIN TO DELETE" : "Delete",
-            !hasLeague ? "Start a season or dynasty to create one."
-                : _deleteLeagueArmed ? "This permanently removes the current slot."
-                : "Removes it from Season and Dynasty. Tap twice so this cannot happen by accident.",
-            ref y,
-            () =>
-            {
-                if (!SaveGame.Occupied(SaveGame.Slot)) { _deleteLeagueArmed = false; return; }
-                if (!_deleteLeagueArmed) { _deleteLeagueArmed = true; return; }
-                SaveGame.Delete();
-                _deleteLeagueArmed = false;
-            });
-
         Row("Clubs", edited == 0 ? "As they shipped" : $"{edited} edited",
             "Rename and recolour. Nothing here changes how a club plays.",
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
+
+        y += 14f;
+        Section("SAVED MODES", ref y);
+        ResetRow("Season / Dynasty", "league", SaveGame.Occupied(SaveGame.Slot),
+            $"Deletes league slot {SaveGame.Slot + 1}, including its recovery backup.",
+            SaveGame.Delete, ref y);
+        ResetRow("Career", "career", CareerState.Exists(),
+            "Deletes the current player's career and journal.", CareerState.Delete, ref y);
+        ResetRow("Collection", "collection", Cards.Collection.Exists(),
+            "Deletes cards, coins, lineups, missions and the recovery backup.",
+            Cards.Collection.Delete, ref y);
+        ResetRow("Moments", "moments", Gameplay.Moments.ProgressExists(),
+            "Deletes attempts, wins, rewards record and the selected Moment.",
+            Gameplay.Moments.DeleteProgress, ref y);
+        ResetRow("Exhibition", "exhibition", Settings.ResumeSelectionExists("exhibition"),
+            "Forgets the matchup, innings, control mode and fielding choice.",
+            () => Settings.DeleteResumeSelection("exhibition"), ref y);
+        ResetRow("Online", "online", Settings.ResumeSelectionExists("online"),
+            "Forgets the address, match type, club and shared seed.",
+            () => Settings.DeleteResumeSelection("online"), ref y);
 
         y += 14f;
         Section("ACCESSIBILITY", ref y);
@@ -272,6 +282,24 @@ public partial class SettingsScreen : Control
             apply(next);
             QueueRedraw();
         });
+    }
+
+    private void ResetRow(string label, string key, bool exists, string note,
+        System.Action delete, ref float y)
+    {
+        bool armed = _armedReset == key;
+        Row(label, !exists ? "Nothing saved" : armed ? "CONFIRM DELETE" : "Delete",
+            !exists ? "This mode will remember progress after it is used."
+                : armed ? $"Permanently delete {label}? Activate once more."
+                : note,
+            ref y, () =>
+            {
+                if (!exists) { _armedReset = ""; return; }
+                if (_armedReset != key) { _armedReset = key; return; }
+                delete();
+                _armedReset = "";
+                QueueRedraw();
+            });
     }
 
     private void Section(string title, ref float y)

@@ -21,6 +21,8 @@ Exercise Exhibition, Season, Dynasty, Career, Collection, Moments and Online sep
 distinctive selection or change in each, close the process without returning to the main menu, and
 confirm every mode resumes its own state. For league modes, complete a trade and a game, then test
 both the primary save and recovery from a deliberately damaged copy on a disposable profile.
+Reset each entry under **Settings → Saved Modes** and confirm that only that mode starts fresh;
+confirming one reset must not change another mode or general accessibility, display or sound settings.
 
 ## Gameplay and accessibility checks
 

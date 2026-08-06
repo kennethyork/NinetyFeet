@@ -1256,6 +1256,7 @@ public partial class Game : Node
 
         runner.HumanBats = System.Array.IndexOf(args, "--bat") >= 0;
         runner.CheckText = System.Array.IndexOf(args, "--textfit") >= 0;
+        runner.SimulateTouch = System.Array.IndexOf(args, "--touch") >= 0;
 
         int sceneArg = System.Array.IndexOf(args, "--scene");
         if (sceneArg >= 0 && sceneArg + 1 < args.Length) runner.Scene = args[sceneArg + 1];
@@ -1269,6 +1270,19 @@ public partial class Game : Node
         int afterArg = System.Array.IndexOf(args, "--after");
         if (afterArg >= 0 && afterArg + 1 < args.Length && float.TryParse(args[afterArg + 1], out float wait))
             runner.StartAfter = Mathf.Clamp(wait, 0f, 120f);
+
+        int scrollArg = System.Array.IndexOf(args, "--scroll");
+        if (scrollArg >= 0 && scrollArg + 1 < args.Length
+            && int.TryParse(args[scrollArg + 1], out int steps))
+            runner.ScrollSteps = Mathf.Clamp(steps, -100, 100);
+
+        int navArg = System.Array.IndexOf(args, "--controller-nav");
+        if (navArg >= 0 && navArg + 1 < args.Length
+            && int.TryParse(args[navArg + 1], out int navSteps))
+        {
+            runner.ControllerSteps = Mathf.Clamp(navSteps, -100, 100);
+            runner.ScrollSteps = runner.ControllerSteps;
+        }
 
         // Lets a capture run pick the matchup, so different ballparks can be compared.
         int homeArg = System.Array.IndexOf(args, "--home");

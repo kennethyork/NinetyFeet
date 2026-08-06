@@ -330,6 +330,16 @@ public static class Collection
     /// </summary>
     private const string Backup = "user://cards.backup.json";
 
+    public static bool Exists() => FileAccess.FileExists(Path) || FileAccess.FileExists(Backup);
+
+    public static void Delete()
+    {
+        foreach (string path in new[] { Path, Backup })
+            if (FileAccess.FileExists(path))
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+        Load();
+    }
+
     public static void Save()
     {
         // Roll the last good file aside before overwriting it.

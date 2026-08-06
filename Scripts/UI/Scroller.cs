@@ -55,6 +55,13 @@ public sealed class Scroller
     public void By(float pixels) => Offset = Mathf.Clamp(Offset + pixels, 0f, Max);
     public void Home() => Offset = 0f;
 
+    /// <summary>Moves only far enough to keep a controller-focused drawn row in view.</summary>
+    public void Reveal(Rect2 rect, float top, float bottom)
+    {
+        if (rect.Position.Y < top) By(rect.Position.Y - top);
+        else if (rect.End.Y > bottom) By(rect.End.Y - bottom);
+    }
+
     /// <summary>Handles a wheel event. Returns true if it was one, so the caller can redraw.</summary>
     public bool Wheel(InputEvent e)
     {

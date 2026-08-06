@@ -65,6 +65,10 @@ public sealed class ClickMap
     {
         if (_items.Count == 0) return;
         _focus = Mathf.Clamp(_focus, 0, _items.Count - 1);
-        canvas.DrawRect(_items[_focus].Rect.Grow(2f), color, false, 3f);
+            canvas.DrawRect(_items[_focus].Rect.Grow(2f), color, false, 3f);
     }
+
+    public Rect2? FocusedRect => _items.Count == 0
+        ? null
+        : _items[Mathf.Clamp(_focus, 0, _items.Count - 1)].Rect;
 }

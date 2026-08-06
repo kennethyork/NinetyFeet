@@ -76,7 +76,9 @@ decorative motion and optional controller vibration.
 
 Ninety Feet saves established leagues during screen changes and when the application is paused,
 unfocused or closed. Accepted trades and completed games save immediately. Automatic resume can be
-disabled only by deleting the relevant save from **Settings**.
+disabled only by deleting the relevant mode from **Settings → Saved Modes**. Season/Dynasty,
+Career, Collection, Moments, Exhibition and Online are reset separately, with two activations
+required so one mistaken tap cannot erase progress.
 
 Godot stores player data outside the installation directory:
 
