@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ninety Feet — arcade baseball on an honest simulation</title>
+<meta name="description" content="Arcade baseball on an honest simulation. Every rate measured against 87,799 real major-league pitches. Linux and Windows, $19.99.">
+<style>
+  :root {
+    --ink: #eef3f8;
+    --dim: #9fb0c2;
+    --night: #131a22;
+    --panel: #1c2632;
+    --line: #2b3948;
+    --gold: #e8b04b;
+    --clay: #d4552f;
+    --grass: #2f7d43;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--ink);
+    font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 0 24px; }
+
+  header {
+    padding: 64px 0 44px;
+    border-bottom: 1px solid var(--line);
+    background:
+      radial-gradient(1100px 320px at 50% -140px, rgba(47,125,67,.30), transparent 70%),
+      linear-gradient(180deg, #16202b, var(--night));
+  }
+  h1 { font-size: clamp(38px, 8vw, 66px); margin: 0; letter-spacing: -.02em; line-height: 1; }
+  h1 .feet { color: var(--clay); }
+  .tag { color: var(--dim); font-size: clamp(16px, 2.4vw, 20px); margin: 14px 0 0; max-width: 34em; }
+
+  .buy { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 30px; }
+  .price {
+    font-size: 30px; font-weight: 700; color: var(--gold);
+    margin-right: 6px; white-space: nowrap;
+  }
+  .btn {
+    display: inline-block; padding: 13px 22px; border-radius: 8px;
+    background: var(--gold); color: #17202a; font-weight: 700; text-decoration: none;
+    border: 1px solid transparent;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.alt { background: transparent; color: var(--ink); border-color: var(--line); }
+  .btn.alt:hover { border-color: var(--dim); filter: none; }
+  .note { color: var(--dim); font-size: 13.5px; margin-top: 12px; }
+
+  section { padding: 46px 0; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 13px; letter-spacing: .13em; text-transform: uppercase; color: var(--gold); margin: 0 0 18px; }
+  p { margin: 0 0 16px; }
+  .lead { font-size: 18px; }
+
+  .grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  .card h3 { margin: 0 0 8px; font-size: 17px; }
+  .card p { color: var(--dim); margin: 0; font-size: 15px; }
+
+  .table-scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 460px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 9px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--dim); font-weight: 600; font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; }
+  td.good { color: #7ddb8a; }
+
+  footer { padding: 40px 0 70px; color: var(--dim); font-size: 14px; }
+  code {
+    background: #0e141b; border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: 13.5px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>NINETY <span class="feet">FEET</span></h1>
+    <p class="tag">Arcade baseball on an honest simulation. Aim the bat, pick the pitch, and run a
+      club for as many seasons as you like — with a league that keeps its own books.</p>
+
+    <div class="buy">
+      <span class="price">$19.99</span>
+      <!-- Point both of these at the checkout link your payment processor gives you.
+           Until then they link straight to the files, which anybody with the URL can take. -->
+      <a class="btn" data-checkout="replace-with-checkout-url"
+         href="downloads/NinetyFeet-windows-x86_64.zip">Buy for Windows</a>
+      <a class="btn alt" data-checkout="replace-with-checkout-url"
+         href="downloads/NinetyFeet-linux-x86_64.zip">Buy for Linux</a>
+    </div>
+    <p class="note">Windows x86_64 · 78&nbsp;MB &nbsp;·&nbsp; Linux x86_64 · 68&nbsp;MB &nbsp;·&nbsp;
+      no launcher, no account, no internet needed to play.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>The baseball is real</h2>
+    <p class="lead">Every rate in this game is measured against 87,799 major-league pitches from the
+      2024 season — not tuned by feel, measured, and measured again every time anything changes.</p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Per game, both clubs</th><th>Ninety Feet</th><th>MLB 2024</th><th>Difference</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Runs</td><td>8.44</td><td>8.79</td><td class="good">−4.0%</td></tr>
+          <tr><td>Hits</td><td>15.64</td><td>16.39</td><td class="good">−4.6%</td></tr>
+          <tr><td>Doubles</td><td>3.23</td><td>3.20</td><td class="good">+1.1%</td></tr>
+          <tr><td>Home runs</td><td>2.19</td><td>2.24</td><td class="good">−2.2%</td></tr>
+          <tr><td>Strikeouts</td><td>17.16</td><td>16.96</td><td class="good">+1.2%</td></tr>
+          <tr><td>Triples</td><td>0.27</td><td>0.29</td><td class="good">−6.0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>What you get</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Play it or run it</h3>
+        <p>Three ways to hit and two ways to pitch if you want the bat in your hands — or sit in the
+          office and never touch a controller. Both are the same league.</p>
+      </div>
+      <div class="card">
+        <h3>A whole organisation</h3>
+        <p>Twenty-six men on the roster and sixty-six more across three levels of farm system.
+          Contracts, arbitration, the draft, free agency, a luxury tax, injuries, morale, a hall of
+          fame.</p>
+      </div>
+      <div class="card">
+        <h3>869 different ballplayers</h3>
+        <p>No two share a name, a face, or a rating sheet — checked, not claimed. Each with a
+          biography written from his own numbers.</p>
+      </div>
+      <div class="card">
+        <h3>A season with a friend</h3>
+        <p>Two owners, one league, over the wire. Each plays his own club; the results cross, and
+          both machines check the entire league every night so a disagreement surfaces the same day.</p>
+      </div>
+      <div class="card">
+        <h3>Make it yours</h3>
+        <p>Rename and recolour any club, supply your own names for all 832 players from a text file,
+          and rebuild any ballpark down to the fence distances — a fence you move really does change
+          the baseball.</p>
+      </div>
+      <div class="card">
+        <h3>A league your size</h3>
+        <p>8, 12, 16, 20, 24, 28 or 32 clubs, drawn evenly from all four divisions. Seasons of 33,
+          81 or 162 games.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Before you buy</h2>
+    <p>No licensed clubs and no real players. All thirty-two clubs are originals in real markets and
+      every player is invented — the <em>baseball</em> is measured against the real thing, the names
+      are ours.</p>
+    <p>Keyboard and mouse. Single player, or two players online. Unzip the whole archive and keep
+      the <code>data_SandlotSlugfest</code> folder next to the program — the game will not start
+      without it.</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Made with Godot. One person and a lot of measuring.</p>
+  </div>
+</footer>
+
+</body>
+</html>
