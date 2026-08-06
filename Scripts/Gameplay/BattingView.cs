@@ -138,7 +138,12 @@ public partial class BattingView : Node2D
     public override void _Draw()
     {
         Vector2 size = GetViewportRect().Size;
-        _zoneCenter = new Vector2(size.X * 0.5f, size.Y * 0.60f);
+        // Anchored to the stage rather than the window. PixelsPerFoot is a constant so the zone
+        // itself never changes size, and the plate, the batter and the catcher all hang off this
+        // point at fixed offsets — so if it drifts with the window, the whole composition comes
+        // apart while every individual piece stays the right size. Which is what "expand scatters
+        // the batting view" meant.
+        _zoneCenter = UI.Layout.At(size, 640f, 432f);
 
         DrawBackdrop(size);
         DrawPitcher(size);
@@ -165,7 +170,7 @@ public partial class BattingView : Node2D
     {
         // _zoneCenter is set during _Draw; derive it here so this works before the first frame.
         Vector2 size = GetViewportRect().Size;
-        var center = new Vector2(size.X * 0.5f, size.Y * 0.60f);
+        var center = UI.Layout.At(size, 640f, 432f);
         return new Vector2(
             (screen.X - center.X) / PixelsPerFoot,
             2.5f - (screen.Y - center.Y) / PixelsPerFoot);
@@ -179,7 +184,10 @@ public partial class BattingView : Node2D
     private void DrawBackdrop(Vector2 size)
     {
         var park = FieldGeometry.Current;
-        float horizon = size.Y * SkyBottom;
+        // A fixed distance down the stage. Taken as a fraction of the window, a tall screen put
+        // the horizon and the mound further and further from a plate that does not move, and the
+        // field stretched into somewhere nobody could play.
+        float horizon = UI.Layout.Down(size, SkyBottom);
 
         if (park.Covered)
         {
@@ -198,8 +206,8 @@ public partial class BattingView : Node2D
         }
 
         // Outfield grass behind where the wall will sit.
-        DrawRect(new Rect2(new Vector2(0f, size.Y * SkyBottom),
-            new Vector2(size.X, size.Y * (1f - SkyBottom))), park.Grass);
+        DrawRect(new Rect2(new Vector2(0f, horizon),
+            new Vector2(size.X, size.Y - horizon)), park.Grass);
 
         // The wall itself, built from this park's real profile.
         DrawOutfieldWall(size, park);
@@ -209,7 +217,7 @@ public partial class BattingView : Node2D
         {
             float t0 = i / 10f;
             float t1 = (i + 1) / 10f;
-            float topY = size.Y * WallBottom;
+            float topY = UI.Layout.Down(size, WallBottom);
             DrawColoredPolygon(new[]
             {
                 new Vector2(Mathf.Lerp(size.X * 0.40f, size.X * 0.60f, t0), topY),
@@ -224,13 +232,12 @@ public partial class BattingView : Node2D
 
         // The mound, sitting on the grass just under the pitcher. It is kept above the strike
         // zone box so the two never sit on top of each other.
-        DrawEllipse(new Vector2(size.X * 0.5f, size.Y * 0.405f),
-            size.X * 0.10f, size.Y * 0.030f, park.Dirt.Darkened(0.18f));
+        DrawEllipse(UI.Layout.At(size, 640f, 292f), 128f, 22f, park.Dirt.Darkened(0.18f));
 
         // Park name on a hanging sign, so it stays readable against the neighbourhood.
         string sign = park.Name.ToUpperInvariant();
         float sw = Palette.TextWidth(sign, 16) + 34f;
-        var signRect = new Rect2(new Vector2(size.X * 0.5f - sw * 0.5f, size.Y * SkyBottom - 30f),
+        var signRect = new Rect2(new Vector2(size.X * 0.5f - sw * 0.5f, horizon - 30f),
             new Vector2(sw, 26f));
         DrawRect(signRect, park.Wall.Darkened(0.5f));
         DrawRect(signRect, park.WallTrim, false, 2f);
@@ -264,7 +271,7 @@ public partial class BattingView : Node2D
 
             // Deeper fence sits nearer the horizon; 300 ft is low in frame, 440 ft is high.
             float depth = Mathf.InverseLerp(300f, 440f, dist);
-            float baseY = size.Y * Mathf.Lerp(0.335f, 0.268f, Mathf.Clamp(depth, 0f, 1f));
+            float baseY = UI.Layout.Down(size, Mathf.Lerp(0.335f, 0.268f, Mathf.Clamp(depth, 0f, 1f)));
 
             // A wall further away also looks shorter, so scale height by depth as well.
             float px = wallFt * Mathf.Lerp(2.4f, 1.5f, Mathf.Clamp(depth, 0f, 1f));
@@ -311,7 +318,7 @@ public partial class BattingView : Node2D
         // A roof over a covered park, so a dome reads as a dome.
         if (park.Covered)
         {
-            float roofY = size.Y * SkyBottom;
+            float roofY = UI.Layout.Down(size, SkyBottom);
             DrawRect(new Rect2(Vector2.Zero, new Vector2(size.X, roofY)), new Color("#20242c"));
             for (int i = 0; i < 9; i++)
             {
@@ -329,7 +336,7 @@ public partial class BattingView : Node2D
     {
         const int steps = 40;
         var pts = new Vector2[steps + 3];
-        float topY = size.Y * DirtTop;
+        float topY = UI.Layout.Down(size, DirtTop);
 
         for (int i = 0; i <= steps; i++)
         {
@@ -337,7 +344,7 @@ public partial class BattingView : Node2D
             float x = Mathf.Lerp(-size.X * 0.15f, size.X * 1.15f, t);
             // A gentle rise in the middle, flattening toward the edges.
             float lift = Mathf.Sin(t * Mathf.Pi);
-            float y = topY + (1f - lift) * size.Y * 0.10f;
+            float y = topY + (1f - lift) * 72f;
             pts[i] = new Vector2(x, y);
         }
         pts[steps + 1] = new Vector2(size.X * 1.15f, size.Y);
@@ -364,7 +371,7 @@ public partial class BattingView : Node2D
         var pitcher = Scene.Situation.FieldingTeam.CurrentPitcher;
 
         // He stands on top of the mound, sixty feet away, so he is drawn small.
-        var feet = new Vector2(size.X * 0.5f, size.Y * 0.40f);
+        var feet = UI.Layout.At(size, 640f, 288f);
         // He stays in the set position until he actually starts his motion.
         var pose = Scene.Phase == AtBatPhase.PitchSelect && !Scene.Delivering
             ? Pose.Windup : Pose.Pitch;
@@ -374,7 +381,7 @@ public partial class BattingView : Node2D
         // can just be made correct, because at that distance correct is also small.
         CartoonPlayer.Draw(this, feet, 0.82f, -1f, pose, team, pitcher, _time,
             motionPhase: Scene.DeliveryPhase,
-            lookAt: new Vector2(size.X * 0.5f, size.Y * 0.92f));
+            lookAt: UI.Layout.At(size, 640f, 662f));
 
         if (Scene.Phase == AtBatPhase.PitchSelect)
         {
@@ -402,7 +409,7 @@ public partial class BattingView : Node2D
         // pick the ball up is the single thing that makes him look like he is in the at-bat.
         Vector2 watching = Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
             ? BallScreenPos()
-            : new Vector2(size.X * 0.5f, size.Y * 0.40f);
+            : UI.Layout.At(size, 640f, 288f);
 
         // The bat swings where you aimed.
         //
@@ -441,11 +448,11 @@ public partial class BattingView : Node2D
         // 21 pixels inside the bottom of the strike zone, which is exactly where a hitter is
         // trying to judge a low pitch. He frames the bottom of the shot; he does not get to stand
         // in the part of it that is being read.
-        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, size.Y + 290f), 3.0f, 1f,
+        CartoonPlayer.Draw(this, new Vector2(size.X * 0.5f, UI.Layout.Down(size, 1f) + 290f), 3.0f, 1f,
             Pose.Field, fieldTeam, catcher, _time,
             lookAt: Scene.CurrentPitch != null && Scene.Phase == AtBatPhase.PitchFlight
                 ? BallScreenPos()
-                : new Vector2(size.X * 0.5f, size.Y * 0.40f));
+                : UI.Layout.At(size, 640f, 288f));
 
         // Name plate for the hitter, out to his side so it never covers him or the zone.
         float plateX = batterAt.X + sign * 132f;

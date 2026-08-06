@@ -26,11 +26,18 @@ Music="*res://Scenes/Autoload/Music.tscn"
 
 window/size/viewport_width=1280
 window/size/viewport_height=720
+window/size/resizable=true
 window/stretch/mode="canvas_items"
-; Every screen is composed against a 1280x720 viewport using fractions of its height and
-; width. "expand" hands the layout a different aspect when the window is resized, which
-; scatters the batting view. "keep" letterboxes instead, so the composition always holds.
-window/stretch/aspect="keep"
+; Every screen is composed against 1280x720. "expand" hands the layout the window's real
+; aspect instead of letterboxing, so the game fills whatever it is given — a wider window
+; gains grass either side, a taller one gains sky and dirt, and neither ever takes room away.
+;
+; It was pinned to "keep" because expand scattered the batting view, and that was true: the
+; horizon, the mound and the wall were fractions of the window while the plate, the zone and
+; the batter hung off a fixed pixel offset, so the two halves of the composition drifted apart
+; as the shape changed. UI.Layout centres the composition in a design-sized stage and lets only
+; the backdrops fill, which is what makes expand safe here.
+window/stretch/aspect="expand"
 
 [dotnet]
 
