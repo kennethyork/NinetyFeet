@@ -11,3 +11,7 @@ dist/
 # .NET intermediates
 bin/
 obj/
+
+# Godot rewrites the csproj when it upgrades the SDK and leaves the previous one
+# beside it. Useful for a moment, not for ever.
+*.csproj.old*
