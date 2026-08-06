@@ -27,6 +27,8 @@ public static class Palette
     public static void Text(CanvasItem canvas, Vector2 at, string text, int size, Color color,
         HorizontalAlignment align = HorizontalAlignment.Left, float width = -1f)
     {
+        size = Scaled(size);
+        if (Core.Game.Instance?.HighContrast == true && color == InkDim) color = Ink;
         canvas.DrawString(Font, at, text, align, width, size, color);
         Note(at, text, size);
     }
@@ -34,6 +36,8 @@ public static class Palette
     /// <summary>Draws text centred on a point rather than aligned to a baseline box.</summary>
     public static void TextCentered(CanvasItem canvas, Vector2 center, string text, int size, Color color)
     {
+        size = Scaled(size);
+        if (Core.Game.Instance?.HighContrast == true && color == InkDim) color = Ink;
         Vector2 measured = Font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
         var at = center - new Vector2(measured.X * 0.5f, -size * 0.35f);
         canvas.DrawString(Font, at, text, HorizontalAlignment.Left, -1, size, color);
@@ -178,7 +182,9 @@ public static class Palette
     }
 
     public static float TextWidth(string text, int size) =>
-        Font.GetStringSize(text, HorizontalAlignment.Left, -1, size).X;
+        Font.GetStringSize(text, HorizontalAlignment.Left, -1, Scaled(size)).X;
+    private static int Scaled(int size) => Core.Game.Instance?.LargeText == true
+        ? Mathf.Max(size + 1, Mathf.RoundToInt(size * 1.12f)) : size;
 
     /// <summary>
     /// A washed-out copy of a club's colours, for players who are out of the play.

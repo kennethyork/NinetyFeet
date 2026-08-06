@@ -81,7 +81,7 @@ public partial class MainMenu : Control
 
     public override void _Process(double delta)
     {
-        _time += (float)delta;
+        if (!Game.Instance.ReducedMotion) _time += (float)delta;
         QueueRedraw();
     }
 

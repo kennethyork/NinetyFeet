@@ -35,7 +35,7 @@ public partial class ClubSelect : Control
         _cursor = Game.Instance.League?.UserTeamId ?? 0;
     }
 
-    public override void _Process(double delta) { _time += (float)delta; QueueRedraw(); }
+    public override void _Process(double delta) { if (!Game.Instance.ReducedMotion) _time += (float)delta; QueueRedraw(); }
 
     public override void _UnhandledInput(InputEvent @event)
     {

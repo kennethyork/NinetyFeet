@@ -56,6 +56,10 @@ public partial class Game : Node
     /// <summary>Set by the netplay self-test: the next game plays itself.</summary>
     public bool AutoPlayNextGame;
     public bool TutorialMode;
+    public bool LargeText { get; set; }
+    public bool HighContrast { get; set; }
+    public bool ReducedMotion { get; set; }
+    public bool Vibration { get; set; } = true;
     private int _innings = 9;
 
     /// <summary>Innings per game, set in Settings. Nine by default, the same as the real thing.</summary>
@@ -367,6 +371,10 @@ public partial class Game : Node
         _innings = Settings.LoadInnings();
         _seasonLength = Settings.LoadSeasonLength();
         AutoFielding = Settings.LoadAutoFielding();
+        LargeText = Settings.Accessibility("large_text");
+        HighContrast = Settings.Accessibility("high_contrast");
+        ReducedMotion = Settings.Accessibility("reduced_motion");
+        Vibration = Settings.Accessibility("vibration", true);
 
         var args = OS.GetCmdlineUserArgs();
 

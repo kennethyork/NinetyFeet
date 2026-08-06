@@ -1717,6 +1717,11 @@ public partial class GameScene : Node2D
             ? SwingResolver.ResolveBunt(batter, CurrentPitch, atProgress, cursor, ref _rng, out var ball)
             : SwingResolver.Resolve(batter, CurrentPitch, atProgress, cursor, ref _rng, out ball,
                 assist, type, timingAssist);
+        if (Game.Instance.Vibration && InputActions.GamepadConnected)
+        {
+            float strength = result == SwingResult.InPlay ? 0.55f : result == SwingResult.Foul ? 0.28f : 0.12f;
+            Input.StartJoyVibration(Input.GetConnectedJoypads()[0], strength, strength * 0.7f, 0.12f);
+        }
 
         if (HumanBatting)
         {

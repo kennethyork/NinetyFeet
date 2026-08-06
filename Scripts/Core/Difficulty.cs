@@ -143,6 +143,15 @@ public enum PitchingStyle
 public static class Settings
 {
     private const string Path = "user://settings.cfg";
+    public static bool Accessibility(string key, bool fallback = false)
+    {
+        var cfg = new ConfigFile();
+        return cfg.Load(Path) == Error.Ok ? (bool)cfg.GetValue("accessibility", key, fallback) : fallback;
+    }
+    public static void SaveAccessibility(string key, bool value)
+    {
+        var cfg = new ConfigFile(); cfg.Load(Path); cfg.SetValue("accessibility", key, value); cfg.Save(Path);
+    }
 
     public static Difficulty LoadDifficulty()
     {
