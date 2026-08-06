@@ -1174,6 +1174,7 @@ public partial class Game : Node
         if (i + 3 < args.Length && int.TryParse(args[i + 3], out int count)) runner.Count = count;
 
         runner.HumanBats = System.Array.IndexOf(args, "--bat") >= 0;
+        runner.CheckText = System.Array.IndexOf(args, "--textfit") >= 0;
 
         int sceneArg = System.Array.IndexOf(args, "--scene");
         if (sceneArg >= 0 && sceneArg + 1 < args.Length) runner.Scene = args[sceneArg + 1];

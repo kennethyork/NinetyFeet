@@ -112,7 +112,7 @@ public partial class SettingsScreen : Control
         var ps = Settings.LoadPitching();
         Row("Pitching", ps == PitchingStyle.Meter ? "Meter" : "Classic",
             ps == PitchingStyle.Meter
-                ? "Start it, stop it at the top for power, stop it on the mark for command."
+                ? "Stop it at the top for power, on the mark for command."
                 : "Pick the pitch, aim it, throw it.",
             ref y, () => Settings.SavePitching(
                 ps == PitchingStyle.Meter ? PitchingStyle.Classic : PitchingStyle.Meter));
@@ -140,15 +140,14 @@ public partial class SettingsScreen : Control
         bool dh = Settings.UseDesignatedHitter();
         Row("Designated hitter", dh ? "On" : "Off",
             dh ? "Nine hitters; the pitcher does not bat."
-               : "The pitcher bats ninth, and taking him out costs you the spot.",
+               : "The pitcher bats ninth.",
             ref y, () => Settings.SaveDesignatedHitter(!dh));
 
         int clubs = Data.Teams.ActiveCount;
         Row("Clubs in the league", $"{clubs}",
             clubs == Data.Teams.ShippedCount
-                ? "All thirty-two. Fewer means a tighter league where you meet everybody more often."
-                : $"{clubs} of thirty-two, taken evenly from all four divisions."
-                  + "  ·  a new league only; this one keeps the clubs it was built with",
+                ? "All of them. Fewer means a tighter league."
+                : $"{clubs} of 32, evenly from all four divisions.  ·  new leagues only",
             ref y, () =>
             {
                 var sizes = Data.Teams.Sizes;
@@ -161,31 +160,28 @@ public partial class SettingsScreen : Control
         bool written = Settings.UseWrittenPlayers();
         Row("Written players", written ? "In the league" : "Left out",
             written
-                ? "Ninety-six hand-written kids, three to a club, each taking a slot from a"
-                  + " generated man. Turn them off if you are supplying your own names."
-                : "Every man is generated, so a roster file fills every slot on a club."
-                  + "  ·  a new league only; this one is already built",
+                ? "Sixteen a club, each taking a generated man's slot."
+                : "Every man generated, so a roster file fills every slot.",
             ref y, () => Settings.SaveWrittenPlayers(!written));
 
         Row("Player names", Data.Rosters.Any ? $"{Data.Rosters.Count} supplied" : "As generated",
-            Data.Rosters.Status() + "  ·  write a blank file from the club editor",
+            Data.Rosters.Status(),
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
 
         int po = Settings.PlayoffLength();
         Row("Playoffs", $"Best of {po}, then {Mathf.Min(7, po + 2)}",
-            "How long October is. The best club wins a seven far more often than it wins a three.",
+            "How long October is. A seven favours the better club.",
             ref y,
             () => Settings.SavePlayoffLength(po == 3 ? 5 : po == 5 ? 7 : 3));
 
         Row("League", $"Slot {Season.SaveGame.Slot + 1} of {Season.SaveGame.Slots}",
-            Season.SaveGame.Describe(Season.SaveGame.Slot) +
-            "  ·  click to move to the next one; the one you leave is saved first",
+            Season.SaveGame.Describe(Season.SaveGame.Slot) + "  ·  the one you leave is saved",
             ref y,
             () => Game.Instance.SwitchLeague(
                 (Season.SaveGame.Slot + 1) % Season.SaveGame.Slots));
 
         Row("Clubs", edited == 0 ? "As they shipped" : $"{edited} edited",
-            "Rename and recolour any of the thirty-two. Nothing here changes how a club plays.",
+            "Rename and recolour. Nothing here changes how a club plays.",
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
 
         // --- Sound ---
@@ -215,7 +211,7 @@ public partial class SettingsScreen : Control
 
         Palette.Text(this, new Vector2(40f, 46f), "SETTINGS", 26, Palette.Ink);
         Palette.Text(this, new Vector2(40f, 70f),
-            "Changes apply to the next league you start, except sound, which is immediate.",
+            "Changes apply to your next league. Sound is immediate.",
             13, Palette.InkDim);
         Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
 

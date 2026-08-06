@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 
 namespace SandlotSlugfest.Core;
@@ -21,6 +22,7 @@ public partial class ScreenshotRunner : Node
     private int _taken;
     private bool _started;
     private bool _clicked;
+    private bool _watching;
 
     public override void _Ready()
     {
@@ -49,6 +51,9 @@ public partial class ScreenshotRunner : Node
     /// </summary>
     public Vector2 Click = new(-1f, -1f);
 
+    /// <summary>Report text that runs off the screen or across other text, per capture.</summary>
+    public bool CheckText;
+
     public override void _Process(double delta)
     {
         if (!_started)
@@ -67,6 +72,18 @@ public partial class ScreenshotRunner : Node
             return;
         }
 
+        // Read the frame immediately after the watch was opened, so exactly one screen's worth of
+        // text is in the list.
+        if (_watching)
+        {
+            _watching = false;
+            var faults = UI.Palette.Report(GetViewport().GetVisibleRect().Size);
+            GD.Print(faults.Count == 0
+                ? $"  [text] {Scene}: everything fits"
+                : $"  [text] {Scene}: {faults.Count} problems");
+            foreach (string f in faults.Distinct().Take(12)) GD.Print($"      {f}");
+        }
+
         _timer += (float)delta;
 
         // Posted once, a beat after the scene is up so it has drawn and registered its hit boxes.
@@ -83,6 +100,16 @@ public partial class ScreenshotRunner : Node
 
         if (_timer < Interval) return;
         _timer = 0f;
+
+        if (CheckText && !_watching)
+        {
+            // Opened here and read on the very next frame, below. A whole capture interval of
+            // frames would pile every redraw into one list — the title screen reported five
+            // thousand overlaps, which was thirteen strings counted four hundred times.
+            UI.Palette.BeginWatch();
+            _watching = true;
+            return;
+        }
 
         var image = GetViewport().GetTexture().GetImage();
         string path = $"{Directory}/shot_{_taken:D2}.png";

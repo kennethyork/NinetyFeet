@@ -28,15 +28,91 @@ public static class Palette
         HorizontalAlignment align = HorizontalAlignment.Left, float width = -1f)
     {
         canvas.DrawString(Font, at, text, align, width, size, color);
+        Note(at, text, size);
     }
 
     /// <summary>Draws text centred on a point rather than aligned to a baseline box.</summary>
     public static void TextCentered(CanvasItem canvas, Vector2 center, string text, int size, Color color)
     {
         Vector2 measured = Font.GetStringSize(text, HorizontalAlignment.Left, -1, size);
-        canvas.DrawString(Font, center - new Vector2(measured.X * 0.5f, -size * 0.35f),
-            text, HorizontalAlignment.Left, -1, size, color);
+        var at = center - new Vector2(measured.X * 0.5f, -size * 0.35f);
+        canvas.DrawString(Font, at, text, HorizontalAlignment.Left, -1, size, color);
+        Note(at, text, size);
     }
+
+    // -----------------------------------------------------------------------
+    // Does the text fit?
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// Watches where every string is actually drawn, so "does it all fit" can be measured.
+    ///
+    /// Screens here draw at fixed positions with no clipping and no layout engine, so a label
+    /// that outgrows its column does not wrap or truncate — it prints straight across whatever is
+    /// beside it, and both become unreadable. Nothing warns. It is found by somebody looking at
+    /// the screen, which means it is found on the screens people look at and never on the rest.
+    ///
+    /// Two faults are worth catching and both are objective: a string drawn off the edge of the
+    /// viewport, and two strings whose boxes overlap. The second has one honest exception — this
+    /// game draws drop shadows by printing the same words twice a pixel apart — so identical text
+    /// overlapping itself is not reported.
+    /// </summary>
+    public static bool Watching;
+
+    private static readonly System.Collections.Generic.List<(Rect2 Box, string What, int Size)> Seen = new();
+
+    private static void Note(Vector2 at, string text, int size)
+    {
+        if (!Watching || string.IsNullOrWhiteSpace(text)) return;
+
+        // DrawString takes a baseline, so the box sits above the point it was given.
+        float w = TextWidth(text, size);
+        Seen.Add((new Rect2(at.X, at.Y - size * 0.82f, w, size * 1.05f), text, size));
+    }
+
+    public static void BeginWatch()
+    {
+        Seen.Clear();
+        Watching = true;
+    }
+
+    /// <summary>What did not fit, worst first. Empty when everything did.</summary>
+    public static System.Collections.Generic.List<string> Report(Vector2 viewport)
+    {
+        Watching = false;
+        var faults = new System.Collections.Generic.List<string>();
+
+        foreach (var (box, what, _) in Seen)
+        {
+            if (box.End.X > viewport.X + 1f)
+                faults.Add($"off the right edge by {box.End.X - viewport.X:0} px: \"{Short(what)}\"");
+            else if (box.Position.X < -1f)
+                faults.Add($"off the left edge by {-box.Position.X:0} px: \"{Short(what)}\"");
+            else if (box.End.Y > viewport.Y + 1f)
+                faults.Add($"below the bottom by {box.End.Y - viewport.Y:0} px: \"{Short(what)}\"");
+        }
+
+        for (int i = 0; i < Seen.Count; i++)
+            for (int j = i + 1; j < Seen.Count; j++)
+            {
+                var a = Seen[i];
+                var b = Seen[j];
+
+                // A drop shadow is the same words printed twice a pixel apart, on purpose.
+                if (a.What == b.What) continue;
+                if (!a.Box.Intersects(b.Box)) continue;
+
+                var over = a.Box.Intersection(b.Box);
+                if (over.Size.X < 3f || over.Size.Y < 3f) continue;
+
+                faults.Add($"{over.Size.X:0} px of overlap: \"{Short(a.What)}\" across \"{Short(b.What)}\"");
+            }
+
+        Seen.Clear();
+        return faults;
+    }
+
+    private static string Short(string s) => s.Length <= 42 ? s : s[..40] + "…";
 
     /// <summary>
     /// A string trimmed to fit a pixel width, with an ellipsis if anything was lost.
