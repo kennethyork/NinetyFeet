@@ -86,14 +86,15 @@
 
     <div class="buy">
       <span class="price">$19.99</span>
-      <button class="btn" id="pick-windows" aria-pressed="true">Windows</button>
-      <button class="btn alt" id="pick-linux" aria-pressed="false">Linux</button>
-      <button class="btn" id="buy">Buy — $19.99</button>
-    </div>
 
-    <div id="done" hidden>
-      <a class="btn" id="download-link" href="#">Download Ninety Feet</a>
-      <p class="note" id="done-note"></p>
+      <!-- Replace YOURNAME and the two permalinks with your own from Gumroad. The overlay
+           keeps checkout on this page; the file, the receipt and the download link are
+           Gumroad's problem, which is the point of using it. -->
+      <a class="btn gumroad-button" href="https://YOURNAME.gumroad.com/l/ninetyfeet-windows"
+         data-gumroad-overlay-checkout="true">Buy for Windows</a>
+
+      <a class="btn alt gumroad-button" href="https://YOURNAME.gumroad.com/l/ninetyfeet-linux"
+         data-gumroad-overlay-checkout="true">Buy for Linux</a>
     </div>
 
     <p class="note" id="buy-note">Windows x86_64 · 78&nbsp;MB &nbsp;·&nbsp; Linux x86_64 · 68&nbsp;MB
@@ -183,86 +184,7 @@
   </div>
 </footer>
 
-<!--
-  Paddle. Replace CLIENT_TOKEN with the client-side token from Paddle → Developer
-  tools → Authentication. It is public and belongs in the page; the API key does not
-  — that lives in config.php on the server and never reaches a browser.
-
-  While testing, add Paddle.Environment.set('sandbox') before Initialize.
--->
-<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-<script>
-(function () {
-  var platform = 'windows';
-
-  // Must match the price ids in config.php, or the server will refuse a transaction
-  // the page happily took money for.
-  var prices = {
-    windows: 'pri_REPLACE_ME',
-    linux:   'pri_REPLACE_ME'
-  };
-
-  var win = document.getElementById('pick-windows');
-  var lin = document.getElementById('pick-linux');
-  var buy = document.getElementById('buy');
-
-  function choose(which) {
-    platform = which;
-    win.className = which === 'windows' ? 'btn' : 'btn alt';
-    lin.className = which === 'linux' ? 'btn' : 'btn alt';
-    win.setAttribute('aria-pressed', String(which === 'windows'));
-    lin.setAttribute('aria-pressed', String(which === 'linux'));
-  }
-
-  win.addEventListener('click', function () { choose('windows'); });
-  lin.addEventListener('click', function () { choose('linux'); });
-
-  if (!window.Paddle) return;
-
-  Paddle.Initialize({
-    token: 'CLIENT_TOKEN',
-
-    // Nothing here decides whether the game is handed over. The transaction id goes to
-    // the server, which asks Paddle directly whether it completed and what it was for,
-    // and only the server can mint a download link. A callback that revealed the file
-    // would be revealing it to anybody willing to call this function themselves.
-    eventCallback: function (event) {
-      if (event.name !== 'checkout.completed') return;
-
-      var txn = event.data && event.data.transaction_id;
-      if (!txn) return;
-
-      fetch('verify.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: txn, platform: platform })
-      })
-      .then(function (r) { return r.json(); })
-      .then(function (out) {
-        if (!out.url) throw new Error(out.error || 'could not confirm the payment');
-
-        buy.hidden = true;
-        document.getElementById('buy-note').hidden = true;
-
-        document.getElementById('download-link').href = out.url;
-        document.getElementById('done-note').textContent =
-          'Thank you. This link works for the next ' + out.expires_minutes +
-          ' minutes — your Paddle receipt has one that does not expire, so keep it. ' +
-          'Unzip the whole archive and keep the data_SandlotSlugfest folder beside the program.';
-        document.getElementById('done').hidden = false;
-      })
-      .catch(function (e) {
-        alert('The payment went through but the download could not be issued: ' + e.message +
-              '\nReply to your Paddle receipt and you will get the file.');
-      });
-    }
-  });
-
-  buy.addEventListener('click', function () {
-    Paddle.Checkout.open({ items: [{ priceId: prices[platform], quantity: 1 }] });
-  });
-})();
-</script>
+<script src="https://gumroad.com/js/gumroad.js"></script>
 
 </body>
 </html>

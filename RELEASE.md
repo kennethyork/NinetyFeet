@@ -32,65 +32,43 @@ godot471cs --headless --export-release "Windows x86_64" build/windows/NinetyFeet
 and writes a binary with none of the game's C# in it — a program that opens a window and does
 nothing. The error is buried in the log among the progress lines. Check the log, not the exit code.
 
-## Selling it from your own site, with Paddle
+## Selling it from your own site, today
 
-Four files in `page/`:
+Gumroad, because you can be taking money within the hour. There is no seller review to sit
+through, it hosts the two zips and delivers them itself, and it is a merchant of record — so the
+VAT and sales tax are still not yours to work out, charge or file.
 
-| | |
-| --- | --- |
-| `index.html` | the page, with a Paddle checkout |
-| `verify.php` | asks Paddle whether a transaction really completed, and issues the link |
-| `download.php` | streams the zip if the link is one you issued and has not lapsed |
-| `config.example.php` | copy to `config.php` and fill in |
+`page/index.html` is the whole thing now. There is no server code at all, which is the good kind
+of simplification: the PHP that verified a payment and minted an expiring download link is gone,
+because Gumroad does both and does not need your help. Nothing left to misconfigure, and no zips
+sitting on your own server waiting to be found by URL.
 
 To put it live:
 
-1. **A Paddle account, verified.** Paddle reviews sellers before going live, which takes a
-   few days — start it before you need it.
-2. **A product and two prices** at $19.99, one per platform, so a receipt says which build was
-   bought. Copy the `pri_…` ids into both `config.php` and `prices` in `index.html`. They must
-   match, or the page will happily take money for a transaction the server then refuses.
-3. **Credentials.** Developer tools → Authentication. The client-side token goes in `index.html`
-   where it says `CLIENT_TOKEN`; the API key goes in `config.php` and must never reach a browser.
-4. **Put the zips outside your web root.** `config.php` points at them by absolute path. If they
-   sit in a public folder then every check below is theatre — the file answers to its own URL and
-   nobody needs to buy anything.
-5. **A link secret.** `openssl rand -hex 32` into `link_secret`.
-6. Upload `page/` to your site. PHP 8 and cURL, which any shared host has.
+1. **Sign up at gumroad.com.** Minutes, not days.
+2. **Two products** at $19.99 — one Windows, one Linux — and upload
+   `dist/NinetyFeet-windows-x86_64.zip` and `dist/NinetyFeet-linux-x86_64.zip` to them.
+3. **Copy the two links.** Each product has one like `https://yourname.gumroad.com/l/permalink`.
+   Put them in `index.html` where it says `YOURNAME` and the two permalinks.
+4. Upload `page/index.html` anywhere. It is one static file.
 
-**Why there is a server part at all.** A page that reveals the download when Paddle's JavaScript
-reports success reveals it to anybody who opens the console and calls that callback. The browser is
-the buyer's, not yours, and nothing it says about a payment is evidence. So the transaction id is
-the only thing that crosses, and `verify.php` asks Paddle directly: did this transaction complete,
-and was it for this price? Only then does it mint a link — signed, tied to one transaction and one
-platform, dead in two hours. The buyer's Paddle receipt carries a permanent one, so the short life
-of this link costs them nothing.
+The buttons open Gumroad's overlay on top of your page rather than sending anybody away, so the
+checkout looks like it belongs to you. Gumroad emails the buyer a permanent download link and keeps
+a library page for them, which is better than anything the expiring-link machinery was doing.
 
-`verify.php` deliberately does **not** check the amount. Paddle sets the customer's local price,
-adds their tax, and may apply a discount you created, so the total legitimately differs from
-$19.99. The price id is what identifies the thing bought, and that is what is checked.
+## What it costs, and what you are buying with it
 
-## Tax: this is the reason for Paddle
+Gumroad takes **10% flat**, so about $2 of each $19.99. Paddle is nearer 5% and Stripe nearer 3.5%.
 
-Paddle is a **merchant of record**, not merely a payment processor. It sells to the customer and
-you sell to Paddle. So the VAT or sales tax on every order — worked out for wherever the buyer is,
-charged at checkout, declared and filed — is Paddle's obligation rather than yours. That is the
-whole difference, and it is why `config.php` has no tax table in it: a second, hand-maintained
-answer could only ever be a wrong one.
+That is the price of starting today rather than waiting on approval, and of not owning the tax.
+Both of the cheaper options make you wait: Paddle vets sellers over several days, and Stripe is
+quick but is *not* a merchant of record — VAT on a download is owed in the buyer's country from the
+first sale with no small-seller threshold, so with Stripe that becomes twenty-seven possible
+registrations and yours to file.
 
-It matters most for exactly this product. VAT on a download is owed in the buyer's country from
-the first sale, with no small-seller threshold for a seller outside the EU or UK. Twenty-seven
-possible rates, each with a registration, is not a thing to take on beside writing a baseball game.
-
-Paddle takes a cut for it — around 5% plus 50c on a transaction of this size at the time of
-writing, against roughly 3.5% for a bare processor. The difference is the price of not filing VAT
-returns in twenty-seven countries.
-
-**If you would rather not write any server code at all**, Lemon Squeezy is the same company, is
-also merchant of record, and hosts the file and emails the download link itself — which would make
-`verify.php` and `download.php` unnecessary and reduce this to a link on a button. Paddle is built
-here because it is what you asked for, and it is the better fit if you ever want the checkout
-inside your own page rather than on somebody else's.
+Worth revisiting once the game is actually selling. At a hundred copies the difference between
+Gumroad and Paddle is about a hundred dollars a year, which is not worth a week of waiting now. At
+ten thousand it is ten thousand dollars, which is.
 
 ## What it is not
 
