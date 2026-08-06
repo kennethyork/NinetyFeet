@@ -38,6 +38,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Stamp Windows package version
+        shell: pwsh
+        run: |
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.1.0' }
+          $numeric = ($version -split '-')[0]
+          $fileVersion = "$numeric.0"
+          (Get-Content export_presets.cfg) `
+            -replace 'application/file_version="[^"]*"', "application/file_version=`"$fileVersion`"" `
+            -replace 'application/product_version="[^"]*"', "application/product_version=`"$fileVersion`"" |
+            Set-Content export_presets.cfg
+          (Get-Content project.godot) `
+            -replace 'config/version="[^"]*"', "config/version=`"$version`"" |
+            Set-Content project.godot
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
@@ -165,6 +179,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Stamp Android package version
+        run: |
+          version=0.1.0
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF_NAME#v}"; fi
+          sed -i -E "s|version/code=[0-9]+|version/code=${GITHUB_RUN_NUMBER}|; s|version/name=\"[^\"]*\"|version/name=\"${version}\"|" export_presets.cfg
+          sed -i -E "s|config/version=\"[^\"]*\"|config/version=\"${version}\"|" project.godot
 
       - uses: actions/setup-dotnet@v4
         with:
