@@ -2,6 +2,7 @@ using Godot;
 using SandlotSlugfest.Audio;
 using SandlotSlugfest.Core;
 using SandlotSlugfest.Data;
+using SandlotSlugfest.Season;
 
 namespace SandlotSlugfest.UI;
 
@@ -9,6 +10,7 @@ public partial class MainMenu : Control
 {
     private readonly string[] _items =
     {
+        "Continue Saved League",
         // Two ways to run a club, named so the difference is obvious before you commit:
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
@@ -150,53 +152,63 @@ public partial class MainMenu : Control
         switch (_selected)
         {
             case 0:
+                // The league was loaded by the Game autoload before this menu appeared. It was
+                // previously impossible to reach: both league buttons went through ClubSelect,
+                // whose confirmation deliberately starts a new season and overwrites the slot.
+                if (!SaveGame.Occupied(SaveGame.Slot) || Game.Instance.League == null) return;
+                Game.Instance.PendingSeasonGame = null;
+                Game.Instance.CardClubRoster = null;
+                Game.Instance.HomeTeamId = Game.Instance.League.UserTeamId;
+                Game.Instance.GoTo("res://Scenes/Season.tscn");
+                break;
+            case 1:
                 // Season: you play your club's games.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.ManagerOnly = false;
                 Game.Instance.GoTo("res://Scenes/ClubSelect.tscn");
                 break;
-            case 1:
+            case 2:
                 // Dynasty: you run the club for years and never take the field.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.ManagerOnly = true;
                 Game.Instance.GoTo("res://Scenes/ClubSelect.tscn");
                 break;
-            case 2:
+            case 3:
                 // One player, from the bottom of somebody's farm system to wherever he gets to.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Career.tscn");
                 break;
-            case 3:
+            case 4:
                 // One situation, ninety seconds.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Moments.tscn");
                 break;
-            case 4:
+            case 5:
                 // Collect players, build a side out of them, take it out.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Cards.tscn");
                 break;
-            case 5:
+            case 6:
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
-            case 6:
+            case 7:
                 // Host or join: one ballgame, or a whole season the two of you share.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Online.tscn");
                 break;
-            case 7:
+            case 8:
                 Game.Instance.GoTo("res://Scenes/Settings.tscn");
                 break;
-            case 8:
+            case 9:
                 Game.Instance.GoTo("res://Scenes/Controls.tscn");
                 break;
-            case 9:
+            case 10:
                 GetTree().Quit();
                 break;
         }
