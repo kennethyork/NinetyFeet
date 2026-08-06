@@ -53,6 +53,21 @@ public static class Ink
     }
 
     /// <summary>A vertical gradient fill across a rectangle.</summary>
+    /// <summary>A hand-drawn border round a rectangle, so a portrait sits in a frame rather than
+    /// floating in a hole cut out of the panel.</summary>
+    public static void Frame(CanvasItem c, Rect2 rect, Color colour, float width, int seed)
+    {
+        var a = rect.Position;
+        var b = new Vector2(rect.End.X, rect.Position.Y);
+        var d = rect.End;
+        var e = new Vector2(rect.Position.X, rect.End.Y);
+
+        Line(c, a, b, colour, width, seed + 1);
+        Line(c, b, d, colour, width, seed + 2);
+        Line(c, d, e, colour, width, seed + 3);
+        Line(c, e, a, colour, width, seed + 4);
+    }
+
     public static void GradientRect(CanvasItem c, Rect2 rect, Color top, Color bottom)
     {
         var pts = new[]

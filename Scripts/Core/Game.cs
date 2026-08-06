@@ -729,6 +729,37 @@ public partial class Game : Node
 
             if (twins.Count == 0)
                 GD.Print("  No two players in the league are the same ballplayer.");
+
+            // And how often a club fields several men with the same given name.
+            //
+            // Full names are unique and that is not the same as reading as unique. A clubhouse
+            // with six men called Vidal in it looks broken however distinct their surnames are,
+            // and no check in this file could see that: it counted whole names.
+            int worstRun = 0;
+            string worstWhere = "";
+            var perClub = new System.Collections.Generic.List<int>();
+
+            foreach (var t in Data.Teams.All)
+            {
+                var firsts = new System.Collections.Generic.Dictionary<string, int>();
+                foreach (var p in Data.RosterGenerator.For(t).Players)
+                    firsts[p.FirstName] = (firsts.TryGetValue(p.FirstName, out int fc) ? fc : 0) + 1;
+
+                int repeated = firsts.Values.Where(v => v > 1).Sum();
+                perClub.Add(repeated);
+
+                foreach (var kv in firsts)
+                    if (kv.Value > worstRun) { worstRun = kv.Value; worstWhere = $"{kv.Value} x {kv.Key} on {t.Abbrev}"; }
+            }
+
+            var sf = Data.Teams.All.OrderByDescending(t =>
+                Data.RosterGenerator.For(t).Players.GroupBy(p => p.FirstName).Max(g => g.Count())).First();
+            GD.Print($"\n  {sf.Abbrev} as generated:");
+            foreach (var p in Data.RosterGenerator.For(sf).Players.Where(p => !p.IsLegend))
+                GD.Print($"    {p.Name}");
+
+            GD.Print($"\nshared given names: worst club has {worstWhere}; " +
+                     $"on average {perClub.Average():0.0} men a club share a first name with a team-mate");
             GetTree().Quit();
             return;
         }
@@ -1068,8 +1099,8 @@ public partial class Game : Node
                 string what = p.Position == Data.Position.P
                     ? $"VEL {p.PitchPower} CMD {p.PitchControl} STA {p.Stamina}"
                     : $"CON {p.Contact} POW {p.Power} SPD {p.Speed} FLD {p.Fielding} ARM {p.Arm}";
-                GD.Print($"  {p.Name,-26} {p.Position,-6} age {p.Age,2}  {what,-38}");
-                GD.Print($"      \"{Data.Flavour.For(p)}\"");
+                GD.Print($"\n  {p.Name,-26} {p.Position,-6} age {p.Age,2}  {what}");
+                GD.Print($"      {Data.Biography.For(p)}");
             }
             GetTree().Quit();
             return;

@@ -652,6 +652,70 @@ public static class CartoonPlayer
         }
     }
 
+    /// <summary>
+    /// A head-and-shoulders portrait, for the screens where a player is a row of numbers.
+    ///
+    /// Every roster, card, trade offer and scouting report in this game is text. The men have had
+    /// faces the whole time — skin, hair, ears, brows, nose, mouth, eye spacing and shape, cap
+    /// worn forward, backwards or not at all, all of it drawn from his look seed and no two alike
+    /// across eight hundred and sixty-nine — and the only place any of it was ever visible was out
+    /// on the field at the size of a thumbnail, in a helmet, from behind.
+    ///
+    /// So this is not a second illustration system. It is the one that already exists, pointed at
+    /// a rectangle instead of a ballfield: the same DrawHead, the same Look, the same written
+    /// specification for a named kid. A man's portrait on his card is the same man you see at the
+    /// plate, because it is drawn by the same code from the same seed.
+    /// </summary>
+    public static void Portrait(CanvasItem c, Rect2 frame, TeamData team, PlayerData player,
+        float time = 0f, bool backdrop = true)
+    {
+        if (player == null || team == null) return;
+
+        var look = player is { LegendId: >= 0 }
+            ? new Look(player.LookSeed, Legends.Spec(player.LegendId), player)
+            : new Look(player.LookSeed, null, player);
+
+        if (backdrop)
+        {
+            // The club's colour behind him, dimmed so a face reads against it rather than fighting
+            // it, with a lighter disc where the head sits.
+            c.DrawRect(frame, team.Primary.Darkened(0.45f));
+            c.DrawCircle(frame.Position + new Vector2(frame.Size.X * 0.5f, frame.Size.Y * 0.62f),
+                frame.Size.X * 0.44f, team.Primary.Lightened(0.10f));
+        }
+
+        // Scale so the head fills most of the frame. DrawHead builds a skull of radius 24 * s *
+        // HeadSize, and the cap and hair reach about a third again past that, so the frame is
+        // divided by a little over three head-radii rather than two.
+        float s = Mathf.Min(frame.Size.X, frame.Size.Y) / (24f * 3.25f * Mathf.Max(0.4f, look.HeadSize));
+
+        var head = frame.Position + new Vector2(frame.Size.X * 0.5f, frame.Size.Y * 0.47f);
+        float r = 24f * s * look.HeadSize;
+
+        // Shoulders first, so the head sits on top of them. A jersey rather than a floating head:
+        // this is a portrait of a ballplayer on a club, and the club is half of who he is.
+        float shoulderY = head.Y + r * 1.5f;
+        float halfWidth = r * 1.55f * look.Chub;
+
+        Ink.Shape(c, new[]
+        {
+            new Vector2(head.X - halfWidth * 0.62f, shoulderY - r * 0.30f),
+            new Vector2(head.X + halfWidth * 0.62f, shoulderY - r * 0.30f),
+            new Vector2(head.X + halfWidth, shoulderY + r * 0.55f),
+            new Vector2(head.X + halfWidth, frame.End.Y),
+            new Vector2(head.X - halfWidth, frame.End.Y),
+            new Vector2(head.X - halfWidth, shoulderY + r * 0.55f),
+        }, team.Primary, Outline, 2.2f * s, look.Seed + 71);
+
+        // A placket down the middle in the secondary colour, which is what makes a plain block of
+        // team colour read as a shirt.
+        c.DrawRect(new Rect2(head.X - r * 0.07f, shoulderY - r * 0.24f, r * 0.14f,
+            frame.End.Y - shoulderY + r * 0.24f), team.Secondary);
+
+        // He looks out of the frame rather than at the ballfield, which is what a portrait is.
+        DrawHead(c, head, s, 1f, head + new Vector2(0f, r * 2.4f), look, team, Pose.Idle, time);
+    }
+
     private static void DrawHead(CanvasItem c, Vector2 head, float s, float facing, Vector2? lookAt,
         Look look, TeamData team, Pose pose, float time)
     {

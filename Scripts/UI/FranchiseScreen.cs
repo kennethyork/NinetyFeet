@@ -51,9 +51,19 @@ public partial class FranchiseScreen : Control
             : "res://Scenes/MainMenu.tscn");
     }
 
+    /// <summary>Wall clock, so a portrait blinks and breathes rather than sitting there dead.</summary>
+    private float _time;
+
+    public override void _Process(double delta)
+    {
+        _time += (float)delta;
+        if (_selected != null) QueueRedraw();
+    }
+
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
+        SetProcess(true);
 
         // Runs while the tree is paused, which is exactly when it is used as an overlay.
         ProcessMode = ProcessModeEnum.Always;
@@ -150,7 +160,8 @@ public partial class FranchiseScreen : Control
 
         // CEILING had ninety pixels and prints things like "Everyday starter", which needs a
         // hundred — so every scouting grade ran into the batting average beside it.
-        var cols = new[] { 20f, 220f, 290f, 340f, 400f, 470f, 612f, 674f, 732f, 800f };
+        // The name column starts past the portrait now, and everything after it keeps its place.
+        var cols = new[] { 50f, 246f, 306f, 352f, 406f, 474f, 612f, 674f, 732f, 800f };
         var heads = new[] { "PLAYER", "POS", "AGE", "OVR", "POT", "CEILING", "AVG", "HR", "RBI", "STATUS" };
         for (int i = 0; i < heads.Length; i++)
             Palette.Text(this, panel.Position + new Vector2(cols[i], 30f), heads[i], 11, Palette.InkDim);
@@ -171,6 +182,14 @@ public partial class FranchiseScreen : Control
 
             var bat = _season.Book.Batting(p);
             var tone = p.IsInjured ? Palette.Warning : Palette.Ink;
+
+            // A face on every row. Small — twenty-two pixels — but enough that a roster reads as
+            // twenty-six people rather than twenty-six rows, which is the entire difference
+            // between a lineup and a spreadsheet. Drawn from the same seed as the man on the
+            // field, so the one you pick here is the one who walks to the plate.
+            CartoonPlayer.Portrait(this,
+                new Rect2(panel.Position + new Vector2(12f, y - 17f), new Vector2(30f, 28f)),
+                Teams.Get(_teamCursor), p, _time, backdrop: false);
 
             Palette.Text(this, panel.Position + new Vector2(cols[0], y), $"#{p.Number,-3} {p.Name}", 14, tone);
             Palette.Text(this, panel.Position + new Vector2(cols[1], y), PlayerData.PositionLabel(p.Position), 13, Palette.InkDim);
@@ -362,15 +381,30 @@ public partial class FranchiseScreen : Control
 
         float y = 92f;
 
+        // His face, at last.
+        //
+        // Every man in this league has had one the whole time — drawn from his look seed, no two
+        // alike across eight hundred and sixty-nine of them — and the only place any of it was
+        // ever visible was out on the field, at the size of a thumbnail, under a helmet, usually
+        // from behind. A card with a portrait on it is a person; a card without one is a row.
+        var frame = new Rect2(card.Position + new Vector2(20f, y - 4f), new Vector2(104f, 118f));
+        CartoonPlayer.Portrait(this, frame, club, p, _time);
+        Ink.Frame(this, frame, Palette.Ink, 2f, p.LookSeed);
+
+        float textX = frame.End.X + 16f;
+        float textWidth = card.Size.X - (textX - card.Position.X) - 20f;
+
         // A written player has a reputation; a generated one has his archetype.
-        // Every player has a line, written or not — a blank biography was the last thing that
-        // marked a generated player out as filler.
-        Palette.Text(this, card.Position + new Vector2(20f, y), Flavour.For(p), 14,
-            p.IsLegend ? Palette.Highlight : new Color("#c8d4e2"));
-        y += 18f;
-        Palette.Text(this, card.Position + new Vector2(20f, y),
+        // Every player has a biography now rather than a single line off a shelf — the line
+        // described a type, and two different sluggers got the same one.
+        y = Palette.Wrapped(this, card.Position + new Vector2(textX - card.Position.X, y + 10f),
+            Biography.For(p), 13, textWidth,
+            p.IsLegend ? Palette.Highlight : new Color("#c8d4e2")) + 6f;
+
+        Palette.Text(this, card.Position + new Vector2(textX - card.Position.X, y),
             $"{p.Archetype} · {p.PotentialGrade}", 11, Palette.InkDim);
-        y += 30f;
+
+        y = frame.End.Y - card.Position.Y + 18f;
 
         if (p.IsInjured)
         {

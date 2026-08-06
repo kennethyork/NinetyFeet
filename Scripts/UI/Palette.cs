@@ -38,6 +38,49 @@ public static class Palette
             text, HorizontalAlignment.Left, -1, size, color);
     }
 
+    /// <summary>
+    /// A paragraph inside a given width, returning the y it finished on.
+    ///
+    /// Every screen in this game draws single lines at fixed positions, which is fine for a
+    /// statistic and useless for prose — a biography written to a fixed point simply runs off the
+    /// side of the card. Words are measured and broken between them; a word longer than the whole
+    /// column is placed anyway rather than dropped, because losing a man's name is worse than
+    /// overrunning by a few pixels.
+    /// </summary>
+    public static float Wrapped(CanvasItem canvas, Vector2 at, string text, int size,
+        float width, Color color, float lineHeight = 0f)
+    {
+        if (string.IsNullOrEmpty(text)) return at.Y;
+
+        float step = lineHeight > 0f ? lineHeight : size * 1.35f;
+        float y = at.Y;
+        var line = new System.Text.StringBuilder();
+
+        foreach (string word in text.Split(' ', System.StringSplitOptions.RemoveEmptyEntries))
+        {
+            string candidate = line.Length == 0 ? word : $"{line} {word}";
+            if (line.Length > 0 && TextWidth(candidate, size) > width)
+            {
+                Text(canvas, new Vector2(at.X, y), line.ToString(), size, color);
+                y += step;
+                line.Clear();
+                line.Append(word);
+                continue;
+            }
+
+            line.Clear();
+            line.Append(candidate);
+        }
+
+        if (line.Length > 0)
+        {
+            Text(canvas, new Vector2(at.X, y), line.ToString(), size, color);
+            y += step;
+        }
+
+        return y;
+    }
+
     public static float TextWidth(string text, int size) =>
         Font.GetStringSize(text, HorizontalAlignment.Left, -1, size).X;
 

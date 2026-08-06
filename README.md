@@ -37,6 +37,35 @@ club's games or simulate them.
 **Dynasty** — the same, carried across years: development, ageing, retirement, the draft, free
 agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
 
+**Faces and biographies.** Every roster, card and scouting report in this game was text. The men
+have had faces the whole time — skin, hair, ears, brows, nose, mouth, eye spacing and shape, cap
+worn forward, backwards or not at all, all of it from the look seed and no two alike across 869 —
+and the only place any of it was visible was out on the field, thumbnail-sized, under a helmet,
+usually from behind. `CartoonPlayer.Portrait` points the renderer that already exists at a
+rectangle instead of a ballfield, so the portrait on a man's card is drawn by the same code from
+the same seed as the man at the plate. They are on every clubhouse row and on the player card.
+
+Biographies are composed rather than picked. The old one-line description came off a shelf, which
+means it described a *type*: two different sluggers got the same sentence and it was true of
+neither in particular. A biography is now assembled from that man's own numbers — where he came
+from, what he is known for, where he is in a career, his signature ability, and how the room
+regards him.
+
+**And asking whether every player is really different turned up the worst content bug in the
+project.** `--unique` said what it always had: no two men share a name, a face, an identifier, and
+— once it was taught to ask — no two share a rating sheet either, across all 869. What it could not
+see was *given* names. Of the 1,152 hand-written players, **372 were called Dougal, 268 Tancred and
+225 Vidal**: three quarters of the authored cast under three first names, with 844 distinct
+surnames hiding it. San Francisco fielded eight men called Vidal. Every one has a proper name now,
+drawn from the pool that matches his surname, and the worst club is down from eight to two — which
+is what a real clubhouse looks like. A written player's name is authored data rather than save
+data, so leagues already in progress pick the change up on load without losing a statistic.
+
+Their biographies had the same disease: 246 distinct lines across 1,152 men, the common ones used
+sixteen times each. A line shared with fifteen other ballplayers is not that man's biography, so
+those men get a composed one; the ones whose line appears exactly once keep it, because it is
+genuinely theirs.
+
 **Your own ballparks.** `user://stadiums.cfg`, written out from the club editor with every ground
 as it currently stands — five fence distances, five wall heights, air density, foul territory, roof,
 and four colours apiece. Starting from a real park and moving a wall is a job somebody can do;

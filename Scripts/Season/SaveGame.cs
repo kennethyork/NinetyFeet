@@ -928,7 +928,31 @@ public static class SaveGame
         UnpackPitching(v, t, split);
     }
 
-    private static PlayerData FromDto(PlayerDto d) => new()
+    /// <summary>
+    /// Rebuilds a player, and refreshes a written one's name from the source.
+    ///
+    /// A written player's name is authored data, not save data. The saved copy is a snapshot of
+    /// what the table said the day the league was created, so when 865 of the written cast were
+    /// found sharing three given names between them — 372 Dougals, 268 Tancreds, 225 Vidals — and
+    /// given proper ones, every league already in progress would have gone on fielding eight
+    /// Vidals for ever. His ratings, his statistics, his career and his face all stay exactly as
+    /// they were; only the name he was always meant to have catches up.
+    /// </summary>
+    private static PlayerData FromDto(PlayerDto d)
+    {
+        var p = Build(d);
+
+        if (p.LegendId >= 0 && p.LegendId < Legends.Count)
+        {
+            var written = Legends.Get(p.LegendId);
+            if (!string.IsNullOrWhiteSpace(written.First)) p.FirstName = written.First;
+            if (!string.IsNullOrWhiteSpace(written.Last)) p.LastName = written.Last;
+        }
+
+        return p;
+    }
+
+    private static PlayerData Build(PlayerDto d) => new()
     {
         Id = d.Id, FirstName = d.First, LastName = d.Last, Number = d.Number,
         Position = (Data.Position)d.Pos, Bats = (Handedness)d.Bats, Throws = (Handedness)d.Throws,
