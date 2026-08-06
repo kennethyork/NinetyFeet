@@ -47,11 +47,13 @@ public static class SaveGame
     /// </summary>
     public static string PathFor(int slot) =>
         slot <= 0 ? "user://season.json" : $"user://season{slot + 1}.json";
+    public static string BackupPathFor(int slot) => slot <= 0 ? "user://season.backup.json" : $"user://season{slot + 1}.backup.json";
+    private static string TempPathFor(int slot) => slot <= 0 ? "user://season.writing.json" : $"user://season{slot + 1}.writing.json";
 
     private static string Path => PathFor(_slot < 0 ? 0 : _slot);
 
     /// <summary>Whether a given slot holds a league, for the picker.</summary>
-    public static bool Occupied(int slot) => FileAccess.FileExists(PathFor(slot));
+    public static bool Occupied(int slot) => FileAccess.FileExists(PathFor(slot)) || FileAccess.FileExists(BackupPathFor(slot));
 
     /// <summary>
     /// A one-line description of what is in a slot, read without loading the whole league — the
@@ -61,7 +63,8 @@ public static class SaveGame
     {
         if (!Occupied(slot)) return "empty";
 
-        using var file = FileAccess.Open(PathFor(slot), FileAccess.ModeFlags.Read);
+        string path = FileAccess.FileExists(PathFor(slot)) ? PathFor(slot) : BackupPathFor(slot);
+        using var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
         if (file == null) return "unreadable";
 
         try
@@ -333,11 +336,13 @@ public static class SaveGame
         public int[] Stat { get; set; }
     }
 
-    public static bool Exists() => FileAccess.FileExists(Path);
+    public static bool Exists() => Occupied(_slot < 0 ? 0 : _slot);
 
     public static void Delete()
     {
-        if (Exists()) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(Path));
+        int slot = _slot < 0 ? 0 : _slot;
+        foreach (string path in new[] { PathFor(slot), BackupPathFor(slot), TempPathFor(slot) })
+            if (FileAccess.FileExists(path)) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
     }
 
     public static void Save(SeasonState season)
@@ -441,32 +446,33 @@ public static class SaveGame
             .ToList();
 
         string json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = false });
-        using var file = FileAccess.Open(Path, FileAccess.ModeFlags.Write);
+        int slot = _slot < 0 ? 0 : _slot;
+        string live = PathFor(slot), backup = BackupPathFor(slot), writing = TempPathFor(slot);
+        using var file = FileAccess.Open(writing, FileAccess.ModeFlags.Write);
         if (file == null)
         {
-            GD.PushError($"Could not write {Path}: {FileAccess.GetOpenError()}");
+            GD.PushError($"Could not write {writing}: {FileAccess.GetOpenError()}");
             return;
         }
         file.StoreString(json);
+        file.Flush(); file.Close();
+        if (FileAccess.FileExists(live))
+        {
+            string old = FileAccess.GetFileAsString(live);
+            using var backupFile = FileAccess.Open(backup, FileAccess.ModeFlags.Write);
+            if (backupFile == null) { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(writing)); return; }
+            backupFile.StoreString(old); backupFile.Flush(); backupFile.Close();
+            DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(live));
+        }
+        if (DirAccess.RenameAbsolute(ProjectSettings.GlobalizePath(writing), ProjectSettings.GlobalizePath(live)) != Error.Ok)
+            GD.PushError("Could not install the new league save; the backup is intact.");
     }
 
     public static SeasonState Load()
     {
-        if (!Exists()) return null;
-
-        using var file = FileAccess.Open(Path, FileAccess.ModeFlags.Read);
-        if (file == null) return null;
-
-        SaveDto dto;
-        try
-        {
-            dto = JsonSerializer.Deserialize<SaveDto>(file.GetAsText());
-        }
-        catch (JsonException e)
-        {
-            GD.PushError($"Season save is corrupt, starting fresh: {e.Message}");
-            return null;
-        }
+        int slot = _slot < 0 ? 0 : _slot;
+        if (!Occupied(slot)) return null;
+        SaveDto dto = Read(PathFor(slot)) ?? Read(BackupPathFor(slot));
         if (dto?.Players == null || dto.TeamList == null) return null;
 
         // The league's own size, restored before anything asks for the club list. Everything
@@ -482,6 +488,14 @@ public static class SaveGame
             UserTeamId = dto.UserTeamId,
             Innings = dto.Innings <= 0 ? 9 : dto.Innings,
         };
+        SaveDto Read(string path)
+        {
+            if (!FileAccess.FileExists(path)) return null;
+            using var input = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+            if (input == null) return null;
+            try { return JsonSerializer.Deserialize<SaveDto>(input.GetAsText()); }
+            catch (JsonException) { return null; }
+        }
 
         if (dto.Schedule != null)
             season.Games = dto.Schedule.ConvertAll(g => new ScheduledGame
