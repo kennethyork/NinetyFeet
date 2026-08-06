@@ -65,6 +65,7 @@ public partial class ClubSelect : Control
         var g = Game.Instance;
         g.SeasonLength = SeasonLengths[_length].Games;
         g.NewSeason(_cursor, SeasonLengths[_length].Games);
+        Settings.SaveResumeMode(Settings.ResumeMode.League);
         g.HomeTeamId = _cursor;
         g.GoTo("res://Scenes/Season.tscn");
     }

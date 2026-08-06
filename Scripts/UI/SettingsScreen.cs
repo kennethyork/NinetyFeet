@@ -193,6 +193,8 @@ public partial class SettingsScreen : Control
                 if (!SaveGame.Occupied(SaveGame.Slot)) { _deleteLeagueArmed = false; return; }
                 if (!_deleteLeagueArmed) { _deleteLeagueArmed = true; return; }
                 SaveGame.Delete();
+                if (Settings.LoadResumeMode() == Settings.ResumeMode.League)
+                    Settings.SaveResumeMode(Settings.ResumeMode.Menu);
                 _deleteLeagueArmed = false;
             });
 

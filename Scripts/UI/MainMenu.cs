@@ -10,7 +10,7 @@ public partial class MainMenu : Control
 {
     private readonly string[] _items =
     {
-        "Continue Saved League",
+        "Continue Last Playstyle",
         // Two ways to run a club, named so the difference is obvious before you commit:
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
@@ -155,11 +155,7 @@ public partial class MainMenu : Control
                 // The league was loaded by the Game autoload before this menu appeared. It was
                 // previously impossible to reach: both league buttons went through ClubSelect,
                 // whose confirmation deliberately starts a new season and overwrites the slot.
-                if (!SaveGame.Occupied(SaveGame.Slot) || Game.Instance.League == null) return;
-                Game.Instance.PendingSeasonGame = null;
-                Game.Instance.CardClubRoster = null;
-                Game.Instance.HomeTeamId = Game.Instance.League.UserTeamId;
-                Game.Instance.GoTo("res://Scenes/Season.tscn");
+                Game.Instance.ResumeLastPlaystyle();
                 break;
             case 1:
                 // Season: you play your club's games.
@@ -175,29 +171,34 @@ public partial class MainMenu : Control
                 break;
             case 3:
                 // One player, from the bottom of somebody's farm system to wherever he gets to.
+                Settings.SaveResumeMode(Settings.ResumeMode.Career);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Career.tscn");
                 break;
             case 4:
                 // One situation, ninety seconds.
+                Settings.SaveResumeMode(Settings.ResumeMode.Moments);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Moments.tscn");
                 break;
             case 5:
                 // Collect players, build a side out of them, take it out.
+                Settings.SaveResumeMode(Settings.ResumeMode.Cards);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Cards.tscn");
                 break;
             case 6:
+                Settings.SaveResumeMode(Settings.ResumeMode.Exhibition);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
             case 7:
                 // Host or join: one ballgame, or a whole season the two of you share.
+                Settings.SaveResumeMode(Settings.ResumeMode.Online);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Online.tscn");

@@ -144,6 +144,24 @@ public static class Settings
 {
     private const string Path = "user://settings.cfg";
 
+    public enum ResumeMode { Menu, League, Career, Cards, Moments, Exhibition, Online }
+
+    public static ResumeMode LoadResumeMode()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return ResumeMode.Menu;
+        int value = (int)cfg.GetValue("game", "resume_mode", (int)ResumeMode.Menu);
+        return (ResumeMode)Mathf.Clamp(value, 0, (int)ResumeMode.Online);
+    }
+
+    public static void SaveResumeMode(ResumeMode mode)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "resume_mode", (int)mode);
+        cfg.Save(Path);
+    }
+
     public static Difficulty LoadDifficulty()
     {
         var cfg = new ConfigFile();
