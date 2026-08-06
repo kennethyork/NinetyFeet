@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using SandlotSlugfest.Core;
 using SandlotSlugfest.Data;
@@ -63,7 +64,7 @@ public static class Schedule
         // going wrong here: club 0 is the fixed point of the circle method, so any parity rule
         // holds the same value for it every single round — the first attempt had Baltimore playing
         // all thirty-three games away. Counting is the only thing that cannot drift.
-        var hosted = new int[32];
+        var hosted = new int[Data.Teams.ShippedCount];
 
         int day = 0;
         for (int r = 0; r < pairings.Count; r++)
@@ -99,7 +100,13 @@ public static class Schedule
     /// </summary>
     private static List<List<(int A, int B)>> Pairings(int rounds, ref Rng rng)
     {
-        const int n = 32;
+        // The circle method works on positions, and a club's identifier is no longer its position
+        // — a sixteen-club league holds ids 0 to 3 and 8 to 11 and so on. So the rotation runs on
+        // seats and every pairing is translated back into the clubs sitting in them. Getting this
+        // wrong would schedule games between clubs that are not in the league.
+        var clubs = Data.Teams.All.Select(t => t.Id).ToArray();
+        int n = clubs.Length;
+
         var order = new int[n];
         for (int i = 0; i < n; i++) order[i] = i;
 
@@ -107,7 +114,7 @@ public static class Schedule
         for (int round = 0; round < rounds; round++)
         {
             var set = new List<(int, int)>();
-            for (int i = 0; i < n / 2; i++) set.Add((order[i], order[n - 1 - i]));
+            for (int i = 0; i < n / 2; i++) set.Add((clubs[order[i]], clubs[order[n - 1 - i]]));
             all.Add(set);
 
             // Rotate everything except the first entry — the circle method.
@@ -119,7 +126,8 @@ public static class Schedule
     }
 
     /// <summary>How many complete round robins fit inside the target without overshooting.</summary>
-    private static int FullRoundRobins(int gamesPerTeam) => Godot.Mathf.Max(1, gamesPerTeam / 31);
+    private static int FullRoundRobins(int gamesPerTeam) =>
+        Godot.Mathf.Max(1, gamesPerTeam / Godot.Mathf.Max(1, Data.Teams.All.Count - 1));
 
     /// <summary>
     /// One full round robin across all 32 clubs using the circle method: fix club 0, rotate the
@@ -127,7 +135,8 @@ public static class Schedule
     /// </summary>
     private static int AddRoundRobin(List<ScheduledGame> games, int day, bool flip)
     {
-        const int n = 32;
+        var clubs = Data.Teams.All.Select(t => t.Id).ToArray();
+        int n = clubs.Length;
         var order = new int[n];
         for (int i = 0; i < n; i++) order[i] = i;
 
@@ -135,8 +144,8 @@ public static class Schedule
         {
             for (int i = 0; i < n / 2; i++)
             {
-                int a = order[i];
-                int b = order[n - 1 - i];
+                int a = clubs[order[i]];
+                int b = clubs[order[n - 1 - i]];
 
                 // Home must depend on the round alone. Keying it to (round + i) looks balanced
                 // but is not: a rotating club's index climbs by one every round, so (round + i)
@@ -217,8 +226,8 @@ public static class Schedule
     /// <summary>Sanity check used by the self-test: everyone plays the same number of games.</summary>
     public static bool IsBalanced(List<ScheduledGame> games, out string problem)
     {
-        var counts = new int[32];
-        var home = new int[32];
+        var counts = new int[Data.Teams.ShippedCount];
+        var home = new int[Data.Teams.ShippedCount];
         foreach (var g in games)
         {
             counts[g.AwayId]++;
@@ -226,19 +235,22 @@ public static class Schedule
             home[g.HomeId]++;
         }
 
-        for (int i = 1; i < 32; i++)
-            if (counts[i] != counts[0])
+        int first = Data.Teams.All[0].Id;
+
+        foreach (var club in Data.Teams.All.Skip(1))
+            if (counts[club.Id] != counts[first])
             {
-                problem = $"{Teams.Get(i).Abbrev} has {counts[i]} games, {Teams.Get(0).Abbrev} has {counts[0]}";
+                problem = $"{club.Abbrev} has {counts[club.Id]} games, " +
+                          $"{Teams.Get(first).Abbrev} has {counts[first]}";
                 return false;
             }
 
-        for (int i = 0; i < 32; i++)
+        foreach (var club in Data.Teams.All)
         {
-            float share = home[i] / (float)counts[i];
+            float share = counts[club.Id] == 0 ? 0.5f : home[club.Id] / (float)counts[club.Id];
             if (share < 0.35f || share > 0.65f)
             {
-                problem = $"{Teams.Get(i).Abbrev} plays {share * 100f:F0}% of its games at home";
+                problem = $"{club.Abbrev} plays {share * 100f:F0}% of its games at home";
                 return false;
             }
         }

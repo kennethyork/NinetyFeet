@@ -274,6 +274,27 @@ public static class Settings
     }
 
     /// <summary>
+    /// How many clubs a new league is built with, of the thirty-two that exist.
+    ///
+    /// Read only when a league is created, so changing it never disturbs one already running —
+    /// a league carries its own club list in its save and restores it on load.
+    /// </summary>
+    public static int LeagueSize()
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return Data.Teams.ShippedCount;
+        return (int)cfg.GetValue("game", "clubs", Data.Teams.ShippedCount);
+    }
+
+    public static void SaveLeagueSize(int clubs)
+    {
+        var cfg = new ConfigFile();
+        cfg.Load(Path);
+        cfg.SetValue("game", "clubs", clubs);
+        cfg.Save(Path);
+    }
+
+    /// <summary>
     /// Games in the first playoff round. The later rounds run two longer, capped at seven, which
     /// is how a real bracket is shaped — the further you go the more the format asks of you.
     /// </summary>

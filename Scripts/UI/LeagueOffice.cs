@@ -98,10 +98,10 @@ public partial class LeagueOffice : Control
                 _openBox = null; _scroll = 0f;
                 break;
             case Key.Up or Key.W:
-                _teamCursor = Mathf.PosMod(_teamCursor - 1, 32);
+                _teamCursor = Mathf.PosMod(_teamCursor - 1, Teams.All.Count);
                 break;
             case Key.Down or Key.S:
-                _teamCursor = Mathf.PosMod(_teamCursor + 1, 32);
+                _teamCursor = Mathf.PosMod(_teamCursor + 1, Teams.All.Count);
                 break;
         }
         QueueRedraw();

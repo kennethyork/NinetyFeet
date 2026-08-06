@@ -134,6 +134,21 @@ public partial class SettingsScreen : Control
                : "The pitcher bats ninth, and taking him out costs you the spot.",
             ref y, () => Settings.SaveDesignatedHitter(!dh));
 
+        int clubs = Data.Teams.ActiveCount;
+        Row("Clubs in the league", $"{clubs}",
+            clubs == Data.Teams.ShippedCount
+                ? "All thirty-two. Fewer means a tighter league where you meet everybody more often."
+                : $"{clubs} of thirty-two, taken evenly from all four divisions."
+                  + "  ·  a new league only; this one keeps the clubs it was built with",
+            ref y, () =>
+            {
+                var sizes = Data.Teams.Sizes;
+                int at = System.Array.IndexOf(sizes, clubs);
+                int next = sizes[(at < 0 ? sizes.Length - 1 : at + 1) % sizes.Length];
+                Settings.SaveLeagueSize(next);
+                Data.Teams.ActiveCount = next;
+            });
+
         bool written = Settings.UseWrittenPlayers();
         Row("Written players", written ? "In the league" : "Left out",
             written

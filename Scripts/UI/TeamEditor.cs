@@ -379,6 +379,59 @@ public partial class TeamEditor : Control
 
         Palette.Text(this, new Vector2(464f, y + 34f),
             ProjectSettings.GlobalizePath(Rosters.Path), 11, Palette.InkDim);
+
+        DrawParks(size, y + 58f);
+    }
+
+    /// <summary>
+    /// The ballparks, which are also a file and for a stronger reason than the names.
+    ///
+    /// Five fence distances and five wall heights is not something anybody types into a screen one
+    /// number at a time, and unlike a name it is not something anybody invents from nothing either
+    /// — so the file is written out with every ground as it currently stands, and the work is
+    /// moving a wall rather than building a park from an empty bracket.
+    ///
+    /// The warning is not decoration. A fence distance goes into the physics: pull one in far
+    /// enough and the league's home run rate follows it, which the audit demonstrates by turning
+    /// 106 home runs into 528.
+    /// </summary>
+    private void DrawParks(Vector2 size, float y)
+    {
+        Palette.Text(this, new Vector2(40f, y), "BALLPARKS", 13, Palette.Highlight);
+        Palette.Text(this, new Vector2(160f, y), ParkEdits.Status(), 13, Palette.InkDim);
+
+        var write = new Rect2(new Vector2(40f, y + 12f), new Vector2(190f, 30f));
+        bool there = FileAccess.FileExists(ParkEdits.Path);
+        Palette.Panel3D(this, write, Palette.Panel);
+        Palette.TextCentered(this, write.Position + write.Size * 0.5f,
+            there ? "FILE ALREADY THERE" : "WRITE THE GROUNDS OUT", 12,
+            there ? Palette.InkDim : Palette.Ink);
+
+        if (!there)
+            _clicks.Add(write, () =>
+            {
+                Say(ParkEdits.WriteTemplate());
+                ParkEdits.Load();
+                Stadiums.Rebuild();
+                QueueRedraw();
+            });
+
+        var reload = new Rect2(new Vector2(242f, y + 12f), new Vector2(150f, 30f));
+        Palette.Panel3D(this, reload, there ? Palette.Panel : Palette.Panel.Darkened(0.3f));
+        Palette.TextCentered(this, reload.Position + reload.Size * 0.5f, "READ IT AGAIN", 12,
+            there ? Palette.Ink : Palette.InkDim);
+
+        if (there)
+            _clicks.Add(reload, () =>
+            {
+                ParkEdits.Load();
+                Stadiums.Rebuild();
+                Say(ParkEdits.Status());
+                QueueRedraw();
+            });
+
+        Palette.Text(this, new Vector2(404f, y + 32f),
+            "Fences change how the game plays, not just how it looks.", 11, Palette.Warning);
     }
 
 }

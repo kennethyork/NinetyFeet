@@ -37,6 +37,37 @@ club's games or simulate them.
 **Dynasty** — the same, carried across years: development, ageing, retirement, the draft, free
 agency, arbitration, waivers, awards, single-season records and a Hall of Fame.
 
+**Your own ballparks.** `user://stadiums.cfg`, written out from the club editor with every ground
+as it currently stands — five fence distances, five wall heights, air density, foul territory, roof,
+and four colours apiece. Starting from a real park and moving a wall is a job somebody can do;
+starting from an empty bracket is not, which is why the file is a copy rather than a form.
+
+This overlay is different from the other two and the difference matters. A club's name and a
+player's name are labels — change them and no baseball moves. A fence distance is not a label, it
+goes into the physics. `--ballparks` demonstrates that by pulling one ground in to 280 feet with a
+four-foot wall and watching the same forty games produce 528 home runs instead of 106. Absurd
+numbers are clamped, a row of four distances is refused rather than padded out with a guess, and
+every audit ignores the file entirely — an audit that read it would be measuring somebody's own
+ballpark rather than the game.
+
+**A league of any size.** Settings → Clubs takes it to 8, 12, 16, 20, 24, 28 or 32, evenly from all
+four divisions so the pennant races stay comparable. A league keeps the size it was built with for
+ever: the count is written into the save and restored on load, because opening a sixteen-club
+dynasty into a thirty-two-club league would be half a league, a schedule that cannot be rebuilt and
+a race against sixteen ghosts.
+
+Clubs keep the identifiers they shipped with, so a sixteen-club league is literally sixteen of these
+thirty-two — same ids, same ballparks, same written players. Nothing keyed by club id means
+something different at a different size: not a save, not the club editor, not a roster file, not a
+rebuilt ground. Renumbering the survivors 0 to 15 would have been fractionally simpler and would
+have quietly changed which club every one of those files was talking about.
+
+The cost of that choice is that a club id is no longer its position in the list, and `id + 1` is no
+longer the next club — which is exactly the sort of thing that does not crash, it just schedules a
+game against a club that is not playing. `--size` therefore plays a whole season at every size: a
+schedule that balances, every fixture between two clubs that actually exist, every game played, a
+champion crowned, a draft held and the league rolled into the next year.
+
 **Your own names.** The clubs could always be renamed and recoloured; the men in them could not,
 and no screen anywhere wrote a player's name. So a league could be made to look like one you follow
 while every man in it stayed invented. `user://rosters.txt` is a plain text file — a club per
@@ -379,6 +410,8 @@ godot471cs --headless --path . -- --clubs          # the club editor renames and
 godot471cs --headless --path . -- --slots          # four leagues that cannot destroy each other
 godot471cs --headless --path . -- --determinism 40 # two leagues, one seed: do they still agree?
 godot471cs --headless --path . -- --drift 3        # roster health across seasons
+godot471cs --headless --path . -- --size          # a whole season at every league size
+godot471cs --headless --path . -- --ballparks 40  # a moved wall must change the baseball
 godot471cs --headless --path . -- --talent        # written players against generated ones
 godot471cs --headless --path . -- --extrabase 300 # one change at a time, and what it does to 2B/3B
 godot471cs --headless --path . -- --names          # what your own roster file actually did

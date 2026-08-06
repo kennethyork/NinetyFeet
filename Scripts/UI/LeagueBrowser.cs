@@ -46,10 +46,13 @@ public partial class LeagueBrowser : Control
             case Key.Escape or Key.Backspace:
                 Leave();
                 return;
-            case Key.Up or Key.W: _selected = Mathf.PosMod(_selected - 1, 32); _rosterScroll = 0; break;
-            case Key.Down or Key.S: _selected = Mathf.PosMod(_selected + 1, 32); _rosterScroll = 0; break;
-            case Key.Left or Key.A: _selected = Mathf.PosMod(_selected - 8, 32); _rosterScroll = 0; break;
-            case Key.Right or Key.D: _selected = Mathf.PosMod(_selected + 8, 32); _rosterScroll = 0; break;
+            // Stepping through the league rather than counting to thirty-two: in a smaller
+            // league the ids are not contiguous, so arithmetic on one lands on a club that is
+            // not playing this season.
+            case Key.Up or Key.W: _selected = Teams.Step(_selected, -1).Id; _rosterScroll = 0; break;
+            case Key.Down or Key.S: _selected = Teams.Step(_selected, 1).Id; _rosterScroll = 0; break;
+            case Key.Left or Key.A: _selected = Teams.Step(_selected, -4).Id; _rosterScroll = 0; break;
+            case Key.Right or Key.D: _selected = Teams.Step(_selected, 4).Id; _rosterScroll = 0; break;
         }
         QueueRedraw();
     }
@@ -79,7 +82,8 @@ public partial class LeagueBrowser : Control
 
         Palette.Text(this, new Vector2(40f, 48f), "THE LEAGUE", 28, Palette.Ink);
         Palette.Text(this, new Vector2(40f, 72f),
-            "32 clubs across the major-league map, plus Montreal and Nashville.", 15, Palette.InkDim);
+            $"{Teams.All.Count} clubs across the major-league map, plus Montreal and Nashville.",
+            15, Palette.InkDim);
 
         DrawTeamList(size);
         DrawRosterPanel(size, Teams.Get(_selected));
@@ -95,9 +99,8 @@ public partial class LeagueBrowser : Control
         Division lastDivision = (Division)(-1);
         League lastLeague = (League)(-1);
 
-        for (int id = 0; id < 32; id++)
+        foreach (var team in Teams.All)
         {
-            var team = Teams.Get(id);
 
             if (team.League != lastLeague || team.Division != lastDivision)
             {
@@ -109,7 +112,7 @@ public partial class LeagueBrowser : Control
                 y += 14f;
             }
 
-            bool on = id == _selected;
+            bool on = team.Id == _selected;
             var row = new Rect2(new Vector2(x - 6f, y - 12f), new Vector2(330f, 16f));
             if (on) DrawRect(row, Palette.PanelLight);
 

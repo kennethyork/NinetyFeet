@@ -32,7 +32,7 @@ public sealed class Draft
     public bool Complete => Current >= Order.Count;
 
     public int OnTheClock => Complete ? -1 : Order[Current];
-    public int CurrentRound => Complete ? Rounds : Current / 32 + 1;
+    public int CurrentRound => Complete ? Rounds : Current / Data.Teams.All.Count + 1;
 
     /// <summary>Builds the class and the order. Worst record picks first.</summary>
     public void Begin(SeasonState season, int seed)
@@ -45,7 +45,7 @@ public sealed class Draft
         var rng = new Rng(seed * 7717 + 91);
 
         // A class a little larger than the number of picks, so there is always a choice left.
-        int classSize = Rounds * 32 + 24;
+        int classSize = Rounds * Data.Teams.All.Count + 24;
         // Written prospects first, so a draft class in year five is still made of named people.
         for (int i = 0; i < classSize; i++)
         {
@@ -91,7 +91,7 @@ public sealed class Draft
 
         Picks.Add(new DraftPick
         {
-            Round = Current / 32 + 1,
+            Round = Current / Data.Teams.All.Count + 1,
             Overall = Current + 1,
             TeamId = teamId,
             Player = player,

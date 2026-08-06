@@ -71,7 +71,9 @@ public static class SaveGame
 
             var club = Teams.Get(Mathf.Clamp(dto.UserTeamId, 0, Teams.All.Count - 1));
             int played = dto.Schedule?.Count(g => g.P) ?? 0;
-            return $"{club.FullName} · year {Mathf.Max(1, dto.Year)} · {played} games played";
+            string size = dto.Clubs > 0 && dto.Clubs != Teams.ShippedCount
+                ? $" · {dto.Clubs} clubs" : "";
+            return $"{club.FullName} · year {Mathf.Max(1, dto.Year)} · {played} games played{size}";
         }
         catch
         {
@@ -263,6 +265,17 @@ public static class SaveGame
 
         public int Year { get; set; }
 
+        /// <summary>
+        /// How many clubs this league has.
+        ///
+        /// A league keeps the size it was built with for ever. Without this, opening a sixteen-club
+        /// dynasty while the setting says thirty-two would restore sixteen clubs' rosters into a
+        /// thirty-two-club league — half of it empty, a schedule that cannot be rebuilt, and a
+        /// pennant race against sixteen ghosts. Zero in a save written before there was a choice,
+        /// which is read as the full league it must have been.
+        /// </summary>
+        public int Clubs { get; set; }
+
         /// <summary>Players belonging to nobody, by id. They are stored in <c>Players</c> too.</summary>
         public int[] FreeAgentIds { get; set; }
 
@@ -335,6 +348,7 @@ public static class SaveGame
             GamesPlayed = season.GamesPlayed,
             DayPlusOne = season.CurrentDay + 1,
             Year = season.Year,
+            Clubs = Teams.ActiveCount,
             UserTeamId = season.UserTeamId,
             Innings = season.Innings,
             Players = new List<PlayerDto>(),
@@ -455,6 +469,11 @@ public static class SaveGame
         }
         if (dto?.Players == null || dto.TeamList == null) return null;
 
+        // The league's own size, restored before anything asks for the club list. Everything
+        // below — the rosters, the schedule, the standings — is built against whatever Teams.All
+        // says right now, so this has to come first.
+        Teams.ActiveCount = dto.Clubs > 0 ? dto.Clubs : Teams.ShippedCount;
+
         var season = new SeasonState
         {
             LeagueSeed = dto.Seed,
@@ -500,6 +519,11 @@ public static class SaveGame
 
         foreach (var td in dto.TeamList)
         {
+            // A club that is not in this league has no roster to fill. It cannot normally happen,
+            // since the size is restored above, but a hand-edited save must not be able to summon
+            // a thirty-third club into a sixteen-club season.
+            if (!Teams.InLeague(td.Id)) continue;
+
             var roster = season.RosterFor(td.Id);
             roster.Players.Clear();
             roster.Pitchers.Clear();

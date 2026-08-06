@@ -14,9 +14,44 @@ namespace SandlotSlugfest.Data;
 public static class Teams
 {
     private static TeamData[] _all;
+    private static TeamData[] _active;
     private static (string Abbrev, string FullName)[] _shipped;
 
-    public static IReadOnlyList<TeamData> All
+    /// <summary>
+    /// How many clubs the league has, of the thirty-two that exist.
+    ///
+    /// A league is two leagues of two divisions, so this has to divide by four — the subset is
+    /// taken evenly from each division rather than off the top of the list, or a sixteen-club
+    /// league would be the whole American League playing itself.
+    ///
+    /// Clubs keep the identifiers they shipped with. A sixteen-club league is literally sixteen of
+    /// these thirty-two, with the same ids, the same ballparks and the same written players they
+    /// would have had in a full one — so nothing keyed by club id means something different at a
+    /// different size: not a save, not the club editor, not a roster file, not a rebuilt ground.
+    /// Renumbering the survivors 0 to 15 would have been fractionally simpler here and would have
+    /// quietly changed which club every one of those files was talking about.
+    /// </summary>
+    public const int ShippedCount = 32;
+
+    public static readonly int[] Sizes = { 8, 12, 16, 20, 24, 28, 32 };
+
+    private static int _size = ShippedCount;
+
+    public static int ActiveCount
+    {
+        get => _size;
+        set
+        {
+            int wanted = Mathf.Clamp(value - value % 4, 8, ShippedCount);
+            if (wanted == _size) return;
+            _size = wanted;
+            _active = null;
+            _byId = null;
+        }
+    }
+
+    /// <summary>Every club that exists, whether or not it is in the league this season.</summary>
+    public static IReadOnlyList<TeamData> Shipped
     {
         get
         {
@@ -36,6 +71,32 @@ public static class Teams
         }
     }
 
+    /// <summary>The clubs actually playing this season.</summary>
+    public static IReadOnlyList<TeamData> All
+    {
+        get
+        {
+            if (_active != null) return _active;
+
+            var shipped = Shipped;
+            if (_size >= shipped.Count) return _active = _all;
+
+            // Evenly from each division, in the order they ship, so the four divisions stay the
+            // same size as one another and every one of them keeps its own markets.
+            int per = _size / 4;
+            var picked = new List<TeamData>();
+
+            foreach (var league in new[] { League.American, League.National })
+                foreach (var division in new[] { Division.East, Division.West })
+                    picked.AddRange(shipped
+                        .Where(t => t.League == league && t.Division == division)
+                        .OrderBy(t => t.Id)
+                        .Take(per));
+
+            return _active = picked.OrderBy(t => t.Id).ToArray();
+        }
+    }
+
     /// <summary>
     /// Throws the clubs away so they are built again from source. Used when an edit is undone —
     /// the overrides are applied over the originals rather than into them, so the only way back
@@ -44,10 +105,45 @@ public static class Teams
     public static void Rebuild()
     {
         _all = null;
+        _active = null;
+        _byId = null;
         _ = All;
     }
 
-    public static TeamData Get(int id) => All[id];
+    private static Dictionary<int, TeamData> _byId;
+
+    /// <summary>
+    /// A club by its identifier, which is no longer its position in the list.
+    ///
+    /// It was, while every league had all thirty-two. A smaller league holds the same ids it
+    /// shipped with — 0 to 3 and 8 to 11 and so on — so indexing the list by id would hand back
+    /// the wrong club, or walk off the end of it. The map is built from the shipped list rather
+    /// than the active one, because plenty of things legitimately ask about a club that is not in
+    /// this season's league: an old save, a written player's home, a stadium file.
+    /// </summary>
+    public static TeamData Get(int id)
+    {
+        _byId ??= Shipped.ToDictionary(t => t.Id);
+        return _byId.TryGetValue(id, out var t) ? t : Shipped[Mathf.Clamp(id, 0, Shipped.Count - 1)];
+    }
+
+    /// <summary>Whether a club is in this season's league at all.</summary>
+    public static bool InLeague(int id) => All.Any(t => t.Id == id);
+
+    /// <summary>Where a club sits in this season's league, for screens that page through it.</summary>
+    public static int IndexOf(int id)
+    {
+        for (int i = 0; i < All.Count; i++) if (All[i].Id == id) return i;
+        return -1;
+    }
+
+    /// <summary>The club this many places along from the given one, wrapping.</summary>
+    public static TeamData Step(int fromId, int by)
+    {
+        int at = IndexOf(fromId);
+        if (at < 0) return All[0];
+        return All[Mathf.PosMod(at + by, All.Count)];
+    }
 
     /// <summary>The abbreviation and name a club shipped with, whatever it has since been called.</summary>
     public static string OriginalAbbrev(int id)

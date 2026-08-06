@@ -15,7 +15,27 @@ public static class Stadiums
     public static Stadium For(int teamId) => All[teamId];
     public static Stadium For(TeamData team) => All[team.Id];
 
-    public static Stadium[] All => _all ??= Build();
+    public static Stadium[] All
+    {
+        get
+        {
+            if (_all != null) return _all;
+
+            // Built first, then anything the player has rebuilt is laid over the top — the same
+            // arrangement as the clubs, and for the same reason: the grounds in the source stay
+            // the source of truth, so a park can always be put back.
+            _all = Build();
+            ParkEdits.ApplyAll();
+            return _all;
+        }
+    }
+
+    /// <summary>Throws the parks away so they are built again from source, edits and all.</summary>
+    public static void Rebuild()
+    {
+        _all = null;
+        _ = All;
+    }
 
     private static Stadium Make(
         int id, string name, string quirk,

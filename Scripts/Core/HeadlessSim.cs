@@ -122,8 +122,8 @@ public static class HeadlessSim
             var sit = new GameSituation();
             var play = new PlaySimulation();
 
-            var away = RosterGenerator.For(Teams.Get(g % 32));
-            var home = RosterGenerator.For(Teams.Get((g * 5 + 3) % 32));
+            var away = RosterGenerator.For(Teams.All[g % Teams.All.Count]);
+            var home = RosterGenerator.For(Teams.All[(g * 5 + 3) % Teams.All.Count]);
             away.LineupSpot = home.LineupSpot = 0;
             away.SetPitcher(away.Pitchers[0]);
             home.SetPitcher(home.Pitchers[0]);
@@ -456,8 +456,8 @@ public static class HeadlessSim
 
         for (int i = 0; i < games; i++)
         {
-            var away = Teams.Get((i * 7) % 32);
-            var home = Teams.Get((i * 7 + 13) % 32);
+            var away = Teams.All[(i * 7) % Teams.All.Count];
+            var home = Teams.All[(i * 7 + 13) % Teams.All.Count];
             var r = PlayGame(away, home, seed: 1000 + i);
 
             doubles += r.Doubles;
@@ -475,8 +475,8 @@ public static class HeadlessSim
 
         for (int i = 0; i < games; i++)
         {
-            var away = Teams.Get((i * 7) % 32);
-            var home = Teams.Get((i * 7 + 13) % 32);
+            var away = Teams.All[(i * 7) % Teams.All.Count];
+            var home = Teams.All[(i * 7 + 13) % Teams.All.Count];
             var report = PlayGame(away, home, seed: 1000 + i);
             GD.Print(report.Text);
             totals.Absorb(report);

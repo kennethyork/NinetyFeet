@@ -787,7 +787,7 @@ public partial class CardsScreen : Control
 
         // Your side visits; the opposition is drawn from the league so there is a real yardstick.
         var rng = new Rng(Collection.Rating * 31 + Collection.Size);
-        g.HomeTeamId = rng.Range(0, 32);
+        g.HomeTeamId = Teams.All[rng.Range(0, Teams.All.Count)].Id;
         g.Mode = ControlMode.PlayerVsCpu;
         g.GoTo("res://Scenes/Game.tscn");
     }

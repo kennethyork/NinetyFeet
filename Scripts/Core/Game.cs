@@ -215,6 +215,14 @@ public partial class Game : Node
         else if (!IsVerificationRun() && !Settings.UseWrittenPlayers())
             Data.RosterGenerator.IncludeLegends = false;
 
+        // How many clubs, before anything asks for the club list — the league is built a few
+        // lines below and the schedule, the draft and the playoffs all read the count. A harness
+        // always gets the full thirty-two: an audit of a sixteen-club league is an audit of a
+        // different game.
+        Data.Teams.ActiveCount = IsVerificationRun()
+            ? Data.Teams.ShippedCount
+            : Settings.LeagueSize();
+
         // Renamed and recoloured clubs, read before anything asks for the club list. A harness
         // never sees them: an audit that prints club abbreviations should print the ones in the
         // source, not whatever this machine's owner has called his team.
@@ -226,6 +234,12 @@ public partial class Game : Node
         // the club edits, because a section can be headed with a club's new name.
         Data.Rosters.Enabled = !IsVerificationRun();
         Data.Rosters.Load();
+
+        // And the grounds. This one matters more than the other two: a fence distance is not a
+        // label, it goes into the physics, so an audit that read this file would be measuring
+        // whatever park this machine's owner has built rather than the game.
+        Data.ParkEdits.Enabled = !IsVerificationRun();
+        Data.ParkEdits.Load();
 
         // Which of the four leagues was last open. Read before anything tries to load one.
         if (!IsVerificationRun()) SaveGame.RestoreSlot();
@@ -259,7 +273,7 @@ public partial class Game : Node
         // written player as right-handed for three runs, because the save it was reading had been
         // written before handedness was generated properly — the code was right and the
         // measurement was of something else entirely.
-        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent", "--extrabase",
+        "--platoon", "--farm", "--plate", "--careermode", "--boxes", "--defence", "--people", "--clubs", "--infield", "--slots", "--determinism", "--league", "--names", "--names-template", "--talent", "--extrabase", "--ballparks", "--size",
 
         // The two-process league test builds its own shared league and must never read this
         // machine's save — both halves of it would otherwise start from whatever season happens
@@ -433,6 +447,29 @@ public partial class Game : Node
             int days = 45;
             if (lg + 1 < args.Length && int.TryParse(args[lg + 1], out int ld)) days = ld;
             Net.LeagueAudit.Run(Mathf.Clamp(days, 1, 200));
+            GetTree().Quit();
+            return;
+        }
+
+        // `--size` plays a whole season at every league size there is. Thirty-two was written
+        // into the source in eighty-odd places, and the ones that mattered assumed not only how
+        // many clubs there are but that their identifiers run 0 to 31.
+        if (System.Array.IndexOf(args, "--size") >= 0)
+        {
+            Season.SizeAudit.Run();
+            GetTree().Quit();
+            return;
+        }
+
+        // `--ballparks [games]` moves one wall and checks the game notices, and that nothing else
+        // does. A fence distance goes into the physics, so this overlay is the one that can quietly
+        // change what the league is.
+        int bp = System.Array.IndexOf(args, "--ballparks");
+        if (bp >= 0)
+        {
+            int many = 40;
+            if (bp + 1 < args.Length && int.TryParse(args[bp + 1], out int bn)) many = Mathf.Clamp(bn, 5, 400);
+            Data.ParkAudit.Run(many);
             GetTree().Quit();
             return;
         }
@@ -657,7 +694,7 @@ public partial class Game : Node
             // book, the box scores, the game logs and the splits are all keyed by player.
             int dupIds = ids.Count(kv => kv.Value > 1);
 
-            GD.Print($"\n=== UNIQUENESS — {total} players across 32 clubs ===");
+            GD.Print($"\n=== UNIQUENESS — {total} players across {Teams.All.Count} clubs ===");
             GD.Print($"duplicate names: {dupNames.Count}   duplicate look seeds: {dupLooks}   " +
                      $"duplicate ids: {dupIds}");
             foreach (var kv in dupNames.Take(8))
@@ -687,7 +724,7 @@ public partial class Game : Node
                      $"({Season.Calendar.Format(Season.Calendar.DateOf(st.TradeDeadlineDay))})");
 
             var mine = st.RosterFor(st.UserTeamId).Players[0];
-            int partner = (st.UserTeamId + 1) % 32;
+            int partner = Teams.Step(st.UserTeamId, 1).Id;
             var theirs = st.RosterFor(partner).Players[0];
             var give = new System.Collections.Generic.List<Data.PlayerData> { mine };
             var get = new System.Collections.Generic.List<Data.PlayerData> { theirs };

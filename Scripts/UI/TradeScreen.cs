@@ -109,7 +109,10 @@ public partial class TradeScreen : Control
 
     private void StepPartner(int delta)
     {
-        do { _partnerId = Mathf.PosMod(_partnerId + delta, 32); }
+        // Steps through the league. A smaller league does not hold ids 0..n-1, so adding one
+        // to a club id can land on a club that is not in it — and the trade desk would then offer
+        // you a deal with a team that plays no games.
+        do { _partnerId = Teams.Step(_partnerId, delta >= 0 ? 1 : -1).Id; }
         while (_partnerId == _season.UserTeamId);
 
         ClearOffer();
