@@ -64,8 +64,33 @@ public static class TouchControls
         float r = 78f;                      // a comfortable thumb target
         float small = 62f;
 
-        Buttons.Add(new Pad(new Rect2(size.X - m - 48f, m, 48f, 48f),
+        Buttons.Add(new Pad(new Rect2(size.X - m - 48f, 108f, 48f, 48f),
             "II", InputActions.Pause, false, false));
+
+        if (scene.Phase == AtBatPhase.InPlay)
+        {
+            if (scene.HumanPitching && !Game.Instance.AutoFielding)
+            {
+                string[] labels = { "HOME", "1ST", "2ND", "3RD" };
+                string[] actions =
+                {
+                    InputActions.ThrowHome, InputActions.ThrowFirst,
+                    InputActions.ThrowSecond, InputActions.ThrowThird,
+                };
+                for (int i = 0; i < labels.Length; i++)
+                    Buttons.Add(new Pad(
+                        new Rect2(size.X - m - r - i * (r + 10f), size.Y - m - r, r, r),
+                        labels[i], actions[i], i == 0, false));
+            }
+            else if (scene.HumanBatting)
+            {
+                Buttons.Add(new Pad(new Rect2(size.X - m - r, size.Y - m - r, r, r),
+                    "GO", InputActions.SendRunners, true, false));
+                Buttons.Add(new Pad(new Rect2(size.X - m - r - small - 10f, size.Y - m - small,
+                    small, small), "HOLD", InputActions.HoldRunners, false, false));
+            }
+            return;
+        }
 
         // HumanBatting and HumanPitching are already worked out per half inning and are never both
         // true, so the pad simply follows whichever side of the ball he is on.
@@ -134,6 +159,8 @@ public static class TouchControls
                     _aimFinger = touch.Index;
                     _aimFrom = touch.Position;
                     _aimStart = scene.HumanPitching ? scene.PitchAim : scene.BatCursor;
+                    if (scene.Phase == AtBatPhase.InPlay && scene.HumanPitching)
+                        scene.SetTouchFieldTarget(touch.Position);
                     return true;
                 }
 
@@ -158,6 +185,12 @@ public static class TouchControls
     /// </summary>
     private static void Aim(GameScene scene, Vector2 to)
     {
+        if (scene.Phase == AtBatPhase.InPlay && scene.HumanPitching)
+        {
+            scene.SetTouchFieldTarget(to);
+            return;
+        }
+
         const float FeetPerPixel = 1f / 104f;     // matches BattingView.PixelsPerFoot
         var moved = (to - _aimFrom) * FeetPerPixel;
 

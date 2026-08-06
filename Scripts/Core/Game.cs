@@ -1255,6 +1255,9 @@ public partial class Game : Node
         if (i + 3 < args.Length && int.TryParse(args[i + 3], out int count)) runner.Count = count;
 
         runner.HumanBats = System.Array.IndexOf(args, "--bat") >= 0;
+        runner.HumanPitches = System.Array.IndexOf(args, "--pitch") >= 0;
+        runner.AutoPlay = System.Array.IndexOf(args, "--autoplay") >= 0;
+        runner.ManualFielding = System.Array.IndexOf(args, "--manual-fielding") >= 0;
         runner.CheckText = System.Array.IndexOf(args, "--textfit") >= 0;
         runner.SimulateTouch = System.Array.IndexOf(args, "--touch") >= 0;
 

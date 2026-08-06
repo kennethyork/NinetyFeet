@@ -61,8 +61,7 @@ Touch controls appear automatically on Android. Menus and gameplay buttons accep
 | Bunt | B | Left bumper |
 | Signature move | Shift or Tab | — |
 | Aim a pitch | Mouse | Left stick |
-| Choose a pitch | 1–4 | On-screen picker |
-| Throw a pitch | Left click or Space | A |
+| Choose / throw a pitch | 1–4, then click or Space | A/B/X/Y selects that slot; press it again to deal |
 | Bullpen / mound visit | P / V | On-screen menu |
 | Throw to first–home | 1–4 | Face buttons |
 | Steal / advance / hold | Arrow keys | On-screen controls |

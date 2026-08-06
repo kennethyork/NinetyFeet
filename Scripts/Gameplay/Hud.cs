@@ -20,11 +20,6 @@ public partial class Hud : Node2D
 
         Clicks.Begin();
 
-        // The pad goes on first so the play log, the banners and everything else can still be
-        // drawn over it. It sits in the bottom corners, which is where the score bug and the log
-        // are not.
-        TouchControls.Draw(this, Scene, size);
-
         DrawScoreBug(new Vector2(20f, 18f), s);
         DrawLineScore(new Vector2(size.X - 24f, 18f), s);
         DrawPlayLog(new Vector2(20f, size.Y - 110f));
@@ -45,7 +40,7 @@ public partial class Hud : Node2D
                 "Press SPACE to return to the menu", 20, Palette.Highlight);
         }
 
-        if (Scene.HumanPitching && Scene.Phase == AtBatPhase.PitchSelect)
+        if (Scene.HumanPitching && Scene.Phase == AtBatPhase.PitchSelect && !TouchControls.Enabled)
             DrawPitchPicker(size);
 
         if (Scene.SwingFeedbackTimer > 0f) DrawSwingFeedback(size);
@@ -62,16 +57,31 @@ public partial class Hud : Node2D
         DrawParkStrip(size);
         DrawFirstGameHelp(size);
         DrawTutorialLesson(size);
+
+        // Touch controls are functional foreground, not decoration. Draw them last so the play
+        // log and desktop pitch picker cannot cover the buttons a phone player must press.
+        TouchControls.Draw(this, Scene, size);
     }
+
     private void DrawTutorialLesson(Vector2 size)
     {
         if (!Game.Instance.TutorialMode || Scene.Phase == AtBatPhase.Over) return;
-        string lesson = Scene.HumanBatting
-            ? (Scene.Phase == AtBatPhase.PitchFlight ? "TRACK THE BALL  ·  aim, then swing as it reaches the plate" : "BATTING  ·  normal is safest  ·  power trades reach for damage  ·  contact does the opposite")
-            : Scene.HumanPitching ? "PITCHING  ·  choose a pitch, aim away from the middle, then deal"
-            : "FIELDING  ·  follow the highlighted defender  ·  throw to the numbered base";
+
+        string lesson;
+        if (Scene.HumanBatting)
+            lesson = Scene.Phase == AtBatPhase.PitchFlight
+                ? "TRACK THE BALL  ·  aim, then swing as it reaches the plate"
+                : "BATTING  ·  normal swing is safest  ·  power trades reach for damage  ·  contact does the opposite";
+        else if (Scene.HumanPitching)
+            lesson = Scene.Phase == AtBatPhase.PitchSelect
+                ? "PITCHING  ·  choose one of this pitcher's pitches, aim away from the middle, then deal"
+                : "WATCH THE TARGET  ·  every pitch has its own speed and break";
+        else
+            lesson = "FIELDING  ·  follow the highlighted defender  ·  throw to the numbered base";
+
         float width = Mathf.Min(760f, size.X - 40f);
-        var panel = new Rect2(new Vector2((size.X - width) * 0.5f, size.Y - 118f), new Vector2(width, 38f));
+        var panel = new Rect2(new Vector2((size.X - width) * 0.5f, size.Y - 118f),
+            new Vector2(width, 38f));
         Palette.Panel3D(this, panel, new Color(Palette.PanelLight) { A = 0.96f });
         Palette.TextCentered(this, panel.Position + panel.Size * 0.5f, lesson, 14, Palette.Ink);
     }
@@ -842,8 +852,11 @@ public partial class Hud : Node2D
             var rect = new Rect2(new Vector2(x + i * (w + 8f), y), new Vector2(w, 34f));
 
             Palette.Panel3D(this, rect, on ? Palette.Highlight.Darkened(0.2f) : Palette.Panel);
+            string button = InputActions.GamepadConnected
+                ? i switch { 0 => "A", 1 => "B", 2 => "X", _ => "Y" }
+                : $"{i + 1}";
             Palette.TextCentered(this, rect.Position + rect.Size * 0.5f,
-                $"{i + 1} {SwingProfileNames.Of(types[i])}", types.Length >= 5 ? 13 : 15,
+                $"{button} {SwingProfileNames.Of(types[i])}", types.Length >= 5 ? 13 : 15,
                 on ? Palette.Night : Palette.Ink);
 
             if (i == 0) DrawVisitsLeft(size, y);
@@ -858,8 +871,9 @@ public partial class Hud : Node2D
 
         DrawPowerUpChip(size, arm);
 
-        Palette.TextCentered(this, new Vector2(size.X * 0.5f, y - 14f),
-            "Click a pitch to pick it, click again to deal  ·  or aim with the mouse and click the field",
-            14, Palette.InkDim);
+        string hint = InputActions.GamepadConnected
+            ? "Face button picks its pitch; press the same button again to deal  ·  left stick aims"
+            : "Click a pitch to pick it, click again to deal  ·  or aim with the mouse and click the field";
+        Palette.TextCentered(this, new Vector2(size.X * 0.5f, y - 14f), hint, 14, Palette.InkDim);
     }
 }

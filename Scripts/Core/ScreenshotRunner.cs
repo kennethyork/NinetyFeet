@@ -40,6 +40,9 @@ public partial class ScreenshotRunner : Node
 
     /// <summary>Set by `--bat`: capture from the human hitter's point of view.</summary>
     public bool HumanBats;
+    public bool HumanPitches;
+    public bool AutoPlay;
+    public bool ManualFielding;
 
     /// <summary>
     /// Seconds to wait before navigating. Some screens cannot be captured the instant the game
@@ -75,7 +78,11 @@ public partial class ScreenshotRunner : Node
             _started = true;
             // `--bat` captures the human hitting view, which is the only way to see the
             // reticle — a CPU-versus-CPU capture never draws it.
-            Game.Instance.Mode = HumanBats ? ControlMode.BatOnlyAway : ControlMode.CpuVsCpu;
+            Game.Instance.Mode = HumanPitches ? ControlMode.CpuVsPlayer
+                : HumanBats ? ControlMode.BatOnlyAway
+                : ControlMode.CpuVsCpu;
+            Game.Instance.AutoPlayNextGame = AutoPlay;
+            if (ManualFielding) Game.Instance.AutoFielding = false;
             Game.Instance.GoTo(Scene);
             return;
         }

@@ -26,6 +26,7 @@ public partial class GameScene : Node2D
     /// <summary>Where the pitcher is aiming, in plate-plane feet.</summary>
     public Vector2 PitchAim = new(0f, 2.5f);
     public PitchType SelectedPitch = PitchType.Fastball;
+    private int _pendingPadPitchSlot = -1;
 
     /// <summary>Seconds a human pitcher has to deliver before the umpire calls for the pitch.</summary>
     /// <summary>
@@ -229,6 +230,14 @@ public partial class GameScene : Node2D
                 Mathf.Clamp(aim.Y, 0.6f, 5.0f));
             _batterMoved = true;
         }
+    }
+
+    public void SetTouchFieldTarget(Vector2 screen)
+    {
+        if (Phase != AtBatPhase.InPlay || Play?.Controlled == null
+            || Game.Instance.AutoFielding || Online) return;
+        _aimWith = Aiming.Pad;
+        Play.ManualTarget = _field.ScreenToField(screen);
     }
 
     /// <summary>
@@ -509,6 +518,24 @@ public partial class GameScene : Node2D
         // The pad first. It posts real action events, so everything below and every
         // Input.IsActionJustPressed in this file reads a thumb exactly as it reads a key.
         if (TouchControls.Handle(@event, this, GetViewportRect().Size)) return;
+
+        // On a controller the face buttons name the four pitches. A is also the generic Action
+        // button, so letting the InputMap handle it would reselect pitch one immediately before
+        // every delivery. Consume the raw face button here: one press selects its pitch and a
+        // second press on the selected pitch deals it, exactly like the clickable picker.
+        if (HumanPitching && Phase == AtBatPhase.PitchSelect && !Delivering
+            && @event is InputEventJoypadButton { Pressed: true } pad)
+        {
+            _pendingPadPitchSlot = pad.ButtonIndex switch
+            {
+                JoyButton.A => 0,
+                JoyButton.B => 1,
+                JoyButton.X => 2,
+                JoyButton.Y => 3,
+                _ => -1,
+            };
+            if (_pendingPadPitchSlot >= 0) return;
+        }
 
         // Tap the helmet: challenge the call that just went against you.
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.R })
@@ -1013,6 +1040,19 @@ public partial class GameScene : Node2D
             // pitch was a sinker had no key for it at all.
             var arm = Situation.FieldingTeam.CurrentPitcher;
             var arsenal = arm.Arsenal.ToArray();
+
+            if (_pendingPadPitchSlot >= 0)
+            {
+                int slot = _pendingPadPitchSlot;
+                _pendingPadPitchSlot = -1;
+                if (slot < arsenal.Length)
+                {
+                    if (SelectedPitch == arsenal[slot]) CommitPitch();
+                    else SelectedPitch = arsenal[slot];
+                }
+                return;
+            }
+
             void Choose(int slot)
             {
                 if (slot < arsenal.Length) SelectedPitch = arsenal[slot];
@@ -1717,9 +1757,11 @@ public partial class GameScene : Node2D
             ? SwingResolver.ResolveBunt(batter, CurrentPitch, atProgress, cursor, ref _rng, out var ball)
             : SwingResolver.Resolve(batter, CurrentPitch, atProgress, cursor, ref _rng, out ball,
                 assist, type, timingAssist);
+
         if (Game.Instance.Vibration && InputActions.GamepadConnected)
         {
-            float strength = result == SwingResult.InPlay ? 0.55f : result == SwingResult.Foul ? 0.28f : 0.12f;
+            float strength = result == SwingResult.InPlay ? 0.55f
+                : result == SwingResult.Foul ? 0.28f : 0.12f;
             Input.StartJoyVibration(Input.GetConnectedJoypads()[0], strength, strength * 0.7f, 0.12f);
         }
 
@@ -1936,12 +1978,15 @@ public partial class GameScene : Node2D
 
         if (manual)
         {
-            Vector2 aim = _field.ScreenToField(_field.GetGlobalMousePosition());
-
-            // Arrow keys and the stick nudge him too, for anyone not using a mouse.
+            Vector2 mouse = _field.GetGlobalMousePosition();
             Vector2 stick = Input.GetVector(
                 InputActions.AimLeft, InputActions.AimRight,
                 InputActions.AimDown, InputActions.AimUp);
+            Vector2 aim = MouseIsAiming(mouse, stick)
+                ? _field.ScreenToField(mouse)
+                : Play.ManualTarget;
+
+            // Arrow keys and the stick nudge him too, for anyone not using a mouse.
             if (stick.LengthSquared() > 0.04f)
             {
                 var chaser = Play.Controlled;
