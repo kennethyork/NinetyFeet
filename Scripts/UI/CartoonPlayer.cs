@@ -264,14 +264,27 @@ public static class CartoonPlayer
 
         DrawShadow(c, feet, s, look);
         DrawLegs(c, hip, feet, s, facing, pose, team, time, look.Seed, motionPhase);
-        DrawTorso(c, shoulder, hip, s, look, team, player);
 
-        // The bat goes on before the hands so the fingers close over the handle.
-        var (backHand, frontHand) = HandPositions(shoulder, s, facing, pose, look, time,
-            motionPhase, swingAim);
-        if (withBat) DrawBatInHands(c, backHand, frontHand, s, facing, pose, motionPhase);
+        if (fromBehind)
+        {
+            // His arms reach away from the camera, so his own back is in front of them. Drawn
+            // first and covered by the torso, they read as arms going forward rather than two
+            // hands held up at the lens — which is what they were.
+            DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
+            DrawTorso(c, shoulder, hip, s, look, team, player, fromBehind: true);
+            DrawMitt(c, shoulder, s, look, team);
+        }
+        else
+        {
+            DrawTorso(c, shoulder, hip, s, look, team, player);
 
-        DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
+            // The bat goes on before the hands so the fingers close over the handle.
+            var (backHand, frontHand) = HandPositions(shoulder, s, facing, pose, look, time,
+                motionPhase, swingAim);
+            if (withBat) DrawBatInHands(c, backHand, frontHand, s, facing, pose, motionPhase);
+
+            DrawArms(c, shoulder, s, facing, pose, look, team, time, motionPhase);
+        }
         DrawHead(c, head, s, facing, lookAt, look, team, pose, time, fromBehind);
     }
 
@@ -394,7 +407,7 @@ public static class CartoonPlayer
     }
 
     private static void DrawTorso(CanvasItem c, Vector2 shoulder, Vector2 hip, float s,
-        Look look, TeamData team, PlayerData player)
+        Look look, TeamData team, PlayerData player, bool fromBehind = false)
     {
         // A rounded torso rather than a quad — a four-point box reads as cardboard.
         float w = 20f * s * look.Chub;
@@ -418,18 +431,27 @@ public static class CartoonPlayer
             Ink.Capsule(shoulder + new Vector2(0f, -2f * s), shoulder + new Vector2(0f, 6f * s),
                 7.5f * s, 6), look.Skin.Darkened(0.12f));
 
-        // Jersey placket and number.
         float torsoH = hip.Y - shoulder.Y;
-        c.DrawRect(new Rect2(shoulder + new Vector2(-1.8f * s, 2f * s), new Vector2(3.6f * s, torsoH)),
-            team.Secondary);
 
-        if (player != null && s > 0.5f)
-        {
-            string num = player.Number.ToString();
-            int size = Mathf.Max(8, (int)(16f * s));
-            Palette.TextCentered(c, shoulder + new Vector2(w * 0.42f, torsoH * 0.62f), num, size,
+        // A placket is the front of a shirt. From behind there is a seam and a big number, which
+        // is the one piece of a uniform everybody in the stand reads.
+        if (!fromBehind)
+            c.DrawRect(new Rect2(shoulder + new Vector2(-1.8f * s, 2f * s), new Vector2(3.6f * s, torsoH)),
                 team.Secondary);
+
+        if (player == null || s <= 0.5f) return;
+
+        string num = player.Number.ToString();
+
+        if (fromBehind)
+        {
+            Palette.TextCentered(c, shoulder + new Vector2(0f, torsoH * 0.52f),
+                num, Mathf.Max(10, (int)(30f * s)), team.Secondary);
+            return;
         }
+
+        Palette.TextCentered(c, shoulder + new Vector2(w * 0.42f, torsoH * 0.62f),
+            num, Mathf.Max(8, (int)(16f * s)), team.Secondary);
     }
 
     /// <summary>
@@ -622,6 +644,28 @@ public static class CartoonPlayer
         c.DrawColoredPolygon(Ink.Capsule(knob, mid, 2.5f * s, 6), new Color("#c98b48"));
         c.DrawColoredPolygon(Ink.Capsule(mid, tip, 4.4f * s, 7), new Color("#dda86a"));
         c.DrawCircle(knob, 4.2f * s, new Color("#3b2a1a"));
+    }
+
+    /// <summary>
+    /// The glove, past his shoulder, for a catcher seen from behind.
+    ///
+    /// With his arms hidden behind his own back there is nothing left to say he is receiving
+    /// anything, and a crouching man with no hands reads as a man who has lost them. A mitt held
+    /// out past the shoulder is the whole silhouette of the job.
+    /// </summary>
+    private static void DrawMitt(CanvasItem c, Vector2 shoulder, float s, Look look, TeamData team)
+    {
+        var at = shoulder + new Vector2(-21f * s * look.Chub, 7f * s);
+        var leather = new Color(0.44f, 0.27f, 0.14f);
+
+        Ink.Shape(c, Ink.Blob(at, 12.5f * s, 13.5f * s, 14), leather, Outline, 2.0f * s,
+            look.Seed + 83);
+
+        // The pocket, and the thumb down its near side.
+        c.DrawArc(at, 7.4f * s, Mathf.Pi * 0.15f, Mathf.Pi * 1.15f, 14,
+            leather.Darkened(0.28f), 2.4f * s);
+        Ink.Shape(c, Ink.Capsule(at + new Vector2(6f * s, 6f * s), at + new Vector2(9f * s, -4f * s),
+            3.6f * s), leather.Lightened(0.10f), Outline, 1.6f * s, look.Seed + 84);
     }
 
     private static void DrawArms(CanvasItem c, Vector2 shoulder, float s, float facing,
