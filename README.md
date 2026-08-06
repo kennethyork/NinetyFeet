@@ -179,6 +179,9 @@ against the desktop exports.
 Version tags create permanent GitHub Releases with checksums. Signing requirements and the release
 checklist are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
+Release preparation also includes the [`playtest checklist`](docs/PLAYTESTING.md), ready-to-edit
+[`store copy and capture plan`](docs/STORE_COPY.md), and the project's [`privacy notice`](PRIVACY.md).
+
 ## Project structure
 
 ```text

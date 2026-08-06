@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible gameplay, save, control or build problem
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping test Ninety Feet. Do not post private IP addresses or roster files.
+  - type: input
+    id: build
+    attributes:
+      label: Build
+      description: Release version or commit shown with the download
+      placeholder: v0.2.0 or d43aa46
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options: [Android, Windows, Linux AppImage, Godot editor]
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device and input
+      placeholder: Pixel 8 touch; Windows 11 Xbox controller
+    validations:
+      required: true
+  - type: input
+    id: mode
+    attributes:
+      label: Mode
+      placeholder: Dynasty, Exhibition, Moments, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Open…\n2. Select…\n3. Tap…"
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot, video or log
+      description: Drag files here after removing personal information.
