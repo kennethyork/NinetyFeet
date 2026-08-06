@@ -40,6 +40,9 @@ public partial class SettingsScreen : Control
     {
         if (@event is InputEventMouseMotion m) { if (_clicks.Hover(m.Position)) QueueRedraw(); return; }
 
+        if (_clicks.Controller(@event, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn")))
+        { QueueRedraw(); return; }
+
         if (_scroll.Wheel(@event)) { QueueRedraw(); return; }
 
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
@@ -200,11 +203,17 @@ public partial class SettingsScreen : Control
             "Rename and recolour. Nothing here changes how a club plays.",
             ref y, () => Game.Instance.GoTo("res://Scenes/TeamEditor.tscn"));
 
-        y += 14f; Section("ACCESSIBILITY", ref y);
-        AccessibilityRow("Large interface text", "large_text", g.LargeText, "Increases menu and gameplay labels.", v => g.LargeText = v, ref y);
-        AccessibilityRow("High contrast", "high_contrast", g.HighContrast, "Uses bright text instead of muted grey.", v => g.HighContrast = v, ref y);
-        AccessibilityRow("Reduced motion", "reduced_motion", g.ReducedMotion, "Stops decorative movement and pulsing.", v => g.ReducedMotion = v, ref y);
-        AccessibilityRow("Controller vibration", "vibration", g.Vibration, "Physical feedback for contact and misses.", v => g.Vibration = v, ref y);
+        y += 14f;
+        Section("ACCESSIBILITY", ref y);
+        AccessibilityRow("Large interface text", "large_text", g.LargeText,
+            "Increases menu and gameplay labels.", v => g.LargeText = v, ref y);
+        AccessibilityRow("High contrast", "high_contrast", g.HighContrast,
+            "Uses bright text instead of muted grey.", v => g.HighContrast = v, ref y);
+        AccessibilityRow("Reduced motion", "reduced_motion", g.ReducedMotion,
+            "Stops decorative movement and pulsing.", v => g.ReducedMotion = v, ref y);
+        AccessibilityRow("Controller vibration", "vibration", g.Vibration,
+            "Physical feedback for contact and misses.", v => g.Vibration = v, ref y);
+
         // --- Sound ---
         y += 14f;
         Section("SOUND", ref y);
@@ -235,6 +244,7 @@ public partial class SettingsScreen : Control
             "Changes apply to your next league. Sound is immediate.",
             13, Palette.InkDim);
         Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
+        _clicks.DrawFocus(this, Palette.Highlight);
 
         _scroll.Draw(this, Mathf.Min(872f, size.X - 32f), Top, bottom);
 
@@ -243,9 +253,17 @@ public partial class SettingsScreen : Control
                 ? "Controls are on their own screen  ·  scroll for more"
                 : "Controls are listed on their own screen from the main menu.", 12, Palette.InkDim);
     }
-    private void AccessibilityRow(string label, string key, bool value, string note, System.Action<bool> apply, ref float y)
+
+    private void AccessibilityRow(string label, string key, bool value, string note,
+        System.Action<bool> apply, ref float y)
     {
-        Row(label, value ? "On" : "Off", note, ref y, () => { bool next = !value; Settings.SaveAccessibility(key, next); apply(next); QueueRedraw(); });
+        Row(label, value ? "On" : "Off", note, ref y, () =>
+        {
+            bool next = !value;
+            Settings.SaveAccessibility(key, next);
+            apply(next);
+            QueueRedraw();
+        });
     }
 
     private void Section(string title, ref float y)

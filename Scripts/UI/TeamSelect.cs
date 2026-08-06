@@ -40,7 +40,8 @@ public partial class TeamSelect : Control
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
         var cfg = new ConfigFile();
-        if (cfg.Load(SelectionPath) == Error.Ok && (bool)cfg.GetValue("exhibition", "saved", false))
+        if (cfg.Load(SelectionPath) == Error.Ok
+            && (bool)cfg.GetValue("exhibition", "saved", false))
         {
             _awayPick = Mathf.Clamp((int)cfg.GetValue("exhibition", "away", Game.Instance.AwayTeamId), 0, Teams.All.Count - 1);
             _homePick = Mathf.Clamp((int)cfg.GetValue("exhibition", "home", Game.Instance.HomeTeamId), 0, Teams.All.Count - 1);
@@ -49,7 +50,9 @@ public partial class TeamSelect : Control
             _inningIndex = Mathf.Max(0, System.Array.IndexOf(InningOptions, innings));
             _mode = (ControlMode)Mathf.Clamp((int)cfg.GetValue("exhibition", "mode", 0), 0, 5);
             Game.Instance.AutoFielding = (bool)cfg.GetValue("exhibition", "auto_fielding", true);
-            _cursor = _homePick; _stage = Stage.Settings; _settingRow = 3;
+            _cursor = _homePick;
+            _stage = Stage.Settings;
+            _settingRow = 3;
         }
         else _cursor = Game.Instance.AwayTeamId;
     }
@@ -75,9 +78,11 @@ public partial class TeamSelect : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        Key pressed;
+        if (@event is InputEventKey { Pressed: true, Echo: false } key) pressed = key.PhysicalKeycode;
+        else if (!ControllerNav.TryKey(@event, out pressed)) return;
 
-        if (key.PhysicalKeycode == Key.Escape)
+        if (pressed == Key.Escape)
         {
             if (_stage == Stage.Away) Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
             else if (_stage == Stage.Home) { _stage = Stage.Away; _cursor = _awayPick; }
@@ -86,18 +91,18 @@ public partial class TeamSelect : Control
             return;
         }
 
-        if (_stage == Stage.Settings) HandleSettingsKey(key);
-        else HandleGridKey(key);
+        if (_stage == Stage.Settings) HandleSettingsKey(pressed);
+        else HandleGridKey(pressed);
 
         QueueRedraw();
     }
 
-    private void HandleGridKey(InputEventKey key)
+    private void HandleGridKey(Key key)
     {
         int col = _cursor / Rows;
         int row = _cursor % Rows;
 
-        switch (key.PhysicalKeycode)
+        switch (key)
         {
             case Key.Left or Key.A: col = (col - 1 + Columns) % Columns; break;
             case Key.Right or Key.D: col = (col + 1) % Columns; break;
@@ -128,9 +133,9 @@ public partial class TeamSelect : Control
         }
     }
 
-    private void HandleSettingsKey(InputEventKey key)
+    private void HandleSettingsKey(Key key)
     {
-        switch (key.PhysicalKeycode)
+        switch (key)
         {
             case Key.Up or Key.W: _settingRow = (_settingRow - 1 + 4) % 4; break;
             case Key.Down or Key.S: _settingRow = (_settingRow + 1) % 4; break;
@@ -174,10 +179,14 @@ public partial class TeamSelect : Control
         g.HomeTeamId = _homePick;
         g.Innings = InningOptions[_inningIndex];
         g.Mode = _mode;
-        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
-        cfg.SetValue("exhibition", "saved", true); cfg.SetValue("exhibition", "away", _awayPick);
-        cfg.SetValue("exhibition", "home", _homePick); cfg.SetValue("exhibition", "innings", InningOptions[_inningIndex]);
-        cfg.SetValue("exhibition", "mode", (int)_mode); cfg.SetValue("exhibition", "auto_fielding", g.AutoFielding);
+        var cfg = new ConfigFile();
+        cfg.Load(SelectionPath);
+        cfg.SetValue("exhibition", "saved", true);
+        cfg.SetValue("exhibition", "away", _awayPick);
+        cfg.SetValue("exhibition", "home", _homePick);
+        cfg.SetValue("exhibition", "innings", InningOptions[_inningIndex]);
+        cfg.SetValue("exhibition", "mode", (int)_mode);
+        cfg.SetValue("exhibition", "auto_fielding", g.AutoFielding);
         cfg.Save(SelectionPath);
         g.GoTo("res://Scenes/Game.tscn");
     }

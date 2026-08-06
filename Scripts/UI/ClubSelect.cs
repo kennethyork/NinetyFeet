@@ -35,7 +35,11 @@ public partial class ClubSelect : Control
         _cursor = Game.Instance.League?.UserTeamId ?? 0;
     }
 
-    public override void _Process(double delta) { if (!Game.Instance.ReducedMotion) _time += (float)delta; QueueRedraw(); }
+    public override void _Process(double delta)
+    {
+        if (!Game.Instance.ReducedMotion) _time += (float)delta;
+        QueueRedraw();
+    }
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -46,9 +50,11 @@ public partial class ClubSelect : Control
             return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        Key pressed;
+        if (@event is InputEventKey { Pressed: true, Echo: false } key) pressed = key.PhysicalKeycode;
+        else if (!ControllerNav.TryKey(@event, out pressed)) return;
         int col = _cursor / Rows, row = _cursor % Rows;
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape: Game.Instance.GoTo("res://Scenes/MainMenu.tscn"); return;
             case Key.Left or Key.A: col = Mathf.PosMod(col - 1, Columns); break;

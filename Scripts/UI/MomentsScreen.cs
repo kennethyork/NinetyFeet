@@ -37,14 +37,20 @@ public partial class MomentsScreen : Control
             if (_clicks.Click(mb.Position)) QueueRedraw();
             return;
         }
-        if (@event is InputEventMouseButton { Pressed: true } wheel && wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        if (@event is InputEventMouseButton { Pressed: true } wheel
+            && wheel.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            Select(Mathf.Clamp(_cursor + (wheel.ButtonIndex == MouseButton.WheelUp ? -1 : 1), 0, Moments.All.Length - 1)); QueueRedraw(); return;
+            Select(Mathf.Clamp(_cursor + (wheel.ButtonIndex == MouseButton.WheelUp ? -1 : 1),
+                0, Moments.All.Length - 1));
+            QueueRedraw();
+            return;
         }
 
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
+        Key pressed;
+        if (@event is InputEventKey { Pressed: true, Echo: false } key) pressed = key.PhysicalKeycode;
+        else if (!ControllerNav.TryKey(@event, out pressed)) return;
 
-        switch (key.PhysicalKeycode)
+        switch (pressed)
         {
             case Key.Escape or Key.Backspace: Leave(); return;
             case Key.Up or Key.W: Select(Mathf.Max(0, _cursor - 1)); break;
@@ -115,7 +121,8 @@ public partial class MomentsScreen : Control
         }
 
         Palette.Text(this, new Vector2(40f, size.Y - 22f),
-            $"{_cursor + 1} of {Moments.All.Length}  ·  Up/Down or wheel  ·  Enter to play  ·  Esc to go back", 14, Palette.InkDim);
+            $"{_cursor + 1} of {Moments.All.Length}  ·  Up/Down or wheel  ·  Enter to play  ·  Esc to go back",
+            14, Palette.InkDim);
     }
 
     private void Play(Moment m)

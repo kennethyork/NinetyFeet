@@ -12,6 +12,7 @@ namespace SandlotSlugfest.UI;
 public sealed class ClickMap
 {
     private readonly List<(Rect2 Rect, Action Click, Action Hover)> _items = new();
+    private int _focus;
 
     /// <summary>Call at the top of _Draw, before registering this frame's regions.</summary>
     public void Begin() => _items.Clear();
@@ -41,5 +42,29 @@ public sealed class ClickMap
             return true;
         }
         return false;
+    }
+
+    /// <summary>Controller navigation for screens whose rows exist only as drawn click targets.</summary>
+    public bool Controller(InputEvent e, Action back)
+    {
+        if (e is not InputEventJoypadButton { Pressed: true } pad) return false;
+        if (_items.Count == 0) return true;
+        _focus = Mathf.Clamp(_focus, 0, _items.Count - 1);
+        switch (pad.ButtonIndex)
+        {
+            case JoyButton.DpadUp: _focus = Mathf.PosMod(_focus - 1, _items.Count); break;
+            case JoyButton.DpadDown: _focus = Mathf.PosMod(_focus + 1, _items.Count); break;
+            case JoyButton.A: _items[_focus].Click?.Invoke(); break;
+            case JoyButton.B: back?.Invoke(); break;
+            default: return false;
+        }
+        return true;
+    }
+
+    public void DrawFocus(CanvasItem canvas, Color color)
+    {
+        if (_items.Count == 0) return;
+        _focus = Mathf.Clamp(_focus, 0, _items.Count - 1);
+        canvas.DrawRect(_items[_focus].Rect.Grow(2f), color, false, 3f);
     }
 }

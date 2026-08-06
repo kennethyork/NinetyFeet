@@ -34,7 +34,8 @@ public partial class OnlineLobby : Control
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
 
-        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
+        var cfg = new ConfigFile();
+        cfg.Load(SelectionPath);
         _league = (bool)cfg.GetValue("online", "league", true);
         _address = (string)cfg.GetValue("online", "address", "127.0.0.1");
         _club = Mathf.Clamp((int)cfg.GetValue("online", "club", Game.Instance.HomeTeamId), 0, Teams.All.Count - 1);
@@ -109,11 +110,16 @@ public partial class OnlineLobby : Control
         NetLink.I.Shutdown();
         Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
     }
+
     private void SaveSelections()
     {
-        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
-        cfg.SetValue("online", "league", _league); cfg.SetValue("online", "address", _address);
-        cfg.SetValue("online", "club", _club); cfg.SetValue("online", "seed", _seed); cfg.Save(SelectionPath);
+        var cfg = new ConfigFile();
+        cfg.Load(SelectionPath);
+        cfg.SetValue("online", "league", _league);
+        cfg.SetValue("online", "address", _address);
+        cfg.SetValue("online", "club", _club);
+        cfg.SetValue("online", "seed", _seed);
+        cfg.Save(SelectionPath);
     }
 
     private void OpenLeague()
@@ -144,6 +150,8 @@ public partial class OnlineLobby : Control
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        if (!_typing && _clicks.Controller(@event, Leave)) { QueueRedraw(); return; }
+
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
             _typing = false;
@@ -213,6 +221,7 @@ public partial class OnlineLobby : Control
         DrawWhat(size);
         DrawConnection(size, link);
         DrawClub(size, link);
+        _clicks.DrawFocus(this, Palette.Highlight);
 
         // Whatever the link is currently saying, which is the only thing that tells a player why
         // nothing is happening.
