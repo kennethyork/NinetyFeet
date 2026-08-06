@@ -19,6 +19,7 @@ namespace SandlotSlugfest.UI;
 /// </summary>
 public partial class OnlineLobby : Control
 {
+    private const string SelectionPath = "user://settings.cfg";
     private readonly ClickMap _clicks = new();
 
     private bool _league = true;                  // a shared season rather than one ballgame
@@ -33,7 +34,11 @@ public partial class OnlineLobby : Control
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
 
-        _club = Mathf.Clamp(Game.Instance.HomeTeamId, 0, Teams.All.Count - 1);
+        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
+        _league = (bool)cfg.GetValue("online", "league", true);
+        _address = (string)cfg.GetValue("online", "address", "127.0.0.1");
+        _club = Mathf.Clamp((int)cfg.GetValue("online", "club", Game.Instance.HomeTeamId), 0, Teams.All.Count - 1);
+        _seed = (int)cfg.GetValue("online", "seed", 1994);
 
         if (NetLink.I != null)
         {
@@ -59,6 +64,7 @@ public partial class OnlineLobby : Control
 
     private void Host()
     {
+        SaveSelections();
         if (!NetLink.I.Host()) return;
 
         // The host settles the terms before anybody arrives, so a guest connecting is told them
@@ -75,6 +81,7 @@ public partial class OnlineLobby : Control
 
     private void Join()
     {
+        SaveSelections();
         NetLink.I.Join(_address.Trim());
     }
 
@@ -91,14 +98,22 @@ public partial class OnlineLobby : Control
         _club = wanted;
         Game.Instance.HomeTeamId = _club;
         NetLink.I.ChooseClub(_club);
+        SaveSelections();
     }
 
     private void ToggleReady() => NetLink.I.SetReady(!NetLink.I.LocalReady);
 
     private void Leave()
     {
+        SaveSelections();
         NetLink.I.Shutdown();
         Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+    }
+    private void SaveSelections()
+    {
+        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
+        cfg.SetValue("online", "league", _league); cfg.SetValue("online", "address", _address);
+        cfg.SetValue("online", "club", _club); cfg.SetValue("online", "seed", _seed); cfg.Save(SelectionPath);
     }
 
     private void OpenLeague()

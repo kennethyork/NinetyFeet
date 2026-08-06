@@ -10,11 +10,10 @@ public partial class MainMenu : Control
 {
     private readonly string[] _items =
     {
-        "Continue Last Playstyle",
         // Two ways to run a club, named so the difference is obvious before you commit:
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
-        "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game",
+        "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game", "Learn to Play",
         // Online was reachable only from the command line, by a headless self-test. All of it
         // worked and none of it was in the game.
         "Online", "Settings", "Controls", "Quit",
@@ -123,6 +122,15 @@ public partial class MainMenu : Control
                 }
             return;
         }
+        if (@event is InputEventJoypadButton { Pressed: true } pad)
+        {
+            if (pad.ButtonIndex is JoyButton.DpadUp) _selected = (_selected - 1 + _items.Length) % _items.Length;
+            else if (pad.ButtonIndex is JoyButton.DpadDown) _selected = (_selected + 1) % _items.Length;
+            else if (pad.ButtonIndex is JoyButton.A or JoyButton.Start) { Activate(); return; }
+            else if (pad.ButtonIndex is JoyButton.B) { GetTree().Quit(); return; }
+            else return;
+            QueueRedraw(); return;
+        }
 
         if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
 
@@ -152,53 +160,44 @@ public partial class MainMenu : Control
         switch (_selected)
         {
             case 0:
-                // The league was loaded by the Game autoload before this menu appeared. It was
-                // previously impossible to reach: both league buttons went through ClubSelect,
-                // whose confirmation deliberately starts a new season and overwrites the slot.
-                Game.Instance.ResumeLastPlaystyle();
-                break;
-            case 1:
                 // Season: you play your club's games.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.ManagerOnly = false;
-                Game.Instance.GoTo("res://Scenes/ClubSelect.tscn");
+                OpenLeagueOrCreate();
                 break;
-            case 2:
+            case 1:
                 // Dynasty: you run the club for years and never take the field.
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.ManagerOnly = true;
-                Game.Instance.GoTo("res://Scenes/ClubSelect.tscn");
+                OpenLeagueOrCreate();
                 break;
-            case 3:
+            case 2:
                 // One player, from the bottom of somebody's farm system to wherever he gets to.
-                Settings.SaveResumeMode(Settings.ResumeMode.Career);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Career.tscn");
                 break;
-            case 4:
+            case 3:
                 // One situation, ninety seconds.
-                Settings.SaveResumeMode(Settings.ResumeMode.Moments);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Moments.tscn");
                 break;
-            case 5:
+            case 4:
                 // Collect players, build a side out of them, take it out.
-                Settings.SaveResumeMode(Settings.ResumeMode.Cards);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Cards.tscn");
                 break;
-            case 6:
-                Settings.SaveResumeMode(Settings.ResumeMode.Exhibition);
+            case 5:
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
+            case 6:
+                StartTutorial(); break;
             case 7:
                 // Host or join: one ballgame, or a whole season the two of you share.
-                Settings.SaveResumeMode(Settings.ResumeMode.Online);
                 Game.Instance.PendingSeasonGame = null;
                 Game.Instance.CardClubRoster = null;
                 Game.Instance.GoTo("res://Scenes/Online.tscn");
@@ -213,6 +212,19 @@ public partial class MainMenu : Control
                 GetTree().Quit();
                 break;
         }
+    }
+    private static void OpenLeagueOrCreate()
+    {
+        var g = Game.Instance;
+        if (g.League != null && SaveGame.Occupied(SaveGame.Slot)) { g.HomeTeamId = g.League.UserTeamId; g.CardClubRoster = null; g.GoTo("res://Scenes/Season.tscn"); }
+        else g.GoTo("res://Scenes/ClubSelect.tscn");
+    }
+    private static void StartTutorial()
+    {
+        var g = Game.Instance; g.TutorialMode = true; g.PendingSeasonGame = null; g.PendingMoment = null;
+        g.CardClubRoster = null; g.ClearFarmGame(); g.AwayTeamId = 2; g.HomeTeamId = 31;
+        g.Mode = ControlMode.PlayerVsCpu; g.ReturnTo = "res://Scenes/MainMenu.tscn";
+        g.GoTo("res://Scenes/Game.tscn");
     }
 
     public override void _Draw()
@@ -379,8 +391,8 @@ public partial class MainMenu : Control
         // On grass, with a soft drop shadow — plain white on cream was unreadable where the
         // hint ran under the board.
         Palette.TextCentered(this, new Vector2(cx + 1f, size.Y - 19f),
-            "Click an option, or use the arrow keys and Enter", 16, new Color(0f, 0f, 0f, 0.45f));
+            "Click or tap  ·  arrows + Enter  ·  controller D-pad + A", 16, new Color(0f, 0f, 0f, 0.45f));
         Palette.TextCentered(this, new Vector2(cx, size.Y - 20f),
-            "Click an option, or use the arrow keys and Enter", 16, new Color("#f7f2e4"));
+            "Click or tap  ·  arrows + Enter  ·  controller D-pad + A", 16, new Color("#f7f2e4"));
     }
 }

@@ -61,6 +61,19 @@ public partial class Hud : Node2D
         DrawPitchMeter(size);
         DrawParkStrip(size);
         DrawFirstGameHelp(size);
+        DrawTutorialLesson(size);
+    }
+    private void DrawTutorialLesson(Vector2 size)
+    {
+        if (!Game.Instance.TutorialMode || Scene.Phase == AtBatPhase.Over) return;
+        string lesson = Scene.HumanBatting
+            ? (Scene.Phase == AtBatPhase.PitchFlight ? "TRACK THE BALL  ·  aim, then swing as it reaches the plate" : "BATTING  ·  normal is safest  ·  power trades reach for damage  ·  contact does the opposite")
+            : Scene.HumanPitching ? "PITCHING  ·  choose a pitch, aim away from the middle, then deal"
+            : "FIELDING  ·  follow the highlighted defender  ·  throw to the numbered base";
+        float width = Mathf.Min(760f, size.X - 40f);
+        var panel = new Rect2(new Vector2((size.X - width) * 0.5f, size.Y - 118f), new Vector2(width, 38f));
+        Palette.Panel3D(this, panel, new Color(Palette.PanelLight) { A = 0.96f });
+        Palette.TextCentered(this, panel.Position + panel.Size * 0.5f, lesson, 14, Palette.Ink);
     }
 
     /// <summary>
@@ -144,6 +157,7 @@ public partial class Hud : Node2D
     /// </summary>
     private void DrawFirstGameHelp(Vector2 size)
     {
+        if (Game.Instance.TutorialMode) return;
         if (_helpDone || Core.Settings.LoadSeenHelp()) return;
         if (Scene.Phase == AtBatPhase.Over) return;
 

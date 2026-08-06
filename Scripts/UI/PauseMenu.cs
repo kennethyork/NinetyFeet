@@ -85,6 +85,18 @@ public partial class PauseMenu : Control
             if (_clicks.Click(mb.Position)) QueueRedraw();
             return;
         }
+        if (@event is InputEventJoypadButton { Pressed: true } pad)
+        {
+            switch (pad.ButtonIndex)
+            {
+                case JoyButton.B or JoyButton.Start: Resume(); return;
+                case JoyButton.DpadUp: _selected = Mathf.PosMod(_selected - 1, Items.Length); break;
+                case JoyButton.DpadDown: _selected = Mathf.PosMod(_selected + 1, Items.Length); break;
+                case JoyButton.A: Activate(_selected); return;
+                default: return;
+            }
+            QueueRedraw(); return;
+        }
 
         if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
 

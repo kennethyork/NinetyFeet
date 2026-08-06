@@ -11,6 +11,7 @@ namespace SandlotSlugfest.UI;
 /// </summary>
 public partial class TeamSelect : Control
 {
+    private const string SelectionPath = "user://settings.cfg";
     private enum Stage { Away, Home, Settings }
 
     private Stage _stage = Stage.Away;
@@ -38,7 +39,19 @@ public partial class TeamSelect : Control
         // it was keyboard-only without anybody deciding it should be.
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
-        _cursor = Game.Instance.AwayTeamId;
+        var cfg = new ConfigFile();
+        if (cfg.Load(SelectionPath) == Error.Ok && (bool)cfg.GetValue("exhibition", "saved", false))
+        {
+            _awayPick = Mathf.Clamp((int)cfg.GetValue("exhibition", "away", Game.Instance.AwayTeamId), 0, Teams.All.Count - 1);
+            _homePick = Mathf.Clamp((int)cfg.GetValue("exhibition", "home", Game.Instance.HomeTeamId), 0, Teams.All.Count - 1);
+            if (_homePick == _awayPick) _homePick = (_awayPick + 1) % Teams.All.Count;
+            int innings = (int)cfg.GetValue("exhibition", "innings", 6);
+            _inningIndex = Mathf.Max(0, System.Array.IndexOf(InningOptions, innings));
+            _mode = (ControlMode)Mathf.Clamp((int)cfg.GetValue("exhibition", "mode", 0), 0, 5);
+            Game.Instance.AutoFielding = (bool)cfg.GetValue("exhibition", "auto_fielding", true);
+            _cursor = _homePick; _stage = Stage.Settings; _settingRow = 3;
+        }
+        else _cursor = Game.Instance.AwayTeamId;
     }
 
     public override void _Process(double delta)
@@ -161,6 +174,11 @@ public partial class TeamSelect : Control
         g.HomeTeamId = _homePick;
         g.Innings = InningOptions[_inningIndex];
         g.Mode = _mode;
+        var cfg = new ConfigFile(); cfg.Load(SelectionPath);
+        cfg.SetValue("exhibition", "saved", true); cfg.SetValue("exhibition", "away", _awayPick);
+        cfg.SetValue("exhibition", "home", _homePick); cfg.SetValue("exhibition", "innings", InningOptions[_inningIndex]);
+        cfg.SetValue("exhibition", "mode", (int)_mode); cfg.SetValue("exhibition", "auto_fielding", g.AutoFielding);
+        cfg.Save(SelectionPath);
         g.GoTo("res://Scenes/Game.tscn");
     }
 

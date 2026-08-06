@@ -30,8 +30,8 @@ baseball rates.
 - **Online:** play a head-to-head game or share a deterministic season between two owners.
 - **Customization:** rename and recolor clubs, edit ballparks, choose 8–32 clubs and import your own
   local roster data.
-- **Automatic resume:** seasons, dynasties, careers, collections, Moments and the last selected
-  playstyle persist between sessions. Completed trades are saved immediately.
+- **Per-mode resume:** Season, Dynasty, Career, Collection, Moments, Exhibition and Online each
+  reopen with their own saved progress or selections. Completed trades are saved immediately.
 
 ## Downloads
 

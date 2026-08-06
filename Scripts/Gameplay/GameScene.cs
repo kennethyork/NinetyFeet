@@ -597,6 +597,7 @@ public partial class GameScene : Node2D
     private void LeaveGame()
     {
         var g = Game.Instance;
+        g.TutorialMode = false;
         bool fromSeason = g.PendingSeasonGame != null;
         g.PendingSeasonGame = null;
 

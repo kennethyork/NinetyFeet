@@ -55,6 +55,7 @@ public partial class Game : Node
 
     /// <summary>Set by the netplay self-test: the next game plays itself.</summary>
     public bool AutoPlayNextGame;
+    public bool TutorialMode;
     private int _innings = 9;
 
     /// <summary>Innings per game, set in Settings. Nine by default, the same as the real thing.</summary>
@@ -372,8 +373,6 @@ public partial class Game : Node
         // A normal launch resumes the remembered league without making the player find a load
         // button every time. Command-line runs are tools, audits, screenshots or network tests
         // and must keep control of their own destination.
-        if (args.Length == 0 && Settings.LoadResumeMode() != Settings.ResumeMode.Menu)
-            Callable.From(ResumeLastPlaystyle).CallDeferred();
 
 
 
@@ -1305,25 +1304,4 @@ public partial class Game : Node
         GetTree().ChangeSceneToFile(scenePath);
     }
 
-    public void ResumeLastPlaystyle()
-    {
-        string target = Settings.LoadResumeMode() switch
-        {
-            Settings.ResumeMode.League when League != null && SaveGame.Occupied(SaveGame.Slot)
-                => "res://Scenes/Season.tscn",
-            Settings.ResumeMode.Career => "res://Scenes/Career.tscn",
-            Settings.ResumeMode.Cards => "res://Scenes/Cards.tscn",
-            Settings.ResumeMode.Moments => "res://Scenes/Moments.tscn",
-            Settings.ResumeMode.Exhibition => "res://Scenes/TeamSelect.tscn",
-            Settings.ResumeMode.Online => "res://Scenes/Online.tscn",
-            _ => null,
-        };
-        if (target == null) return;
-
-        if (Settings.LoadResumeMode() == Settings.ResumeMode.League)
-            HomeTeamId = League.UserTeamId;
-        PendingSeasonGame = null;
-        CardClubRoster = null;
-        GoTo(target);
-    }
 }

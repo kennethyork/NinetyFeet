@@ -186,15 +186,13 @@ public partial class SettingsScreen : Control
             !hasLeague ? "No save in this slot" : _deleteLeagueArmed ? "TAP AGAIN TO DELETE" : "Delete",
             !hasLeague ? "Start a season or dynasty to create one."
                 : _deleteLeagueArmed ? "This permanently removes the current slot."
-                : "Stops automatic resume. Tap twice so this cannot happen by accident.",
+                : "Removes it from Season and Dynasty. Tap twice so this cannot happen by accident.",
             ref y,
             () =>
             {
                 if (!SaveGame.Occupied(SaveGame.Slot)) { _deleteLeagueArmed = false; return; }
                 if (!_deleteLeagueArmed) { _deleteLeagueArmed = true; return; }
                 SaveGame.Delete();
-                if (Settings.LoadResumeMode() == Settings.ResumeMode.League)
-                    Settings.SaveResumeMode(Settings.ResumeMode.Menu);
                 _deleteLeagueArmed = false;
             });
 
