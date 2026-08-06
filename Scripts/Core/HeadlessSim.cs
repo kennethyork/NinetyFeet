@@ -631,6 +631,8 @@ public static class HeadlessSim
                    $"to third {PlaySimulation.ThrowsMade[3]}, " +
                    $"to second {PlaySimulation.ThrowsMade[2]}, " +
                    $"to first {PlaySimulation.ThrowsMade[1]}\n" +
+                   $"  fly caught, man on third, under two out: {PlaySimulation.SacChances} " +
+                   $"chances, {PlaySimulation.SacTagged} tagged, {PlaySimulation.SacScored} scored\n" +
                    $"  with a man on first: {(float)_onFirst / games:F2} balls in play, " +
                    $"{(float)_onFirstUnderTwo / games:F2} under two out, " +
                    $"{(float)_forceChances / games:F2} retired, " +

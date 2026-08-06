@@ -106,5 +106,9 @@ public static class LooseBall
     }
 
     /// <summary>The scale on a catcher's misses, sized to about 0.4 wild pitches per club a game.</summary>
-    public const float BlockFailure = 0.725f;
+    /// <summary>
+    /// Raised from 0.725. Wild pitches came out 25% under the majors — 0.57 a game against 0.76 —
+    /// so catchers were blocking rather more than catchers do.
+    /// </summary>
+    public const float BlockFailure = 0.96f;
 }

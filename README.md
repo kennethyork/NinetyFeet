@@ -458,22 +458,23 @@ Current `--sim 400`, both clubs combined per game. The second column of differen
 league with the written players turned off — the configuration somebody importing his own names
 has to use, since a written player takes a generated man's slot.
 
-| | Ninety Feet | MLB 2024 | | without written |
-| --- | --- | --- | --- | --- |
-| Runs | 8.44 | 8.79 | −4.0% | −6.3% |
-| Hits | 15.64 | 16.39 | −4.6% | −6.5% |
-| Doubles | 3.23 | 3.20 | **+1.1%** | −10.7% |
-| Triples | 0.27 | 0.29 | −6.0% | −36.2% |
-| Home runs | 2.19 | 2.24 | −2.2% | −1.3% |
-| Walks | 5.70 | 6.15 | −7.4% | −3.4% |
-| Strikeouts | 17.16 | 16.96 | +1.2% | −4.1% |
-| Stolen bases | 1.30 | 1.49 | −12.8% | −18.1% |
-| Caught stealing | 0.27 | 0.51 | −47.1% | −38.2% |
-| Hit by pitch | 0.75 | 0.79 | −5.7% | −3.8% |
-| Wild pitches | 0.57 | 0.76 | −25.3% | −24.0% |
-| Sacrifice flies | 0.36 | 0.79 | −54.7% | −50.0% |
-| Sacrifice bunts | 0.16 | 0.19 | −17.1% | −14.5% |
-| Grounded into DP | 1.63 | 1.44 | +13.0% | +22.7% |
+| | Ninety Feet | MLB 2024 | |
+| --- | --- | --- | --- |
+| Runs | 8.55 | 8.79 | −2.7% |
+| Hits | 15.65 | 16.39 | −4.5% |
+| Doubles | 3.22 | 3.20 | **+0.7%** |
+| Triples | 0.28 | 0.29 | **−1.7%** |
+| Home runs | 2.23 | 2.24 | **−0.4%** |
+| Walks | 5.72 | 6.15 | −7.0% |
+| Strikeouts | 16.98 | 16.96 | **+0.1%** |
+| Stolen bases | 1.50 | 1.49 | **+0.5%** |
+| Caught stealing | 0.46 | 0.51 | −9.8% |
+| Hit by pitch | 0.72 | 0.79 | −8.5% |
+| Wild pitches | 0.75 | 0.76 | **−2.0%** |
+| Sacrifice flies | 0.33 | 0.79 | −58.2% |
+| Sacrifice bunts | 0.17 | 0.19 | −11.8% |
+| Grounded into DP | 1.59 | 1.44 | +10.2% |
+| BABIP | .259 | .294 | −11.9% |
 
 **The calibration had been resting on the written cast, and nobody knew.** Turning the written
 players off used to move run scoring from four percent under the majors to twelve — the same

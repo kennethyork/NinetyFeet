@@ -155,6 +155,16 @@ public sealed class PlaySimulation
     public static readonly int[] ThrowsMade = new int[4];
     public static int ThrowsRefused;
 
+    /// <summary>
+    /// Why sacrifice flies are scarce, counted rather than reasoned about.
+    ///
+    /// Two guesses at this have now been wrong — the tag-up depth was lowered and nothing moved —
+    /// so the funnel gets counted instead: how often a fly is caught with a man on third and fewer
+    /// than two out, how often he goes, and how often he gets home. Whichever number collapses is
+    /// the answer.
+    /// </summary>
+    public static int SacChances, SacTagged, SacScored;
+
     public string LastEvent = "";
     public bool HumanControlsDefense;
     public bool HumanControlsOffense;
@@ -609,7 +619,15 @@ public sealed class PlaySimulation
         LastEvent = $"Caught by {f.Player.ShortName}!";
 
         // Runners who left early must go back; a deep enough fly lets them tag up and go.
-        bool deepEnough = BallSpot.Length() > 230f;
+        //
+        // One threshold for both runs was the reason sacrifice flies came out 55% light, the worst
+        // miss in the calibration. Scoring from third and taking third from second are not the same
+        // play: the man on third has ninety feet and a head start against a throw from the outfield
+        // to the plate, and he goes on almost anything hit out of the infield. The man on second is
+        // making the same ninety feet against a much shorter throw, and needs the ball genuinely
+        // deep. Holding both to 230 feet meant every medium fly that should have scored a run
+        // instead sent everybody back to the bag.
+        float reach = BallSpot.Length();
         bool outsLeft = _outsRecorded + _sit.Outs < 3;
 
         foreach (var r in Runners)
@@ -617,7 +635,13 @@ public sealed class PlaySimulation
             if (r.IsBatter || r.IsOut || r.Scored) continue;
             r.Forced = false;
 
-            if (deepEnough && outsLeft && r.StartBase >= 2)
+            bool goes = outsLeft && (r.StartBase == 3 ? reach > 186f
+                                   : r.StartBase == 2 && reach > 252f);
+
+            if (r.StartBase == 3 && outsLeft) SacChances++;
+            if (r.StartBase == 3 && goes) SacTagged++;
+
+            if (goes)
             {
                 // Tag up from the bag he started on and take the next one — the sacrifice fly.
                 r.Held = false;
@@ -912,6 +936,7 @@ public sealed class PlaySimulation
             if (r.ToBase >= 4)
             {
                 r.Scored = true;
+                if (r.StartBase == 3 && CaughtInAir) SacScored++;
                 r.Held = true;
                 _runsScored++;
                 LastEvent = $"{r.Player.ShortName} scores!";

@@ -46,8 +46,16 @@ public static class Baserunning
     /// And back down again when the platoon arrived and lengthened at-bats: this is offered per
     /// pitch, so anything that changes pitches per plate appearance moves the league's steal total
     /// without anybody touching baserunning. It is the most sensitive number in the game.
+    /// <summary>
+    /// How often a runner goes at all. Raised from 0.102 to 0.131.
+    ///
+    /// The league attempted 1.57 steals a game against a real 2.00, and succeeded on 83% of them
+    /// against a real 74.5%. Both numbers wrong in the same direction: it was running less often
+    /// and getting away with it more, which is what a league does when stealing is too safe — the
+    /// only men who bothered were the ones who could not be caught.
+    /// </summary>
     private static float Willingness(PlayerData runner) =>
-        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.102f, 0f, 0.102f);
+        Mathf.Clamp((runner.Speed - 4.5f) / 10f * 0.131f, 0f, 0.131f);
 
     /// <summary>
     /// Chance the throw beats him. A catcher's arm matters, but a fast runner beats most of them —
@@ -59,7 +67,12 @@ public static class Baserunning
         float arm = catcher?.Arm / 10f ?? 0.5f;
 
         // Third is a longer run and a shorter throw, so it is a harder base to take.
-        float baseline = toBase == 3 ? 0.68f : 0.80f;
+        //
+        // Second was 0.80 and is 0.745. The comment above says the real league throws out roughly
+        // one in five; it throws out one in four — 1.49 stolen against 2.00 attempted in 2024 — and
+        // this game was managing one in six. Caught stealing came out 47% light, the largest miss
+        // on the board after the sacrifice fly.
+        float baseline = toBase == 3 ? 0.625f : 0.745f;
         return Mathf.Clamp(baseline + (legs - 0.5f) * 0.34f - (arm - 0.5f) * 0.26f, 0.30f, 0.95f);
     }
 

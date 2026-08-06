@@ -1,0 +1,80 @@
+name: Windows build
+
+# You have no Windows machine, and half of what is being sold is a Windows binary
+# that has never been started. GitHub hands out real Windows runners for nothing,
+# so this builds the thing on actual Windows and — the part that matters — runs it.
+#
+# A build that compiles proves very little. This one starts the exported executable
+# and makes it play forty games through the out audit, which is the same check the
+# Linux build passes before it ships. If the C# did not make it into the export, or
+# the .NET runtime is not sitting where the game expects, the audit never prints and
+# the job fails.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    env:
+      GODOT_VERSION: 4.7.1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Fetch Godot and its export templates
+        shell: pwsh
+        run: |
+          $base = "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION-stable"
+
+          curl.exe -sL -o godot.zip "$base/Godot_v$env:GODOT_VERSION-stable_mono_win64.zip"
+          Expand-Archive godot.zip -DestinationPath godot
+
+          curl.exe -sL -o templates.tpz "$base/Godot_v$env:GODOT_VERSION-stable_mono_export_templates.tpz"
+          Expand-Archive templates.tpz -DestinationPath tpl
+
+          # Godot looks for templates under a version-named folder, not where the
+          # archive puts them.
+          $dest = "$env:APPDATA\Godot\export_templates\$env:GODOT_VERSION.stable.mono"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item tpl\templates\* $dest -Force
+
+      - name: Build the assemblies
+        run: dotnet build SandlotSlugfest.sln -c ExportRelease
+
+      - name: Export
+        shell: pwsh
+        run: |
+          $godot = (Get-ChildItem -Recurse -Filter "Godot_v*_mono_win64.exe" godot).FullName
+          New-Item -ItemType Directory -Force -Path build\windows | Out-Null
+
+          # Godot writes its errors to the log and still exits zero, so the export is
+          # judged by whether the binary and its assembly exist rather than by $?.
+          & $godot --headless --export-release "Windows x86_64" "$PWD\build\windows\NinetyFeet.exe"
+
+          if (-not (Test-Path build\windows\NinetyFeet.exe)) { throw "no executable was produced" }
+
+          $dll = Get-ChildItem -Recurse -Filter SandlotSlugfest.dll build\windows
+          if (-not $dll) { throw "the game's C# is not in the export — is SandlotSlugfest.sln present?" }
+
+      - name: Run it
+        shell: pwsh
+        run: |
+          $out = & build\windows\NinetyFeet.exe --headless -- --audit-outs 5 2>&1 | Out-String
+          Write-Host $out
+
+          if ($out -notmatch "OUT AUDIT: \d+ games clean") {
+            throw "the Windows build did not play a game"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NinetyFeet-windows-x86_64
+          path: build/windows/
