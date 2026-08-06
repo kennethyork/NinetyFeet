@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Ninety Feet
+GenericName=Baseball
+Comment=Arcade baseball on an honest simulation
+Exec=NinetyFeet.x86_64
+Icon=ninetyfeet
+Categories=Game;SportsGame;
+Terminal=false

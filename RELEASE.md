@@ -6,18 +6,26 @@
 
 | | |
 | --- | --- |
-| `dist/NinetyFeet-linux-x86_64.zip` | 68 MB · run `NinetyFeet.x86_64` |
-| `dist/NinetyFeet-windows-x86_64.zip` | 78 MB · run `NinetyFeet.exe` |
+| `dist/NinetyFeet-x86_64.AppImage` | 63 MB · Linux · **one file**, mark it executable and run it |
+| `dist/NinetyFeet-linux-x86_64.zip` | 68 MB · Linux · unzip and run `NinetyFeet.x86_64` |
+| `dist/NinetyFeet-windows-x86_64.zip` | 78 MB · Windows · unzip and run `NinetyFeet.exe` |
 
-Both are self-contained: the .NET runtime sits in the `data_SandlotSlugfest_*` folder beside the
-executable. **That folder has to travel with it.** Unzip the whole archive; the game will not start
-from the executable alone, which is the usual way a Godot C# build gets broken in distribution.
+**Offer the AppImage first.** The two zips are an executable plus a
+`data_SandlotSlugfest_*` folder that has to stay beside it, and that is the likeliest way
+somebody ends up with a game that will not start: unzip, drag the program somewhere tidy, leave
+the runtime behind. An AppImage is all of it in one file that runs on any distribution from the
+last decade. `packaging/make-appimage.sh` builds it from the exported Linux build.
+
+The proof it works is that it was run from `/` — a directory with nothing of the game in it —
+and played forty games through the out audit. That is exactly the case the folder-beside-it
+arrangement fails.
 
 Checksums, so a buyer can tell a good download from a truncated one:
 
 ```
 d9ca71a8aed5856f04006320b5c9c1f20980bce3606fb59651024485d9c1f8c7  NinetyFeet-linux-x86_64.zip
 242a206b7671730acec043c88a447a70992bc1b42ba0b8a589b395320f2a1d83  NinetyFeet-windows-x86_64.zip
+49f47ef85ec4c198e7d4c9b5b86bb1a1bcb40ca480db3f28c033d47917f83ef9  NinetyFeet-x86_64.AppImage
 ```
 
 ## Rebuilding
