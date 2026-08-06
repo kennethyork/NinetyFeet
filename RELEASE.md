@@ -16,8 +16,8 @@ from the executable alone, which is the usual way a Godot C# build gets broken i
 Checksums, so a buyer can tell a good download from a truncated one:
 
 ```
-54c44a70d917ab01aa9e1fa33969640295215ef9a3b23c22d8ea0530f839c224  NinetyFeet-linux-x86_64.zip
-e539a6f8f5acc88045010b672429c01b7d7428ef25e6a132e83515b3806b1c8b  NinetyFeet-windows-x86_64.zip
+537eef59f264af49e7d4b7b2bc7f977996a2652687f0ae2dff410ebd0d6a4067  NinetyFeet-linux-x86_64.zip
+7312ba9ef1b9efb17eeaa5cc753dfd6e484f3fa8a8506a8df8b5153361d66def  NinetyFeet-windows-x86_64.zip
 ```
 
 ## Rebuilding
