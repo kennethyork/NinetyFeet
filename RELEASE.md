@@ -17,9 +17,13 @@ metadata; Android's monotonically increasing `version/code` uses the Actions run
 
 ## Required outside the repository
 
-- **GitHub-hosted runner access:** the latest manual validation run was queued without a runner and
-  cancelled before any step began (`runner_id: 0`). Rerun **Release builds** from the Actions page
-  after resolving the account/runner restriction.
+- **GitHub-hosted runner access:** this repository is private. Two manual validations each waited
+  exactly 15 minutes without a runner and were cancelled before any step began (`runner_id: 0`).
+  GitHub bills private-repository jobs against the owner's included Actions allowance and blocks
+  further use after the quota when no valid payment method is available. Check **Settings → Billing
+  and licensing → Usage / Budgets**, add payment or wait for the monthly allowance to reset, or make
+  the repository public if that is genuinely acceptable. Then rerun **Release builds**. See
+  [GitHub's Actions billing documentation](https://docs.github.com/en/billing/concepts/product-billing/github-actions).
 - **Android release key:** configure `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and
   `ANDROID_KEY_PASSWORD`, then keep an offline key backup. Without all three, the workflow creates
   a clearly warned debug-signed testing APK.
