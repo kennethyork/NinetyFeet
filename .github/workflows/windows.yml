@@ -49,6 +49,19 @@ jobs:
       - name: Build the assemblies
         run: dotnet build SandlotSlugfest.sln -c ExportRelease
 
+      - name: Import the project
+        shell: pwsh
+        run: |
+          $godot = (Get-ChildItem -Recurse -Filter "Godot_v*_mono_win64.exe" godot).FullName
+
+          # A fresh checkout has no .godot folder — it is gitignored, being a cache — so nothing
+          # is imported and there is nothing for an export to pack. Godot said so only by
+          # producing no file and exiting zero, which is the same silence that hid the missing
+          # solution file. It reports a lot of import errors on the way and still succeeds, so the
+          # exit code is ignored here and the export below is what actually gets judged.
+          & $godot --headless --import 2>&1 | Select-Object -Last 5
+          if (-not (Test-Path .godot)) { throw "the project would not import" }
+
       - name: Export
         shell: pwsh
         run: |
