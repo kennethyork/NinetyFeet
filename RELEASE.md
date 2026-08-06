@@ -36,7 +36,7 @@ Checksums, so a buyer can tell a good download from a truncated one:
 ```
 fe206264bebe768fb26b72324f3b32d601adc236b8edb22eeae1ae5697686913  NinetyFeet-x86_64.AppImage
 6c14823abb741205a0f407ad693b61d778575944c2fce35294ce8dc508e1eccc  NinetyFeet-linux-x86_64.zip
-c47d2a6124c54125b19a4c1c8e399967469472f4f2bd24f724342828960e845d  NinetyFeet-windows-x86_64.zip
+940dae19980e6a01e335c0d8da88f97321bf19d981f4eb8c9ca5270eddc0d771  NinetyFeet-windows-x86_64.zip
 25b7832e392ba791ce85bfe116c47a777e5beecd4ee7fa57390057a9cfe37ce3  NinetyFeet-android-arm64.apk
 ```
 
