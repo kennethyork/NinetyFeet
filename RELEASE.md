@@ -6,26 +6,38 @@
 
 | | |
 | --- | --- |
-| `dist/NinetyFeet-x86_64.AppImage` | 63 MB · Linux · **one file**, mark it executable and run it |
-| `dist/NinetyFeet-linux-x86_64.zip` | 68 MB · Linux · unzip and run `NinetyFeet.x86_64` |
+| `dist/NinetyFeet-x86_64.AppImage` | 65 MB · Linux · **one file**, mark it executable and run it |
+| `dist/NinetyFeet-linux-x86_64.zip` | 70 MB · Linux · unzip and run `NinetyFeet.x86_64` |
 | `dist/NinetyFeet-windows-x86_64.zip` | 78 MB · Windows · unzip and run `NinetyFeet.exe` |
+| `dist/NinetyFeet-android-arm64.apk` | 114 MB · Android arm64 · **untested on a device** |
 
-**Offer the AppImage first.** The two zips are an executable plus a
-`data_SandlotSlugfest_*` folder that has to stay beside it, and that is the likeliest way
-somebody ends up with a game that will not start: unzip, drag the program somewhere tidy, leave
-the runtime behind. An AppImage is all of it in one file that runs on any distribution from the
-last decade. `packaging/make-appimage.sh` builds it from the exported Linux build.
+**Offer the AppImage first** on Linux. The zip is an executable plus a `data_SandlotSlugfest_*`
+folder that has to stay beside it, and that is the likeliest way somebody ends up with a game that
+will not start. The AppImage is all of it in one file; it was run from `/` — a directory with
+nothing of the game near it — and played forty games through the out audit.
 
-The proof it works is that it was run from `/` — a directory with nothing of the game in it —
-and played forty games through the out audit. That is exactly the case the folder-beside-it
-arrangement fails.
+**The Android build is a debug APK and has not been run on a phone.** Everything else here was
+executed before it was packaged. This one could not be: there is no Android device on this machine
+and no emulator. It contains what it should — the engine, the .NET runtime and
+`SandlotSlugfest.dll` — and it installs as `com.ninetyfeet.game`, but "the right files are inside"
+is not "it plays". Do not sell it until it has been on a phone.
+
+Building Android needed three things the desktop builds did not:
+
+- **.NET 9.** Godot 4.7.1's Android template refuses `net8.0`. The whole project moved to `net9.0`,
+  which is why the Linux and Windows builds were rebuilt and re-run afterwards rather than assumed
+  to be fine.
+- **ETC2/ASTC texture compression**, which Android requires. It costs nothing here — the game draws
+  its art at runtime and has two icons between it and no textures at all.
+- **The .NET `android` workload**, and the Android SDK and a JDK on the machine doing the export.
 
 Checksums, so a buyer can tell a good download from a truncated one:
 
 ```
-d9ca71a8aed5856f04006320b5c9c1f20980bce3606fb59651024485d9c1f8c7  NinetyFeet-linux-x86_64.zip
+fe206264bebe768fb26b72324f3b32d601adc236b8edb22eeae1ae5697686913  NinetyFeet-x86_64.AppImage
+6c14823abb741205a0f407ad693b61d778575944c2fce35294ce8dc508e1eccc  NinetyFeet-linux-x86_64.zip
 c47d2a6124c54125b19a4c1c8e399967469472f4f2bd24f724342828960e845d  NinetyFeet-windows-x86_64.zip
-49f47ef85ec4c198e7d4c9b5b86bb1a1bcb40ca480db3f28c033d47917f83ef9  NinetyFeet-x86_64.AppImage
+25b7832e392ba791ce85bfe116c47a777e5beecd4ee7fa57390057a9cfe37ce3  NinetyFeet-android-arm64.apk
 ```
 
 ## Rebuilding

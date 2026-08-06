@@ -39,11 +39,19 @@ window/stretch/mode="canvas_items"
 ; the backdrops fill, which is what makes expand safe here.
 window/stretch/aspect="expand"
 
+; A phone held upright would show a ballfield in a letterbox with a control pad on top
+; of it. The game is composed sideways and stays sideways.
+window/handheld/orientation=1
+
 [dotnet]
 
 project/assembly_name="SandlotSlugfest"
 
 [rendering]
+
+; Android will not take a project without it. Almost nothing here is a texture — the game
+; draws its art at runtime — so this costs two icons' worth of import time.
+textures/vram_compression/import_etc2_astc=true
 
 renderer/rendering_method="forward_plus"
 anti_aliasing/quality/msaa_2d=1
