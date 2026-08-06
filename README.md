@@ -97,7 +97,7 @@ game against a club that is not playing. `--size` therefore plays a whole season
 schedule that balances, every fixture between two clubs that actually exist, every game played, a
 champion crowned, a draft held and the league rolled into the next year.
 
-**Your own names.** The clubs could always be renamed and recoloured; the men in them could not,
+**Your own rosters.** The clubs could always be renamed and recoloured; the men in them could not,
 and no screen anywhere wrote a player's name. So a league could be made to look like one you follow
 while every man in it stayed invented. `user://rosters.txt` is a plain text file — a club per
 section, a man per line — and the generator uses it in place of the names it would have drawn. Write
@@ -107,6 +107,13 @@ you are already running.
 
 Nothing is shipped in it. The file lives in your own directory and the repository contains no names
 but its own.
+
+A line may remain just a name, or add optional `| key=value` fields for uniform number,
+handedness, age, ratings, potential, salary, contract length, service time, appearance seed,
+archetype, special ability and pitcher role. Omitted fields keep their generated values, so every
+existing name-only file remains valid. The generated template documents the complete format. The
+game does not ship, scrape, download or link to third-party rosters; this local file is supplied
+and controlled entirely by the person playing.
 
 One thing to know before you start typing: sixteen of every club's twenty-seven men are written
 players — 512 across the league, with faces and biographies — and a written player takes a generated

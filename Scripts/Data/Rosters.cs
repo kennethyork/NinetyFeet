@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Godot;
 
@@ -38,7 +39,14 @@ public static class Rosters
     public static bool Enabled = true;
 
     /// <summary>Names by club id, in the order the club is built.</summary>
-    private static readonly Dictionary<int, List<(string First, string Last)>> _byClub = new();
+    private sealed class Entry
+    {
+        public string First;
+        public string Last;
+        public readonly Dictionary<string, string> Fields = new(System.StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static readonly Dictionary<int, List<Entry>> _byClub = new();
 
     /// <summary>Sections in the file that matched no club, for the report to name.</summary>
     private static readonly List<string> _unmatched = new();
@@ -116,12 +124,12 @@ public static class Rosters
 
             if (club < 0) continue;
 
-            var name = Split(line);
-            if (name == null) continue;
+            var entry = ParseEntry(line);
+            if (entry == null) continue;
 
             if (!_byClub.TryGetValue(club, out var list))
-                _byClub[club] = list = new List<(string, string)>();
-            list.Add(name.Value);
+                _byClub[club] = list = new List<Entry>();
+            list.Add(entry);
         }
     }
 
@@ -173,6 +181,21 @@ public static class Rosters
         return (parts[0], string.Join(' ', parts[1..]));
     }
 
+    private static Entry ParseEntry(string line)
+    {
+        var columns = line.Split('|', System.StringSplitOptions.TrimEntries);
+        var name = Split(columns[0]);
+        if (name == null) return null;
+        var entry = new Entry { First = name.Value.First, Last = name.Value.Last };
+        for (int i = 1; i < columns.Length; i++)
+        {
+            int equals = columns[i].IndexOf('=');
+            if (equals <= 0 || equals == columns[i].Length - 1) continue;
+            entry.Fields[columns[i][..equals].Trim()] = columns[i][(equals + 1)..].Trim();
+        }
+        return entry;
+    }
+
     // -----------------------------------------------------------------------
     // Handing them out
     // -----------------------------------------------------------------------
@@ -188,7 +211,64 @@ public static class Rosters
         if (!Enabled) return null;
         if (!_loaded) Load();
         if (ordinal < 0 || !_byClub.TryGetValue(teamId, out var list)) return null;
-        return ordinal < list.Count ? list[ordinal] : null;
+        return ordinal < list.Count ? (list[ordinal].First, list[ordinal].Last) : null;
+    }
+
+    public static bool Has(int teamId, int ordinal, string field) =>
+        EntryFor(teamId, ordinal)?.Fields.ContainsKey(field) == true;
+
+    public static void ApplyFields(PlayerData player, int teamId, int ordinal)
+    {
+        var entry = EntryFor(teamId, ordinal);
+        if (entry == null) return;
+
+        SetInt("number", 0, 99, v => player.Number = v);
+        SetInt("age", 16, 60, v => player.Age = v);
+        SetInt("contact", 1, 10, v => player.Contact = v);
+        SetInt("power", 1, 10, v => player.Power = v);
+        SetInt("speed", 1, 10, v => player.Speed = v);
+        SetInt("arm", 1, 10, v => player.Arm = v);
+        SetInt("fielding", 1, 10, v => player.Fielding = v);
+        SetInt("pitchpower", 1, 10, v => player.PitchPower = v);
+        SetInt("pitchcontrol", 1, 10, v => player.PitchControl = v);
+        SetInt("stamina", 1, 10, v => player.Stamina = v);
+        SetInt("potential", 1, 10, v => player.Potential = v);
+        SetInt("salary", 0, 100000, v => player.Salary = v);
+        SetInt("contractyears", 0, 15, v => player.ContractYears = v);
+        SetInt("serviceyears", 0, 40, v => player.ServiceYears = v);
+        SetInt("lookseed", int.MinValue, int.MaxValue, v => player.LookSeed = v);
+
+        SetEnum("bats", ref player.Bats, true);
+        SetEnum("throws", ref player.Throws, false);
+        SetEnum("archetype", ref player.Archetype);
+        SetEnum("special", ref player.Special);
+        if (player.Position == Position.P) SetEnum("role", ref player.Role);
+
+        void SetInt(string key, int low, int high, System.Action<int> set)
+        {
+            if (entry.Fields.TryGetValue(key, out string raw)
+                && int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value))
+                set(Mathf.Clamp(value, low, high));
+        }
+
+        void SetEnum<T>(string key, ref T target, bool allowSwitch = true) where T : struct, System.Enum
+        {
+            if (!entry.Fields.TryGetValue(key, out string raw)) return;
+            if (typeof(T) == typeof(Handedness))
+                raw = raw.ToLowerInvariant() switch
+                { "r" => "Right", "l" => "Left", "s" => "Switch", _ => raw };
+            if (System.Enum.TryParse(raw.Replace(" ", ""), true, out T parsed)
+                && (allowSwitch || !parsed.ToString().Equals("Switch", System.StringComparison.OrdinalIgnoreCase)))
+                target = parsed;
+        }
+    }
+
+    private static Entry EntryFor(int teamId, int ordinal)
+    {
+        if (!Enabled) return null;
+        if (!_loaded) Load();
+        return ordinal >= 0 && _byClub.TryGetValue(teamId, out var list) && ordinal < list.Count
+            ? list[ordinal] : null;
     }
 
     // -----------------------------------------------------------------------
@@ -223,11 +303,11 @@ public static class Rosters
             if (teamId < 0 || teamId >= Teams.All.Count) continue;
 
             if (For(teamId, ordinal) is not { } name) continue;
-            if (name.First == p.FirstName && name.Last == p.LastName) continue;
-
+            bool nameChanged = name.First != p.FirstName || name.Last != p.LastName;
             if (name.First != null) p.FirstName = name.First;
             p.LastName = name.Last;
-            changed++;
+            ApplyFields(p, teamId, ordinal);
+            if (nameChanged || EntryFor(teamId, ordinal)?.Fields.Count > 0) changed++;
         }
 
         return changed;
@@ -262,7 +342,7 @@ public static class Rosters
         if (Exists()) return $"{Path} already exists and was left alone.";
 
         var text = new System.Text.StringBuilder();
-        text.AppendLine("# Ninety Feet — your own names.");
+        text.AppendLine("# Ninety Feet — your own local roster data.");
         text.AppendLine("#");
         text.AppendLine("# One club per section, one man per line, in the order printed beside each");
         text.AppendLine("# line. Lines starting with # are ignored, and so is any club or any line");
@@ -274,6 +354,14 @@ public static class Rosters
         text.AppendLine("# old heading or the new one will still find them.");
         text.AppendLine("#");
         text.AppendLine("# Surnames may have more than one word. \"Vladimir Guerrero Jr.\" is fine.");
+        text.AppendLine("# Optional fields follow the name, separated by |. Omit any field to keep");
+        text.AppendLine("# the generated value. Ratings are 1..10; salary is thousands of dollars.");
+        text.AppendLine("# Example Player | number=27 | bats=R | throws=R | age=28 | contact=8 |");
+        text.AppendLine("# power=7 | speed=6 | arm=8 | fielding=7 | potential=9 | salary=12500 |");
+        text.AppendLine("# contractyears=4 | serviceyears=5 | archetype=FiveTool | special=GapPower");
+        text.AppendLine("# Pitchers may also use pitchpower, pitchcontrol, stamina and role.");
+        text.AppendLine("# Accepted roles: Starter, Long, Middle, Setup, Closer.");
+        text.AppendLine("# This game does not download or supply third-party rosters, names or images.");
         text.AppendLine("#");
         text.AppendLine("# The farm systems are not covered. Those are 2,112 more men across three");
         text.AppendLine("# levels, and they keep their generated names.");

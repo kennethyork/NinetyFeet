@@ -282,6 +282,7 @@ public static class RosterGenerator
 
             AssignArsenal(p, ref rng);
             Season.Temperament.Assign(p, ref rng);
+            Rosters.ApplyFields(p, team.Id, p.Id % 100);
 
             roster.Pitchers.Add(p);
             roster.Players.Add(p);
@@ -292,6 +293,7 @@ public static class RosterGenerator
         {
             var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers, ordinal: ordinal++);
             ApplyPositionProfile(ref rng, p, team, starter: true);
+            Rosters.ApplyFields(p, team.Id, p.Id % 100);
             roster.Starters[pos] = p;
             roster.Players.Add(p);
         }
@@ -301,6 +303,7 @@ public static class RosterGenerator
         {
             var p = NewPlayer(ref rng, team, pos, usedNames, usedNumbers, ordinal: ordinal++);
             ApplyPositionProfile(ref rng, p, team, starter: false);
+            Rosters.ApplyFields(p, team.Id, p.Id % 100);
             roster.Players.Add(p);
         }
 
@@ -342,7 +345,8 @@ public static class RosterGenerator
                 ? Mathf.RoundToInt((Season.Development.PeakAge - p.Age) * rng.Range(0.20f, 0.60f))
                   + rng.Range(0, 2)
                 : 0;
-            p.Potential = Mathf.Clamp(p.Overall + room, 1, 10);
+            if (!Rosters.Has(team.Id, p.Id % 100, "potential"))
+                p.Potential = Mathf.Clamp(p.Overall + room, 1, 10);
         }
 
         roster.SetPitcher(roster.Pitchers[0]);
