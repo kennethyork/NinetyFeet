@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SandlotSlugfest", "SandlotSlugfest.csproj", "{1ADF070C-995A-414C-B8A9-86F93B25E99C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		ExportDebug|Any CPU = ExportDebug|Any CPU
+		ExportRelease|Any CPU = ExportRelease|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.ExportDebug|Any CPU.ActiveCfg = ExportDebug|Any CPU
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.ExportDebug|Any CPU.Build.0 = ExportDebug|Any CPU
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.ExportRelease|Any CPU.ActiveCfg = ExportRelease|Any CPU
+		{1ADF070C-995A-414C-B8A9-86F93B25E99C}.ExportRelease|Any CPU.Build.0 = ExportRelease|Any CPU
+	EndGlobalSection
+EndGlobal
