@@ -402,6 +402,11 @@ public partial class GameScene : Node2D
     {
         float dt = (float)delta;
 
+        // A tap is a press and a release. Held down for ever, one touch of the swing button is a
+        // bat that never comes back — so last frame's presses are let go before this frame reads
+        // anything.
+        TouchControls.Release();
+
         // Decisions from the other machine are acted on before anything else this frame, so both
         // sides run the same tick against the same state.
         PumpNetwork();
@@ -476,6 +481,10 @@ public partial class GameScene : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
+        // The pad first. It posts real action events, so everything below and every
+        // Input.IsActionJustPressed in this file reads a thumb exactly as it reads a key.
+        if (TouchControls.Handle(@event, this, GetViewportRect().Size)) return;
+
         // Tap the helmet: challenge the call that just went against you.
         if (@event is InputEventKey { Pressed: true, Echo: false, PhysicalKeycode: Key.R })
         {

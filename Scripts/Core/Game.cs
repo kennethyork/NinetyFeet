@@ -308,6 +308,10 @@ public partial class Game : Node
         if (fast >= 0 && fast + 1 < args.Length && float.TryParse(args[fast + 1], out float scale))
             Engine.TimeScale = Mathf.Clamp(scale, 0.1f, 50f);
 
+        // Whether this machine is a phone. `--touch` forces the pad on so it can be looked at
+        // from a desktop, which is the only way it gets checked before it reaches a device.
+        Gameplay.TouchControls.Detect(args);
+
         TryStartScreenshotRunner(args);
 
         int seasonArg = System.Array.IndexOf(args, "--season");

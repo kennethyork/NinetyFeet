@@ -19,6 +19,12 @@ public partial class Hud : Node2D
         var s = Scene.Situation;
 
         Clicks.Begin();
+
+        // The pad goes on first so the play log, the banners and everything else can still be
+        // drawn over it. It sits in the bottom corners, which is where the score bug and the log
+        // are not.
+        TouchControls.Draw(this, Scene, size);
+
         DrawScoreBug(new Vector2(20f, 18f), s);
         DrawLineScore(new Vector2(size.X - 24f, 18f), s);
         DrawPlayLog(new Vector2(20f, size.Y - 110f));
