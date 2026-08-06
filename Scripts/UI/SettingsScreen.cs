@@ -25,6 +25,7 @@ public partial class SettingsScreen : Control
 
     private readonly ClickMap _clicks = new();
     private readonly Scroller _scroll = new();
+    private bool _deleteLeagueArmed;
 
     public override void _Ready()
     {
@@ -179,6 +180,21 @@ public partial class SettingsScreen : Control
             ref y,
             () => Game.Instance.SwitchLeague(
                 (Season.SaveGame.Slot + 1) % Season.SaveGame.Slots));
+
+        bool hasLeague = SaveGame.Occupied(SaveGame.Slot);
+        Row("Delete saved league",
+            !hasLeague ? "No save in this slot" : _deleteLeagueArmed ? "TAP AGAIN TO DELETE" : "Delete",
+            !hasLeague ? "Start a season or dynasty to create one."
+                : _deleteLeagueArmed ? "This permanently removes the current slot."
+                : "Stops automatic resume. Tap twice so this cannot happen by accident.",
+            ref y,
+            () =>
+            {
+                if (!SaveGame.Occupied(SaveGame.Slot)) { _deleteLeagueArmed = false; return; }
+                if (!_deleteLeagueArmed) { _deleteLeagueArmed = true; return; }
+                SaveGame.Delete();
+                _deleteLeagueArmed = false;
+            });
 
         Row("Clubs", edited == 0 ? "As they shipped" : $"{edited} edited",
             "Rename and recolour. Nothing here changes how a club plays.",

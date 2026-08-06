@@ -348,6 +348,7 @@ public partial class Game : Node
     private static bool IsVerificationRun()
     {
         var args = OS.GetCmdlineUserArgs();
+
         foreach (string flag in HarnessFlags)
             if (System.Array.IndexOf(args, flag) >= 0) return true;
         return false;
@@ -367,6 +368,12 @@ public partial class Game : Node
         AutoFielding = Settings.LoadAutoFielding();
 
         var args = OS.GetCmdlineUserArgs();
+
+        // A normal launch resumes the remembered league without making the player find a load
+        // button every time. Command-line runs are tools, audits, screenshots or network tests
+        // and must keep control of their own destination.
+        if (args.Length == 0 && SaveGame.Occupied(SaveGame.Slot))
+            Callable.From(ResumeSavedLeague).CallDeferred();
 
 
 
@@ -1296,5 +1303,14 @@ public partial class Game : Node
     {
         AutoSaveLeague();
         GetTree().ChangeSceneToFile(scenePath);
+    }
+
+    private void ResumeSavedLeague()
+    {
+        if (League == null || !SaveGame.Occupied(SaveGame.Slot)) return;
+        HomeTeamId = League.UserTeamId;
+        PendingSeasonGame = null;
+        CardClubRoster = null;
+        GoTo("res://Scenes/Season.tscn");
     }
 }
