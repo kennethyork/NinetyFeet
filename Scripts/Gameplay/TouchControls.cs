@@ -34,6 +34,7 @@ public static class TouchControls
     public static void Detect(string[] args)
     {
         Enabled = DisplayServer.IsTouchscreenAvailable()
+               || OS.HasFeature("mobile")
                || System.Array.IndexOf(args, "--touch") >= 0;
     }
 
@@ -62,6 +63,9 @@ public static class TouchControls
         float m = 22f;                      // margin from the edge
         float r = 78f;                      // a comfortable thumb target
         float small = 62f;
+
+        Buttons.Add(new Pad(new Rect2(size.X - m - 48f, m, 48f, 48f),
+            "II", InputActions.Pause, false, false));
 
         // HumanBatting and HumanPitching are already worked out per half inning and are never both
         // true, so the pad simply follows whichever side of the ball he is on.
@@ -129,7 +133,7 @@ public static class TouchControls
                     // Not on a button, so this finger is the one aiming.
                     _aimFinger = touch.Index;
                     _aimFrom = touch.Position;
-                    _aimStart = scene.BatCursor;
+                    _aimStart = scene.HumanPitching ? scene.PitchAim : scene.BatCursor;
                     return true;
                 }
 
@@ -157,9 +161,7 @@ public static class TouchControls
         const float FeetPerPixel = 1f / 104f;     // matches BattingView.PixelsPerFoot
         var moved = (to - _aimFrom) * FeetPerPixel;
 
-        scene.BatCursor = new Vector2(
-            Mathf.Clamp(_aimStart.X + moved.X, -2.2f, 2.2f),
-            Mathf.Clamp(_aimStart.Y - moved.Y, 0.4f, 5.0f));
+        scene.SetTouchAim(new Vector2(_aimStart.X + moved.X, _aimStart.Y - moved.Y));
     }
 
     private static void Press(string action)

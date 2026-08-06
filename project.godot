@@ -43,6 +43,13 @@ window/stretch/aspect="expand"
 ; of it. The game is composed sideways and stays sideways.
 window/handheld/orientation=1
 
+[input_devices]
+
+; Menu screens do their own hit testing in _UnhandledInput. Android's implicit touch-to-mouse
+; conversion varies with the embedding/device, so Game supplies the conversion explicitly. This
+; is disabled here to prevent one tap being delivered twice on devices that enable it by default.
+pointing/emulate_mouse_from_touch=false
+
 [dotnet]
 
 project/assembly_name="SandlotSlugfest"

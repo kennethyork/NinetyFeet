@@ -13,6 +13,43 @@ public partial class Game : Node
 {
     public static Game Instance { get; private set; }
 
+    /// <summary>
+    /// Makes every painted menu target tappable on a phone.
+    ///
+    /// The UI predates Android and deliberately performs its own hit testing from mouse events.
+    /// Godot's platform mouse emulation is not consistent across Android embeddings, so translate
+    /// a primary finger here. Gameplay owns raw touch itself and must not receive the synthetic
+    /// click as well (a drag used to aim would otherwise also swing).
+    /// </summary>
+    public override void _Input(InputEvent @event)
+    {
+        // While play is live, GameScene owns raw touch. While its pause overlay has stopped the
+        // tree, the overlay is ordinary menu UI and needs this adapter again.
+        if (GetTree().CurrentScene is Gameplay.GameScene && !GetTree().Paused) return;
+
+        switch (@event)
+        {
+            case InputEventScreenTouch { Index: 0 } touch:
+                Input.ParseInputEvent(new InputEventMouseButton
+                {
+                    Position = touch.Position,
+                    GlobalPosition = touch.Position,
+                    ButtonIndex = MouseButton.Left,
+                    Pressed = touch.Pressed,
+                });
+                break;
+
+            case InputEventScreenDrag { Index: 0 } drag:
+                Input.ParseInputEvent(new InputEventMouseMotion
+                {
+                    Position = drag.Position,
+                    GlobalPosition = drag.Position,
+                    Relative = drag.Relative,
+                });
+                break;
+        }
+    }
+
     public int AwayTeamId = 2;    // Bronx Bombardiers
     public int HomeTeamId = 31;   // San Francisco Fog
 
@@ -291,6 +328,9 @@ public partial class Game : Node
 
     public override void _Ready()
     {
+        // Input must continue while the in-game pause overlay has stopped the scene tree.
+        ProcessMode = ProcessModeEnum.Always;
+
         // `godot --headless -- --sim [games]` plays full games with no window and prints box
         // scores, so the rules and physics can be exercised without a controller.
         _difficulty = Settings.LoadDifficulty();

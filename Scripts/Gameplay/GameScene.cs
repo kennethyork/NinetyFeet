@@ -209,6 +209,29 @@ public partial class GameScene : Node2D
     private Aiming _aimWith = Aiming.Mouse;
 
     /// <summary>
+    /// Hands the reticle to a touchscreen drag and keeps the dormant mouse from taking it back on
+    /// the next frame. Batting and pitching have slightly different legal target areas.
+    /// </summary>
+    public void SetTouchAim(Vector2 aim)
+    {
+        _aimWith = Aiming.Pad;
+
+        if (HumanPitching)
+        {
+            PitchAim = new Vector2(
+                Mathf.Clamp(aim.X, -1.9f, 1.9f),
+                Mathf.Clamp(aim.Y, 0.8f, 4.6f));
+        }
+        else
+        {
+            BatCursor = new Vector2(
+                Mathf.Clamp(aim.X, -2.2f, 2.2f),
+                Mathf.Clamp(aim.Y, 0.6f, 5.0f));
+            _batterMoved = true;
+        }
+    }
+
+    /// <summary>
     /// Decides whether the mouse or the pad is driving the reticle this frame.
     ///
     /// This was "has the mouse moved more than one pixel", which is not a decision, it is a
@@ -406,6 +429,8 @@ public partial class GameScene : Node2D
         // bat that never comes back — so last frame's presses are let go before this frame reads
         // anything.
         TouchControls.Release();
+
+        if (Input.IsActionJustPressed(InputActions.Pause)) OpenPauseMenu();
 
         // Decisions from the other machine are acted on before anything else this frame, so both
         // sides run the same tick against the same state.

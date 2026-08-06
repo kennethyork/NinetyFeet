@@ -72,6 +72,8 @@ public partial class MainMenu : Control
     public override void _Ready()
     {
         SetAnchorsPreset(LayoutPreset.FullRect);
+        // This screen paints and hit-tests its own links in _UnhandledInput.
+        MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
         Music.Instance?.Play(Tune.Menu);
     }

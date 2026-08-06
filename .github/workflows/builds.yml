@@ -1,0 +1,221 @@
+name: Release builds
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7.1
+  DOTNET_VERSION: 9.0.x
+
+jobs:
+  templates:
+    name: Fetch export templates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Godot .NET export templates
+        run: |
+          curl --fail --location --retry 5 --retry-all-errors \
+            "https://downloads.godotengine.org/?flavor=stable&platform=templates&slug=mono_export_templates.tpz&version=${GODOT_VERSION}" \
+            --output templates.tpz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: godot-${{ env.GODOT_VERSION }}-mono-templates
+          path: templates.tpz
+          compression-level: 0
+          retention-days: 1
+
+  windows:
+    name: Windows x86_64
+    needs: templates
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-${{ env.GODOT_VERSION }}-mono-templates
+
+      - name: Install Godot and templates
+        shell: pwsh
+        run: |
+          $base = "https://github.com/godotengine/godot-builds/releases/download/$env:GODOT_VERSION-stable"
+          curl.exe -fL --retry 5 -o godot.zip "$base/Godot_v$env:GODOT_VERSION-stable_mono_win64.zip"
+          Expand-Archive godot.zip -DestinationPath godot
+          # Expand-Archive rejects a valid ZIP solely when its extension is .tpz.
+          Copy-Item templates.tpz templates.zip
+          Expand-Archive templates.zip -DestinationPath tpl
+
+          $dest = "$env:APPDATA\Godot\export_templates\$env:GODOT_VERSION.stable.mono"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          Copy-Item tpl\templates\* $dest -Force
+
+      - name: Build and import
+        shell: pwsh
+        run: |
+          dotnet build SandlotSlugfest.sln -c ExportRelease
+          $godot = (Get-ChildItem -Recurse -Filter "Godot_v*_mono_win64.exe" godot).FullName
+          & $godot --headless --import 2>&1 | Select-Object -Last 20
+          if (-not (Test-Path .godot)) { throw "Godot did not import the project" }
+
+      - name: Export and test
+        shell: pwsh
+        run: |
+          $godot = (Get-ChildItem -Recurse -Filter "Godot_v*_mono_win64.exe" godot).FullName
+          New-Item -ItemType Directory -Force -Path build\windows | Out-Null
+          $log = & $godot --headless --verbose --export-release "Windows x86_64" `
+            "$PWD\build\windows\NinetyFeet.exe" 2>&1 | Out-String
+          if (-not (Test-Path build\windows\NinetyFeet.exe)) {
+            Write-Host $log
+            throw "Windows export was not produced"
+          }
+          if (-not (Get-ChildItem -Recurse -Filter SandlotSlugfest.dll build\windows)) {
+            throw "The Windows export is missing the game assembly"
+          }
+
+          $out = & build\windows\NinetyFeet.exe --headless -- --audit-outs 5 2>&1 | Out-String
+          Write-Host $out
+          if ($out -notmatch "OUT AUDIT: \d+ games clean") {
+            throw "The Windows export did not complete its gameplay audit"
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NinetyFeet-windows-x86_64
+          path: build/windows/
+          if-no-files-found: error
+
+  appimage:
+    name: Linux AppImage x86_64
+    needs: templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-${{ env.GODOT_VERSION }}-mono-templates
+
+      - name: Install Godot and templates
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 5 --retry-all-errors \
+            "$base/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip" --output godot.zip
+          unzip -q godot.zip -d godot
+          unzip -q templates.tpz -d tpl
+
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          cp tpl/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono/"
+          find godot -type f -name 'Godot_*' -exec chmod +x {} \;
+
+      - name: Build, export, and test
+        run: |
+          godot="$(find godot -type f -name 'Godot_*mono_linux.x86_64' -print -quit)"
+          dotnet build SandlotSlugfest.sln -c ExportRelease
+          "$godot" --headless --import 2>&1 | tail -20
+          test -d .godot
+
+          mkdir -p build/linux
+          "$godot" --headless --verbose --export-release "Linux x86_64" \
+            "$PWD/build/linux/NinetyFeet.x86_64" 2>&1 | tee build/linux-export.log
+          test -x build/linux/NinetyFeet.x86_64
+          find build/linux -name SandlotSlugfest.dll -print -quit | grep -q .
+
+          out="$(build/linux/NinetyFeet.x86_64 --headless -- --audit-outs 5 2>&1)"
+          echo "$out"
+          grep -Eq 'OUT AUDIT: [0-9]+ games clean' <<<"$out"
+
+      - name: Package and test AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: '1'
+        run: |
+          curl --fail --location --retry 5 --retry-all-errors \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
+            --output appimagetool
+          chmod +x appimagetool
+          APPIMAGETOOL="$PWD/appimagetool" packaging/make-appimage.sh
+
+          out="$(dist/NinetyFeet-x86_64.AppImage --headless -- --audit-outs 5 2>&1)"
+          echo "$out"
+          grep -Eq 'OUT AUDIT: [0-9]+ games clean' <<<"$out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NinetyFeet-linux-x86_64-AppImage
+          path: dist/NinetyFeet-x86_64.AppImage
+          if-no-files-found: error
+
+  android:
+    name: Android arm64 APK
+    needs: templates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android build dependencies
+        run: |
+          dotnet workload install android
+          sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+          yes | sdkmanager --licenses >/dev/null || true
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: godot-${{ env.GODOT_VERSION }}-mono-templates
+
+      - name: Install Godot and templates
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+          curl --fail --location --retry 5 --retry-all-errors \
+            "$base/Godot_v${GODOT_VERSION}-stable_mono_linux_x86_64.zip" --output godot.zip
+          unzip -q godot.zip -d godot
+          unzip -q templates.tpz -d tpl
+
+          mkdir -p "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono"
+          cp tpl/templates/* "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable.mono/"
+          find godot -type f -name 'Godot_*' -exec chmod +x {} \;
+
+      - name: Build and export APK
+        run: |
+          godot="$(find godot -type f -name 'Godot_*mono_linux.x86_64' -print -quit)"
+          dotnet build SandlotSlugfest.sln -c ExportRelease
+          "$godot" --headless --import 2>&1 | tail -20
+          test -d .godot
+
+          mkdir -p build/android
+          "$godot" --headless --verbose --export-debug Android \
+            "$PWD/build/android/NinetyFeet.apk" 2>&1 | tee build/android-export.log
+          test -s build/android/NinetyFeet.apk
+
+          unzip -l build/android/NinetyFeet.apk | tee build/android-apk-contents.txt
+          grep -q 'SandlotSlugfest.dll' build/android-apk-contents.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NinetyFeet-android-arm64
+          path: build/android/NinetyFeet.apk
+          if-no-files-found: error
