@@ -32,58 +32,65 @@ godot471cs --headless --export-release "Windows x86_64" build/windows/NinetyFeet
 and writes a binary with none of the game's C# in it — a program that opens a window and does
 nothing. The error is buried in the log among the progress lines. Check the log, not the exit code.
 
-## Selling it from your own site, with PayPal
+## Selling it from your own site, with Paddle
 
 Four files in `page/`:
 
 | | |
 | --- | --- |
-| `index.html` | the page, with PayPal buttons at $19.99 |
-| `verify.php` | asks PayPal whether an order was really paid, and issues the link |
+| `index.html` | the page, with a Paddle checkout |
+| `verify.php` | asks Paddle whether a transaction really completed, and issues the link |
 | `download.php` | streams the zip if the link is one you issued and has not lapsed |
 | `config.example.php` | copy to `config.php` and fill in |
 
 To put it live:
 
-1. **PayPal credentials.** developer.paypal.com → Apps & Credentials → Live. Put the client id in
-   `index.html` where it says `CLIENT_ID`, and both the id and the secret in `config.php`. The
-   client id is public and belongs in the page; the secret must never reach a browser.
-2. **Put the zips outside your web root.** `config.php` points at them by absolute path. If they
+1. **A Paddle account, verified.** Paddle reviews sellers before going live, which takes a
+   few days — start it before you need it.
+2. **A product and two prices** at $19.99, one per platform, so a receipt says which build was
+   bought. Copy the `pri_…` ids into both `config.php` and `prices` in `index.html`. They must
+   match, or the page will happily take money for a transaction the server then refuses.
+3. **Credentials.** Developer tools → Authentication. The client-side token goes in `index.html`
+   where it says `CLIENT_TOKEN`; the API key goes in `config.php` and must never reach a browser.
+4. **Put the zips outside your web root.** `config.php` points at them by absolute path. If they
    sit in a public folder then every check below is theatre — the file answers to its own URL and
    nobody needs to buy anything.
-3. **A link secret.** `openssl rand -hex 32` into `link_secret`.
-4. Upload `page/` to your site. PHP 8 and cURL, which any shared host has.
+5. **A link secret.** `openssl rand -hex 32` into `link_secret`.
+6. Upload `page/` to your site. PHP 8 and cURL, which any shared host has.
 
-**Why there is a server part at all.** A page that reveals the download when PayPal's JavaScript
-reports success reveals it to anybody who opens the console and calls that function. The browser is
-the buyer's, not yours, and nothing it says about a payment is evidence. So the order id is the only
-thing that crosses, and `verify.php` asks PayPal directly: is this order COMPLETED, in USD, for at
-least 19.99? Only then does it mint a download link — signed, tied to one order and one platform,
-and dead in two hours.
+**Why there is a server part at all.** A page that reveals the download when Paddle's JavaScript
+reports success reveals it to anybody who opens the console and calls that callback. The browser is
+the buyer's, not yours, and nothing it says about a payment is evidence. So the transaction id is
+the only thing that crosses, and `verify.php` asks Paddle directly: did this transaction complete,
+and was it for this price? Only then does it mint a link — signed, tied to one transaction and one
+platform, dead in two hours. The buyer's Paddle receipt carries a permanent one, so the short life
+of this link costs them nothing.
 
-## Tax: PayPal will not do this for you
+`verify.php` deliberately does **not** check the amount. Paddle sets the customer's local price,
+adds their tax, and may apply a discount you created, so the total legitimately differs from
+$19.99. The price id is what identifies the thing bought, and that is what is checked.
 
-You asked for the tax to be automatic. With PayPal it cannot be, and it is worth knowing exactly
-why before you sell anything.
+## Tax: this is the reason for Paddle
 
-PayPal is a **payment processor**, not a merchant of record. It moves money and stops there. You
-remain the seller, which means the tax on every sale is yours to work out, collect, declare and
-pay. What PayPal offers is a table of rates you configure yourself in your account, and
-`config.php` has a `tax_rates` hook to match — but you are setting those rates, keeping them
-current, and filing against them.
+Paddle is a **merchant of record**, not merely a payment processor. It sells to the customer and
+you sell to Paddle. So the VAT or sales tax on every order — worked out for wherever the buyer is,
+charged at checkout, declared and filed — is Paddle's obligation rather than yours. That is the
+whole difference, and it is why `config.php` has no tax table in it: a second, hand-maintained
+answer could only ever be a wrong one.
 
-That matters most for digital goods sold abroad. EU and UK VAT on a download is owed in the
-**buyer's** country, from the very first sale, with no small-seller threshold for a seller outside
-those territories. Twenty-seven possible rates, and a registration to go with them.
+It matters most for exactly this product. VAT on a download is owed in the buyer's country from
+the first sale, with no small-seller threshold for a seller outside the EU or UK. Twenty-seven
+possible rates, each with a registration, is not a thing to take on beside writing a baseball game.
 
-If "automatic" is a requirement rather than a preference, the processor has to be a **merchant of
-record** — it sells to the customer, you sell to it, and the tax becomes its problem. That is
-Paddle, Lemon Squeezy or FastSpring. All three also host the file and issue the gated link, which
-would make `verify.php` and `download.php` unnecessary.
+Paddle takes a cut for it — around 5% plus 50c on a transaction of this size at the time of
+writing, against roughly 3.5% for a bare processor. The difference is the price of not filing VAT
+returns in twenty-seven countries.
 
-So: PayPal is built here as asked, and it is the option where the tax is manual. Say the word and
-the same page can point at Paddle or Lemon Squeezy instead — it is a smaller change than this one
-was, because their checkout is a link rather than an integration.
+**If you would rather not write any server code at all**, Lemon Squeezy is the same company, is
+also merchant of record, and hosts the file and emails the download link itself — which would make
+`verify.php` and `download.php` unnecessary and reduce this to a link on a button. Paddle is built
+here because it is what you asked for, and it is the better fit if you ever want the checkout
+inside your own page rather than on somebody else's.
 
 ## What it is not
 

@@ -1,21 +1,22 @@
 <?php
 // Copy to config.php and fill in. config.php must never be committed or served —
-// the secret below can take money in your name.
+// the API key below can read and act on your Paddle account.
 return [
-    // From developer.paypal.com → Apps & Credentials. Live credentials, not sandbox,
-    // unless you are testing.
-    'paypal_client_id'     => 'REPLACE_ME',
-    'paypal_client_secret' => 'REPLACE_ME',
+    // Paddle → Developer tools → Authentication. A live key, not sandbox, when selling.
+    'paddle_api_key' => 'REPLACE_ME',
 
-    // 'https://api-m.sandbox.paypal.com' while testing, the live one when selling.
-    'paypal_api'           => 'https://api-m.paypal.com',
+    // 'https://sandbox-api.paddle.com' while testing, the live one when selling.
+    'paddle_api' => 'https://api.paddle.com',
 
-    'price'    => '19.99',
-    'currency' => 'USD',
+    // Paddle → Catalog → Products → your price. Looks like pri_01h... One per platform
+    // is tidiest, so a receipt says which build was bought; one shared price is fine too.
+    'prices' => [
+        'windows' => 'pri_REPLACE_ME',
+        'linux'   => 'pri_REPLACE_ME',
+    ],
 
     // Where the zips actually live. This must be OUTSIDE your web root, or the whole
     // download-gating exercise is decoration — anybody can fetch the file directly.
-    // e.g. /home/you/private/ninetyfeet/
     'files_dir' => '/ABSOLUTE/PATH/OUTSIDE/WEBROOT/',
 
     'files' => [
@@ -32,11 +33,8 @@ return [
     // anybody reads it.
     'link_minutes' => 120,
 
-    // Sales tax, as a percentage, by buyer country — and read the note in RELEASE.md
-    // before trusting this. PayPal is not a merchant of record: these rates are yours
-    // to set, to keep current, to collect against, and to file. Leave empty to charge
-    // the headline price everywhere and settle up yourself.
-    //
-    //   'GB' => 20.0, 'DE' => 19.0, 'FR' => 20.0,
-    'tax_rates' => [],
+    // Nothing about tax here on purpose. Paddle is the merchant of record: it sells to
+    // the customer, works out and charges the right VAT or sales tax for wherever they
+    // are, and files it. That is the entire reason for choosing it over a plain payment
+    // processor, and a rate table in this file would only be a second, wrong answer.
 ];
