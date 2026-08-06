@@ -206,6 +206,33 @@ public partial class Game : Node
     }
 
     /// <summary>
+    /// Autosaves only a league the player has actually started.
+    ///
+    /// Game creates a temporary default league at boot so menus have data to draw. Saving that
+    /// merely because somebody opened Settings would manufacture a Continue entry for a season
+    /// they never began, so automatic saves require the current slot to exist already. NewSeason
+    /// creates it explicitly; from then on every transition and mobile pause keeps it current.
+    /// </summary>
+    private void AutoSaveLeague()
+    {
+        if (IsVerificationRun() || League == null || !SaveGame.Occupied(SaveGame.Slot)) return;
+        SaveLeague();
+    }
+
+    public override void _Notification(int what)
+    {
+        // Android may kill a backgrounded process without returning through a menu. The pause
+        // notification is therefore the important save point; focus-out covers desktop window
+        // changes, and close/exit cover an orderly shutdown.
+        if (what == NotificationApplicationPaused ||
+            what == NotificationApplicationFocusOut ||
+            what == NotificationWMCloseRequest)
+            AutoSaveLeague();
+    }
+
+    public override void _ExitTree() => AutoSaveLeague();
+
+    /// <summary>
     /// Puts the current league away and opens another slot, building a fresh one if that slot is
     /// empty. The league in progress is written out first — switching must never be how somebody
     /// loses a season.
@@ -1265,5 +1292,9 @@ public partial class Game : Node
         _ => false,
     };
 
-    public void GoTo(string scenePath) => GetTree().ChangeSceneToFile(scenePath);
+    public void GoTo(string scenePath)
+    {
+        AutoSaveLeague();
+        GetTree().ChangeSceneToFile(scenePath);
+    }
 }
