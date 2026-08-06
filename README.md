@@ -176,6 +176,9 @@ godot --headless --path . -- --ballparks 40   # park dimensions affect results
 GitHub Actions builds Windows, Linux AppImage and Android packages and runs gameplay integrity checks
 against the desktop exports.
 
+Version tags create permanent GitHub Releases with checksums. Signing requirements and the release
+checklist are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
+
 ## Project structure
 
 ```text
