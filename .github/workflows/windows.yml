@@ -68,11 +68,18 @@ jobs:
           $godot = (Get-ChildItem -Recurse -Filter "Godot_v*_mono_win64.exe" godot).FullName
           New-Item -ItemType Directory -Force -Path build\windows | Out-Null
 
-          # Godot writes its errors to the log and still exits zero, so the export is
-          # judged by whether the binary and its assembly exist rather than by $?.
-          & $godot --headless --export-release "Windows x86_64" "$PWD\build\windows\NinetyFeet.exe"
+          # Godot writes its errors to the log and still exits zero, so the export is judged by
+          # whether the binary and its assembly exist rather than by $?. Its output is captured
+          # and printed on failure: the run before this one reported only "no executable was
+          # produced", which says that something went wrong and nothing about what.
+          $log = & $godot --headless --verbose --export-release "Windows x86_64" `
+                   "$PWD\build\windows\NinetyFeet.exe" 2>&1 | Out-String
 
-          if (-not (Test-Path build\windows\NinetyFeet.exe)) { throw "no executable was produced" }
+          if (-not (Test-Path build\windows\NinetyFeet.exe)) {
+            Write-Host "--- what Godot said ---"
+            Write-Host $log
+            throw "no executable was produced"
+          }
 
           $dll = Get-ChildItem -Recurse -Filter SandlotSlugfest.dll build\windows
           if (-not $dll) { throw "the game's C# is not in the export — is SandlotSlugfest.sln present?" }
