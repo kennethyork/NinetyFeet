@@ -47,13 +47,18 @@ public static class SaveGame
     /// </summary>
     public static string PathFor(int slot) =>
         slot <= 0 ? "user://season.json" : $"user://season{slot + 1}.json";
-    public static string BackupPathFor(int slot) => slot <= 0 ? "user://season.backup.json" : $"user://season{slot + 1}.backup.json";
-    private static string TempPathFor(int slot) => slot <= 0 ? "user://season.writing.json" : $"user://season{slot + 1}.writing.json";
+
+    public static string BackupPathFor(int slot) =>
+        slot <= 0 ? "user://season.backup.json" : $"user://season{slot + 1}.backup.json";
+
+    private static string TempPathFor(int slot) =>
+        slot <= 0 ? "user://season.writing.json" : $"user://season{slot + 1}.writing.json";
 
     private static string Path => PathFor(_slot < 0 ? 0 : _slot);
 
     /// <summary>Whether a given slot holds a league, for the picker.</summary>
-    public static bool Occupied(int slot) => FileAccess.FileExists(PathFor(slot)) || FileAccess.FileExists(BackupPathFor(slot));
+    public static bool Occupied(int slot) => FileAccess.FileExists(PathFor(slot))
+        || FileAccess.FileExists(BackupPathFor(slot));
 
     /// <summary>
     /// A one-line description of what is in a slot, read without loading the whole league — the
@@ -342,7 +347,8 @@ public static class SaveGame
     {
         int slot = _slot < 0 ? 0 : _slot;
         foreach (string path in new[] { PathFor(slot), BackupPathFor(slot), TempPathFor(slot) })
-            if (FileAccess.FileExists(path)) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+            if (FileAccess.FileExists(path))
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
     }
 
     public static void Save(SeasonState season)
@@ -447,7 +453,12 @@ public static class SaveGame
 
         string json = JsonSerializer.Serialize(dto, new JsonSerializerOptions { WriteIndented = false });
         int slot = _slot < 0 ? 0 : _slot;
-        string live = PathFor(slot), backup = BackupPathFor(slot), writing = TempPathFor(slot);
+        string live = PathFor(slot);
+        string backup = BackupPathFor(slot);
+        string writing = TempPathFor(slot);
+
+        // Write the complete replacement beside the live save first. A process killed during this
+        // write leaves the last good save untouched.
         using var file = FileAccess.Open(writing, FileAccess.ModeFlags.Write);
         if (file == null)
         {
@@ -455,24 +466,43 @@ public static class SaveGame
             return;
         }
         file.StoreString(json);
-        file.Flush(); file.Close();
+        file.Flush();
+        file.Close();
+
+        // Only after the replacement is durable does the old live file become the recovery copy.
         if (FileAccess.FileExists(live))
         {
             string old = FileAccess.GetFileAsString(live);
             using var backupFile = FileAccess.Open(backup, FileAccess.ModeFlags.Write);
-            if (backupFile == null) { DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(writing)); return; }
-            backupFile.StoreString(old); backupFile.Flush(); backupFile.Close();
+            if (backupFile == null)
+            {
+                GD.PushError($"Could not protect the previous league save: {FileAccess.GetOpenError()}");
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(writing));
+                return;
+            }
+            backupFile.StoreString(old);
+            backupFile.Flush();
+            backupFile.Close();
             DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(live));
         }
-        if (DirAccess.RenameAbsolute(ProjectSettings.GlobalizePath(writing), ProjectSettings.GlobalizePath(live)) != Error.Ok)
-            GD.PushError("Could not install the new league save; the backup is intact.");
+
+        Error moved = DirAccess.RenameAbsolute(ProjectSettings.GlobalizePath(writing),
+            ProjectSettings.GlobalizePath(live));
+        if (moved != Error.Ok)
+            GD.PushError($"Could not install the new league save ({moved}); the backup is intact.");
     }
 
     public static SeasonState Load()
     {
         int slot = _slot < 0 ? 0 : _slot;
         if (!Occupied(slot)) return null;
-        SaveDto dto = Read(PathFor(slot)) ?? Read(BackupPathFor(slot));
+
+        SaveDto dto = Read(PathFor(slot));
+        if (dto == null)
+        {
+            dto = Read(BackupPathFor(slot));
+            if (dto != null) GD.PushWarning("Recovered the league from its previous automatic backup.");
+        }
         if (dto?.Players == null || dto.TeamList == null) return null;
 
         // The league's own size, restored before anything asks for the club list. Everything
@@ -488,13 +518,18 @@ public static class SaveGame
             UserTeamId = dto.UserTeamId,
             Innings = dto.Innings <= 0 ? 9 : dto.Innings,
         };
+
         SaveDto Read(string path)
         {
             if (!FileAccess.FileExists(path)) return null;
             using var input = FileAccess.Open(path, FileAccess.ModeFlags.Read);
             if (input == null) return null;
             try { return JsonSerializer.Deserialize<SaveDto>(input.GetAsText()); }
-            catch (JsonException) { return null; }
+            catch (JsonException e)
+            {
+                GD.PushError($"Could not read {path}: {e.Message}");
+                return null;
+            }
         }
 
         if (dto.Schedule != null)

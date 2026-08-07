@@ -67,15 +67,22 @@ public static class SlotAudit
                  $"{(backA?.UserTeamId != backB?.UserTeamId ? "ok" : "FAIL")}");
         GD.Print($"  games survived the round trip: {backA?.GamesPlayed ?? -1} " +
                  $"{(backA is { GamesPlayed: > 0 } ? "ok" : "FAIL")}");
-        SaveGame.Slot = A; SaveGame.Save(first);
-        using (var broken = FileAccess.Open(SaveGame.PathFor(A), FileAccess.ModeFlags.Write)) broken?.StoreString("{ interrupted");
+
+        // A second save creates the recovery copy. Damage the live file deliberately and prove the
+        // loader chooses the intact previous version instead of discarding the dynasty.
+        SaveGame.Slot = A;
+        SaveGame.Save(first);
+        using (var broken = FileAccess.Open(SaveGame.PathFor(A), FileAccess.ModeFlags.Write))
+            broken?.StoreString("{ interrupted");
         var recovered = SaveGame.Load();
-        GD.Print($"  corrupt live save recovered from backup: {(recovered?.UserTeamId == 5 ? "ok" : "FAIL")}");
+        GD.Print($"  corrupt live save recovered from backup: " +
+                 $"{(recovered?.UserTeamId == 5 ? "ok" : "FAIL")}");
 
         foreach (int slot in new[] { A, B })
         {
             foreach (string path in new[] { SaveGame.PathFor(slot), SaveGame.BackupPathFor(slot) })
-                if (FileAccess.FileExists(path)) DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
+                if (FileAccess.FileExists(path))
+                    DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(path));
         }
 
         SaveGame.Slot = 0;
