@@ -163,8 +163,12 @@ public static class Settings
     public static void SaveTouchOpacity(float value) => SaveMobile("control_opacity", Mathf.Clamp(value, 0.40f, 1f));
     public static float TouchSensitivity() => MobileFloat("aim_sensitivity", 1f, 0.65f, 1.50f);
     public static void SaveTouchSensitivity(float value) => SaveMobile("aim_sensitivity", Mathf.Clamp(value, 0.65f, 1.50f));
-    public static float MobileCameraZoom() => MobileFloat("camera_zoom", 1.38f, 1.15f, 1.65f);
-    public static void SaveMobileCameraZoom(float value) => SaveMobile("camera_zoom", Mathf.Clamp(value, 1.15f, 1.65f));
+    // Range extended past 1.65× because on modern phones the old cap still framed the batter's
+    // eye like a stadium overhead. The default sits above the old cap for the same reason: the
+    // batting view is now scaled by this factor too, and the previous 1.38× was a field-only
+    // number chosen when the plate stayed at native size.
+    public static float MobileCameraZoom() => MobileFloat("camera_zoom", 1.60f, 1.15f, 2.20f);
+    public static void SaveMobileCameraZoom(float value) => SaveMobile("camera_zoom", Mathf.Clamp(value, 1.15f, 2.20f));
 
     public static bool LeftHandedTouch()
     {

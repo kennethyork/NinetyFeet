@@ -250,4 +250,76 @@ public static class Palette
         canvas.DrawRect(new Rect2(rect.Position + new Vector2(0f, rect.Size.Y - 2f),
             new Vector2(rect.Size.X, 2f)), fill.Darkened(0.25f));
     }
+
+    // -----------------------------------------------------------------------
+    // Safe insets and virtual keyboard
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// The x-coordinate for a screen title or header text. On desktop this is the historical 40px
+    /// inset; on a phone with a camera cutout on the left edge, this shifts inward so the title
+    /// clears the hole. Every menu passes this through instead of the bare 40f literal it used
+    /// to, so a title never lands behind a system decoration.
+    /// </summary>
+    public static float SafeLeft(Vector2 viewport, float baseInset = 40f)
+    {
+        Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
+        return Mathf.Max(baseInset, safe.X + 24f);
+    }
+
+    /// <summary>Right-edge inset paired with <see cref="SafeLeft"/> for footer text and buttons.</summary>
+    public static float SafeRight(Vector2 viewport, float baseInset = 40f)
+    {
+        Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
+        return Mathf.Max(baseInset, safe.Z + 24f);
+    }
+
+    /// <summary>
+    /// The distance from the top edge a title's baseline should sit at. Andriod gesture bars and
+    /// camera cutouts vary by phone; this pushes the title down enough to clear them.
+    /// </summary>
+    public static float SafeTop(Vector2 viewport, float baseInset = 46f)
+    {
+        Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
+        return Mathf.Max(baseInset, safe.Y + 40f);
+    }
+
+    /// <summary>
+    /// The y-coordinate a footer line of text should sit at, measured from the top. Given as
+    /// (viewport.Y - offset) so the caller reads like <c>SafeBottom(size, 22f)</c> where 22 is the
+    /// historical baseline distance from the bottom. Rises on phones so the hint clears the
+    /// system gesture bar.
+    /// </summary>
+    public static float SafeBottom(Vector2 viewport, float baseInset = 22f)
+    {
+        Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
+        return viewport.Y - Mathf.Max(baseInset, safe.W + 22f);
+    }
+
+    /// <summary>
+    /// Opens Android's on-screen keyboard on top of the game, feeding key events into whatever
+    /// screen registered a text field. A no-op on desktop and on devices where the platform does
+    /// not provide one. Every screen with a canvas-drawn text field should call this the moment
+    /// the field takes focus, or the field is inert on a phone.
+    ///
+    /// The soft keyboard delivers taps as ordinary InputEventKey events (both unicode for
+    /// printable characters and Key.Backspace / Key.Enter for the specials), so the existing
+    /// per-screen typing code in <c>_UnhandledInput</c> reads it identically to a physical
+    /// keyboard. This exists only to trigger the overlay.
+    /// </summary>
+    public static void ShowSoftKeyboard(string existing, int maxLength = -1,
+        DisplayServer.VirtualKeyboardType type = DisplayServer.VirtualKeyboardType.Default)
+    {
+        if (!Gameplay.TouchControls.MobileLayout) return;
+        if (!DisplayServer.HasFeature(DisplayServer.Feature.VirtualKeyboard)) return;
+        DisplayServer.VirtualKeyboardShow(existing ?? "", new Rect2(),
+            type, maxLength, existing?.Length ?? 0, existing?.Length ?? 0);
+    }
+
+    public static void HideSoftKeyboard()
+    {
+        if (!Gameplay.TouchControls.MobileLayout) return;
+        if (!DisplayServer.HasFeature(DisplayServer.Feature.VirtualKeyboard)) return;
+        DisplayServer.VirtualKeyboardHide();
+    }
 }

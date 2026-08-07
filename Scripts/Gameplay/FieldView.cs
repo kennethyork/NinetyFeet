@@ -21,7 +21,7 @@ public partial class FieldView : Node2D
     // 1.18 multiplier was technically closer but still read like a whole-park tactical view.
     // This frames the infield as the default shot; the follow camera below picks up deep flies.
     private static float ActorScale => TouchControls.MobileLayout
-        ? 0.50f * (Game.Instance?.MobileCameraZoom ?? 1.38f) / 1.38f
+        ? 0.50f * (Game.Instance?.MobileCameraZoom ?? 1.60f) / 1.60f
         : 0.42f;
 
     private float _scale = 1.4f;
@@ -181,7 +181,7 @@ public partial class FieldView : Node2D
     private static float ViewScale(Vector2 size)
     {
         float fit = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
-        float zoom = TouchControls.MobileLayout ? Game.Instance?.MobileCameraZoom ?? 1.38f : 1f;
+        float zoom = TouchControls.MobileLayout ? Game.Instance?.MobileCameraZoom ?? 1.60f : 1f;
         return fit * zoom;
     }
 

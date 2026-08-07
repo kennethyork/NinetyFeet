@@ -250,14 +250,26 @@ public static class TouchControls
             return;
         }
 
-        const float FeetPerPixel = 1f / 104f;     // matches BattingView.PixelsPerFoot
+        // Matches BattingView.PixelsPerFoot after the mobile zoom is applied. Without the zoom
+        // factor the reticle lags the fingertip on a phone: the composition is drawn bigger than
+        // its raw units imply, so a pixel of screen travel is less than 1/104 of a foot.
+        float feetPerPixel = 1f / (BattingView.PixelsPerFoot * BattingView.MobileZoom());
         float sensitivity = Game.Instance?.TouchAimSensitivity ?? 1f;
-        var moved = (to - _aimFrom) * FeetPerPixel * sensitivity;
+        var moved = (to - _aimFrom) * feetPerPixel * sensitivity;
 
         scene.SetTouchAim(new Vector2(_aimStart.X + moved.X, _aimStart.Y - moved.Y));
     }
 
-    private static void Press(string action)
+    private static void Press(string action) => PressAction(action);
+
+    /// <summary>
+    /// Fires an input action as if a key had been pressed and released on the next frame. Used
+    /// by the on-screen pad and by every mobile HUD affordance that turns a prompt into a
+    /// tap target — the manager verbs (visit, walk, defence, pen, pinch hit) and the
+    /// challenge helmet chief among them. Held-list bookkeeping means Release() clears them
+    /// next frame, so Input.IsActionJustPressed reads clean.
+    /// </summary>
+    public static void PressAction(string action)
     {
         Input.ParseInputEvent(new InputEventAction { Action = action, Pressed = true });
         Held.Add(action);

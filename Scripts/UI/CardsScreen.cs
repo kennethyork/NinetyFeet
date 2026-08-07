@@ -184,8 +184,8 @@ public partial class CardsScreen : Control
         _clicks.Begin();
 
         Palette.BackButton(this, size, _clicks, Leave);
-        Palette.Text(this, new Vector2(40f, 46f), "THE COLLECTION", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "THE COLLECTION", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             $"{Market.Coins(Collection.Coins)}  ·  {Collection.Size} cards  ·  " +
             $"worth {Market.Coins(Collection.Worth)}", 14, Palette.InkDim);
 
@@ -202,9 +202,9 @@ public partial class CardsScreen : Control
         }
 
         if (_notice != "")
-            Palette.Text(this, new Vector2(40f, size.Y - 44f), _notice, 14, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 44f)), _notice, 14, Palette.Highlight);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Left/Right to switch views  ·  click to act  ·  Esc to go back", 14, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);
     }

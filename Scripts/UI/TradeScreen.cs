@@ -200,7 +200,7 @@ public partial class TradeScreen : Control
         var mine = Teams.Get(_season.UserTeamId);
         var theirs = Teams.Get(_partnerId);
 
-        Palette.Text(this, new Vector2(40f, 46f), "TRADE DESK", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "TRADE DESK", 26, Palette.Ink);
 
         // Say plainly whether the window is open before anyone builds an offer.
         bool open = _season.TradesOpen;
@@ -211,7 +211,7 @@ public partial class TradeScreen : Control
                 : "CLOSED — the deadline has passed",
             14, open && _season.DaysToDeadline <= 4 ? Palette.Warning
                 : open ? Palette.InkDim : Palette.Warning);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             $"You run the {mine.FullName}.", 14, Palette.InkDim);
 
         // Partner selector, with clickable arrows either side.
@@ -241,7 +241,7 @@ public partial class TradeScreen : Control
 
         DrawOfferSummary(size);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Tab / Left / Right to switch panes  ·  Up/Down to move  ·  Space to tag a player  ·  " +
             "Enter to offer  ·  C to clear  ·  Esc to leave",
             13, Palette.InkDim);

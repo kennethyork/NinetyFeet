@@ -67,8 +67,8 @@ public partial class MomentsScreen : Control
         _clicks.Begin();
 
         Palette.BackButton(this, size, _clicks, Leave);
-        Palette.Text(this, new Vector2(40f, 46f), "MOMENTS", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "MOMENTS", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             "One situation. One question. Ninety seconds.", 14, Palette.InkDim);
 
         float y = 112f;
@@ -120,7 +120,7 @@ public partial class MomentsScreen : Control
             y += 92f;
         }
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             $"{_cursor + 1} of {Moments.All.Length}  ·  Up/Down or wheel  ·  Enter to play  ·  Esc to go back",
             14, Palette.InkDim);
     }

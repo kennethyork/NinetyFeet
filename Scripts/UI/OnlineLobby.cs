@@ -106,6 +106,7 @@ public partial class OnlineLobby : Control
 
     private void Leave()
     {
+        Palette.HideSoftKeyboard();
         SaveSelections();
         NetLink.I.Shutdown();
         Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
@@ -154,6 +155,7 @@ public partial class OnlineLobby : Control
 
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } mb)
         {
+            if (_typing) Palette.HideSoftKeyboard();
             _typing = false;
             if (_clicks.Click(mb.Position)) QueueRedraw();
             return;
@@ -163,7 +165,7 @@ public partial class OnlineLobby : Control
 
         if (key.PhysicalKeycode == Key.Escape)
         {
-            if (_typing) { _typing = false; QueueRedraw(); return; }
+            if (_typing) { Palette.HideSoftKeyboard(); _typing = false; QueueRedraw(); return; }
             Leave();
             return;
         }
@@ -182,6 +184,7 @@ public partial class OnlineLobby : Control
         }
         else if (key.PhysicalKeycode is Key.Enter or Key.KpEnter)
         {
+            Palette.HideSoftKeyboard();
             _typing = false;
         }
         else
@@ -209,8 +212,8 @@ public partial class OnlineLobby : Control
 
         var link = NetLink.I;
 
-        Palette.Text(this, new Vector2(40f, 46f), "ONLINE", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "ONLINE", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 24f),
             _league
                 ? "A season the two of you run together. Each owner plays his own club."
                 : "One ballgame, two people, one simulation.",
@@ -226,7 +229,7 @@ public partial class OnlineLobby : Control
         // Whatever the link is currently saying, which is the only thing that tells a player why
         // nothing is happening.
         if (!string.IsNullOrEmpty(link?.Status))
-            Palette.Text(this, new Vector2(40f, size.Y - 30f), link.Status, 14,
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 30f)), link.Status, 14,
                 link.State == LinkState.Lost ? Palette.Warning : Palette.Highlight);
     }
 
@@ -273,7 +276,15 @@ public partial class OnlineLobby : Control
             Palette.Text(this, field.Position + new Vector2(12f, 28f),
                 _address + (_typing && Engine.GetFramesDrawn() / 20 % 2 == 0 ? "_" : ""),
                 16, Palette.Ink);
-            _clicks.Add(field, () => _typing = true);
+            // An IP or hostname is much easier to enter with the URL-oriented soft keyboard on
+                // Android: dot, colon, hyphen and digits are on the primary layer rather than
+                // hidden behind a symbol page. On desktop this is a no-op.
+                _clicks.Add(field, () =>
+                {
+                    _typing = true;
+                    Palette.ShowSoftKeyboard(_address, 40,
+                        DisplayServer.VirtualKeyboardType.Url);
+                });
 
             Palette.Text(this, panel.Position + new Vector2(390f, 106f),
                 "The host's address. Same house: leave it. Elsewhere: their IP, " +

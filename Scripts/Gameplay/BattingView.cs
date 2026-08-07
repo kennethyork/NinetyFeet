@@ -135,6 +135,18 @@ public partial class BattingView : Node2D
 
     public override void _Process(double delta) => _time += (float)delta;
 
+    /// <summary>
+    /// The mobile zoom being drawn against, or 1 on desktop. A phone frames the composition too
+    /// small at native 104px/ft — the zone, the ball and the hitter all read like the tactical
+    /// view of a game rather than the batter's eye of one — so on touch the whole composition is
+    /// scaled up in place. The backdrop stays at 1x because it is meant to fill; the UI text at
+    /// the bottom stays at 1x because it is UI. Everything between them — pitcher, batter,
+    /// catcher, zone, ball, reticle — scales around the zone anchor so a bigger phone means a
+    /// bigger picture rather than a bigger letterbox.
+    /// </summary>
+    public static float MobileZoom() => TouchControls.MobileLayout
+        ? Mathf.Max(1f, Game.Instance?.MobileCameraZoom ?? 1.6f) : 1f;
+
     public override void _Draw()
     {
         Vector2 size = GetViewportRect().Size;
@@ -146,6 +158,18 @@ public partial class BattingView : Node2D
         _zoneCenter = UI.Layout.At(size, 640f, 432f);
 
         DrawBackdrop(size);
+
+        // Scale the composition around the zone anchor. Only the scene between the sky and the
+        // dugout gets larger; the backdrop above and the UI text below are drawn at 1x either
+        // side of this so nothing meant to fill the frame ends up cropped.
+        float zoom = MobileZoom();
+        if (!Mathf.IsEqualApprox(zoom, 1f))
+        {
+            var t = new Transform2D(0f, new Vector2(zoom, zoom), 0f,
+                _zoneCenter * (1f - zoom));
+            DrawSetTransformMatrix(t);
+        }
+
         DrawPitcher(size);
         DrawGroundMarkings();
         DrawBatterAndCatcher(size);
@@ -157,6 +181,8 @@ public partial class BattingView : Node2D
         if (Scene.CurrentPitch != null) DrawBall();
         if (Scene.HumanBatting) DrawBatCursor();
         if (Scene.HumanPitching && Scene.Phase == AtBatPhase.PitchSelect) DrawPitchAim();
+
+        if (!Mathf.IsEqualApprox(zoom, 1f)) DrawSetTransformMatrix(Transform2D.Identity);
 
         DrawTimingMeter(size);
     }
@@ -171,9 +197,13 @@ public partial class BattingView : Node2D
         // _zoneCenter is set during _Draw; derive it here so this works before the first frame.
         Vector2 size = GetViewportRect().Size;
         var center = UI.Layout.At(size, 640f, 432f);
+        // On a phone the composition is drawn scaled around the zone anchor; a pixel of finger
+        // travel therefore covers less than a foot of plate, and the reticle drifts away from
+        // the fingertip if this is not undone. Same anchor, same maths, one factor.
+        float scale = PixelsPerFoot * MobileZoom();
         return new Vector2(
-            (screen.X - center.X) / PixelsPerFoot,
-            2.5f - (screen.Y - center.Y) / PixelsPerFoot);
+            (screen.X - center.X) / scale,
+            2.5f - (screen.Y - center.Y) / scale);
     }
 
     // Horizon lines for the behind-the-plate camera, as fractions of viewport height.

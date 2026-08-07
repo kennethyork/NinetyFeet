@@ -76,8 +76,8 @@ public partial class InboxScreen : Control
         _clicks.Begin();
 
         Palette.BackButton(this, size, _clicks, Leave);
-        Palette.Text(this, new Vector2(40f, 46f), "INBOX", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "INBOX", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             Inbox.Unread > 0
                 ? $"{Inbox.Unread} unread of {Inbox.Messages.Count}  ·  R to mark all read"
                 : $"{Inbox.Messages.Count} message{(Inbox.Messages.Count == 1 ? "" : "s")}",
@@ -95,7 +95,7 @@ public partial class InboxScreen : Control
         DrawList(size);
         DrawMessage(size);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Up/Down to read  ·  click a message  ·  R marks all read  ·  Esc to go back",
             14, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);

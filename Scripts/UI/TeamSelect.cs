@@ -215,7 +215,7 @@ public partial class TeamSelect : Control
             Stage.Home => "CHOOSE THE HOME CLUB",
             _ => "SET THE MATCHUP",
         };
-        Palette.Text(this, new Vector2(40f, 52f), title, 30, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size, 52f)), title, 30, Palette.Ink);
 
         if (_stage == Stage.Settings)
         {
@@ -229,7 +229,7 @@ public partial class TeamSelect : Control
         string help = _stage == Stage.Away
             ? "Arrows to move  ·  Enter to lock in the visitors  ·  Esc to go back"
             : "Arrows to move  ·  Enter to lock in the home club  ·  Esc to go back";
-        Palette.Text(this, new Vector2(40f, size.Y - 24f), help, 16, Palette.InkDim);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 24f)), help, 16, Palette.InkDim);
 
         if (_awayPick >= 0)
         {
@@ -430,7 +430,7 @@ public partial class TeamSelect : Control
         Palette.TextCentered(this, new Vector2(cx, y + 16f),
             "Press ENTER to start the game", 18, Palette.Highlight);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 24f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 24f)),
             "Up/Down to move  ·  Left/Right to change  ·  Enter to start  ·  Esc to go back",
             16, Palette.InkDim);
     }

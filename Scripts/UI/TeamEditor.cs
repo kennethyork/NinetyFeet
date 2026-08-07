@@ -59,9 +59,26 @@ public partial class TeamEditor : Control
         _secondary = t.Secondary;
     }
 
-    private void Leave() => Game.Instance.GoTo(Game.Instance.League != null
-        ? "res://Scenes/Season.tscn"
-        : "res://Scenes/MainMenu.tscn");
+    private void Leave()
+    {
+        Palette.HideSoftKeyboard();
+        Game.Instance.GoTo(Game.Instance.League != null
+            ? "res://Scenes/Season.tscn"
+            : "res://Scenes/MainMenu.tscn");
+    }
+
+    /// <summary>Opens Android's on-screen keyboard against the currently-focused field.</summary>
+    private void OpenKeyboard()
+    {
+        string current = _editing switch
+        {
+            Field.Nickname => _nickname,
+            Field.Abbrev => _abbrev,
+            _ => _city,
+        } ?? "";
+        int cap = _editing == Field.Abbrev ? 3 : 18;
+        Palette.ShowSoftKeyboard(current, cap);
+    }
 
     private void Say(string what)
     {
@@ -192,8 +209,8 @@ public partial class TeamEditor : Control
         _clicks.Begin();
 
         Palette.BackButton(this, size, _clicks, Leave);
-        Palette.Text(this, new Vector2(40f, 46f), "CLUB EDITOR", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "CLUB EDITOR", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             "Tab moves between the fields, Enter saves. Nothing here changes how a club plays.",
             14, Palette.InkDim);
 
@@ -204,9 +221,9 @@ public partial class TeamEditor : Control
         DrawButtons(size);
 
         if (_note != "")
-            Palette.Text(this, new Vector2(40f, size.Y - 48f), _note, 15, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 48f)), _note, 15, Palette.Highlight);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Esc to go back  ·  edits are kept in their own file, so the originals are never lost",
             13, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);
@@ -273,7 +290,7 @@ public partial class TeamEditor : Control
                 (value ?? "") + (on ? "_" : ""), 16, Palette.Ink);
 
             var target = which;
-            _clicks.Add(box, () => { _editing = target; QueueRedraw(); });
+            _clicks.Add(box, () => { _editing = target; OpenKeyboard(); QueueRedraw(); });
             y += 40f;
         }
     }

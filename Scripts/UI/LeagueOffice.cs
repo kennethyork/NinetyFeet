@@ -134,8 +134,8 @@ public partial class LeagueOffice : Control
         _clicks.Begin();
 
         Palette.BackButton(this, size, _clicks, Leave);
-        Palette.Text(this, new Vector2(40f, 46f), "LEAGUE OFFICE", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "LEAGUE OFFICE", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             $"{_season.GamesPlayed} game{(_season.GamesPlayed == 1 ? "" : "s")} played this season",
             14, Palette.InkDim);
 
@@ -169,10 +169,11 @@ public partial class LeagueOffice : Control
         if (_scroll > _overflow) _scroll = _overflow;
 
         if (_overflow > 0f)
-            Palette.Text(this, new Vector2(size.X - 250f, size.Y - 22f),
+            Palette.Text(this, new Vector2(size.X - Palette.SafeRight(size) - 210f,
+                    Palette.SafeBottom(size, 22f)),
                 "scroll wheel  ·  PgUp/PgDn  ·  Home", 13, Palette.InkDim);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Left/Right to switch views  ·  Up/Down to pick a club  ·  Esc to go back",
             14, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);
@@ -445,7 +446,7 @@ public partial class LeagueOffice : Control
         DrawHalfBox(new Vector2(40f, top), half, box, away.Id);
         DrawHalfBox(new Vector2(60f + half, top), half, box, home.Id);
 
-        var back = new Rect2(new Vector2(40f, size.Y - 46f), new Vector2(120f, 30f));
+        var back = new Rect2(new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 46f)), new Vector2(120f, 30f));
         Palette.Panel3D(this, back, Palette.PanelLight);
         Palette.TextCentered(this, back.Position + back.Size * 0.5f, "RESULTS", 12, Palette.Ink);
         _clicks.Add(back, () => _openBox = null);

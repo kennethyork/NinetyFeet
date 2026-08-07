@@ -83,8 +83,8 @@ public partial class DraftScreen : Control
         bool ours = !_draft.Complete && _draft.OnTheClock == _season.UserTeamId;
         var club = Teams.Get(_season.UserTeamId);
 
-        Palette.Text(this, new Vector2(40f, 46f), "AMATEUR DRAFT", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "AMATEUR DRAFT", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 24f),
             _draft.Complete
                 ? "Every pick is in."
                 : $"Round {_draft.CurrentRound} of {Draft.Rounds}   ·   pick " +
@@ -107,7 +107,7 @@ public partial class DraftScreen : Control
         DrawLog(size);
 
         if (!string.IsNullOrEmpty(_notice))
-            Palette.Text(this, new Vector2(40f, size.Y - 24f), _notice, 14, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 24f)), _notice, 14, Palette.Highlight);
     }
 
     private void DrawBoard(Vector2 size, bool ours, TeamData club)

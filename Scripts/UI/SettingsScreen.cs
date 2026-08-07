@@ -269,11 +269,12 @@ public partial class SettingsScreen : Control
                     Settings.SaveTouchSensitivity(g.TouchAimSensitivity);
                 });
 
-            Row("Field camera", $"{g.MobileCameraZoom:0.00}×",
-                "Closer actors are larger; deep flies still use the follow camera.", ref y, () =>
+            Row("Camera zoom", $"{g.MobileCameraZoom:0.00}×",
+                "Scales the batter's-eye view and the field alike. Deep flies still follow.",
+                ref y, () =>
                 {
                     g.MobileCameraZoom = Step(g.MobileCameraZoom,
-                        new[] { 1.20f, 1.38f, 1.52f, 1.65f });
+                        new[] { 1.20f, 1.40f, 1.60f, 1.80f, 2.00f, 2.20f });
                     Settings.SaveMobileCameraZoom(g.MobileCameraZoom);
                 });
         }
@@ -303,8 +304,8 @@ public partial class SettingsScreen : Control
         DrawRect(new Rect2(0f, 0f, size.X, Top - 8f), Palette.Night);
         DrawRect(new Rect2(0f, bottom, size.X, size.Y - bottom), Palette.Night);
 
-        Palette.Text(this, new Vector2(40f, 46f), "SETTINGS", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "SETTINGS", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 24f),
             Gameplay.TouchControls.MobileLayout
                 ? "Tap a row to change it  ·  swipe to scroll  ·  touch settings apply immediately."
                 : "Changes apply to your next league. Sound is immediate.",
@@ -314,7 +315,7 @@ public partial class SettingsScreen : Control
 
         _scroll.Draw(this, Mathf.Min(872f, size.X - 32f), Top, bottom);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 14f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 14f)),
             _scroll.Overflows
                 ? (Gameplay.TouchControls.MobileLayout
                     ? "Controls are on their own screen  ·  swipe for more"

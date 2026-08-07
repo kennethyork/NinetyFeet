@@ -102,7 +102,7 @@ public partial class Game : Node
     public float TouchControlScale { get; set; } = 1f;
     public float TouchControlOpacity { get; set; } = 0.82f;
     public float TouchAimSensitivity { get; set; } = 1f;
-    public float MobileCameraZoom { get; set; } = 1.38f;
+    public float MobileCameraZoom { get; set; } = 1.60f;
     public bool LeftHandedTouch { get; set; }
     private int _innings = 9;
 

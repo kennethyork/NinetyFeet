@@ -51,6 +51,7 @@ public partial class Hud : Node2D
         if (Scene.ToastTimer > 0f) DrawToast(size);
         DrawChallengePrompt(size);
         DrawThrowOverDiamond(size);
+        DrawManagerStrip(size);
         if (Scene.HumanPitching && Scene.Phase == AtBatPhase.PitchSelect) DrawPitchClock(size);
 
         // The hitter's own signature move, offered while he is in the box.
@@ -357,11 +358,22 @@ public partial class Hud : Node2D
     {
         if (!Scene.CanChallenge) return;
 
-        var box = new Rect2(new Vector2(size.X * 0.5f - 190f, size.Y * 0.16f), new Vector2(380f, 44f));
+        // Wider and taller on mobile so a thumb has something meaningful to land on. A 44 px
+        // strip was drawn as a button and was not one — it drew the eye and did nothing when
+        // tapped, which is worse than not offering the option at all.
+        bool touch = TouchControls.MobileLayout;
+        Vector2 sz = touch ? new Vector2(460f, 56f) : new Vector2(380f, 44f);
+        var box = new Rect2(new Vector2(size.X * 0.5f - sz.X * 0.5f, size.Y * 0.16f), sz);
         Palette.Panel3D(this, box, new Color(0.10f, 0.14f, 0.20f, 0.92f));
         DrawRect(box, Palette.Highlight, false, 2f);
+        string prompt = touch
+            ? $"{(Scene.LastCallWasStrike ? "STRIKE" : "BALL")} — TAP TO CHALLENGE"
+            : $"{(Scene.LastCallWasStrike ? "STRIKE" : "BALL")} — press R to challenge";
         Palette.TextCentered(this, box.Position + box.Size * 0.5f + new Vector2(0f, 5f),
-            $"{(Scene.LastCallWasStrike ? "STRIKE" : "BALL")} — press R to challenge", 15, Palette.Ink);
+            prompt, touch ? 17 : 15, Palette.Ink);
+
+        // Real click target now, so what looks like a button is one.
+        Clicks.Add(box, () => Scene.ChallengeCall());
     }
 
     private void DrawTeamRow(Vector2 at, string abbrev, Color primary, Color secondary, int score, bool batting)
@@ -403,10 +415,16 @@ public partial class Hud : Node2D
         float beat = 0.5f + 0.5f * Mathf.Sin(_pulse * 6f);
         var tint = new Color(0.45f, 1f, 0.55f, 0.65f + beat * 0.35f);
 
-        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, 26f));
+        // Tall enough for a finger on mobile — the prompt has always doubled as a touch button,
+        // but at 26 px it was awkward to hit.
+        bool touch = TouchControls.MobileLayout;
+        float h = touch ? 36f : 26f;
+        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, h));
         Palette.Panel3D(this, rect, Palette.Panel);
-        Palette.Text(this, rect.Position + new Vector2(10f, 18f),
-            $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+        Palette.Text(this, rect.Position + new Vector2(10f, h * 0.65f),
+            touch ? $"TAP TO STEAL — {man.ShortName}  SPD {man.Speed}"
+                  : $"← / G — STEAL   {man.ShortName}   SPD {man.Speed}", 13, tint);
+        Clicks.Add(rect, () => TouchControls.PressAction(InputActions.Steal));
     }
 
     // The matchup card: who is up, and the one number that makes it interesting.
@@ -480,22 +498,29 @@ public partial class Hud : Node2D
         if (!Scene.HumanPitching || Scene.Online) return;
         if (Scene.Phase is not (AtBatPhase.PitchSelect or AtBatPhase.PitchFlight)) return;
 
+        bool touch = TouchControls.MobileLayout;
         bool set = s.Defence != Core.Alignment.Straight;
-        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, 26f));
+        // Tall enough on mobile for a finger to actually hit.
+        float h = touch ? 36f : 26f;
+        var rect = new Rect2(at + new Vector2(0f, 122f), new Vector2(BugWidth, h));
         Palette.Panel3D(this, rect, Palette.Panel);
-        Palette.Text(this, rect.Position + new Vector2(10f, 18f),
-            $"Y — DEFENCE   {Core.Positioning.Short(s.Defence)}", 13,
+        Palette.Text(this, rect.Position + new Vector2(10f, h * 0.65f),
+            touch ? $"DEFENCE — {Core.Positioning.Short(s.Defence)}  (tap to shift)"
+                  : $"Y — DEFENCE   {Core.Positioning.Short(s.Defence)}", 13,
             set ? Palette.Highlight : Palette.InkDim);
+        Clicks.Add(rect, () => TouchControls.PressAction(InputActions.SetDefence));
 
         // The pen underneath it, with the warm-up drawn as a bar. Whether he is ready is the
         // whole decision, and a number nobody can see is not a decision.
-        var pen = new Rect2(rect.Position + new Vector2(0f, 30f), new Vector2(BugWidth, 26f));
+        var pen = new Rect2(rect.Position + new Vector2(0f, h + 4f), new Vector2(BugWidth, h));
         Palette.Panel3D(this, pen, Palette.Panel);
 
         if (Scene.Pen.Warming == null)
         {
-            Palette.Text(this, pen.Position + new Vector2(10f, 18f),
-                "U — GET SOMEBODY UP", 13, Palette.InkDim);
+            Palette.Text(this, pen.Position + new Vector2(10f, h * 0.65f),
+                touch ? "PEN — TAP TO GET SOMEBODY UP" : "U — GET SOMEBODY UP",
+                13, Palette.InkDim);
+            Clicks.Add(pen, () => TouchControls.PressAction(InputActions.WarmUp));
             return;
         }
 
@@ -506,7 +531,67 @@ public partial class Hud : Node2D
 
         DrawRect(new Rect2(pen.Position + new Vector2(6f, pen.Size.Y - 6f),
             new Vector2((pen.Size.X - 12f) * ready, 3f)), tint);
-        Palette.Text(this, pen.Position + new Vector2(10f, 17f), Scene.Pen.Status(), 12, tint);
+        Palette.Text(this, pen.Position + new Vector2(10f, h * 0.6f), Scene.Pen.Status(), 12, tint);
+        // Tap again to cycle the next arm up, matching what pressing U does.
+        Clicks.Add(pen, () => TouchControls.PressAction(InputActions.WarmUp));
+    }
+
+    /// <summary>
+    /// The manager's verbs, laid out as a strip of buttons on the mobile HUD only. On desktop
+    /// these are keys (V for mound visit, I for the intentional walk, H for a pinch hit) and
+    /// bringing extra chrome up on top of a keyboard-driven layout would just get in the way.
+    /// On a phone none of these have an on-screen target anywhere else, so half the game — the
+    /// managing half — was unreachable. This is that half made tappable.
+    ///
+    /// The strip only shows the verbs that make sense right now. A pinch hitter cannot be sent
+    /// mid-count, a mound visit is only offered while the human is on the mound with visits
+    /// left, and the intentional walk is only offered before the fourth ball has been thrown.
+    /// </summary>
+    private void DrawManagerStrip(Vector2 size)
+    {
+        if (!TouchControls.MobileLayout || Scene.Phase == AtBatPhase.Over) return;
+        if (Scene.Phase is not (AtBatPhase.PitchSelect or AtBatPhase.PitchFlight)) return;
+
+        var s = Scene.Situation;
+        var buttons = new System.Collections.Generic.List<(string Label, string Action, bool Enabled)>();
+
+        if (Scene.HumanPitching)
+        {
+            int visitsLeft = Scene.Visit.Left(s.FieldingTeam == s.Away);
+            buttons.Add(("VISIT", InputActions.MoundVisit, visitsLeft > 0));
+            buttons.Add(("IBB", InputActions.IntentionalWalk, s.Balls < 3));
+            buttons.Add(("PEN", InputActions.ChangePitcher, true));
+        }
+        else if (Scene.HumanBatting)
+        {
+            bool canPinch = s.Balls == 0 && s.Strikes == 0;
+            buttons.Add(("PINCH", InputActions.PinchHit, canPinch));
+        }
+
+        if (buttons.Count == 0) return;
+
+        // Anchored to the top edge under the score bug, clear of the pitch clock and the throw
+        // diamond. Respects the safe area so a camera cutout does not sit on the buttons.
+        Vector4 safe = TouchControls.SafeInsets(size);
+        float w = 92f, h = 38f, gap = 6f;
+        float totalW = buttons.Count * w + (buttons.Count - 1) * gap;
+        float x = size.X * 0.5f - totalW * 0.5f;
+        float y = Mathf.Max(140f, safe.Y + 138f);
+
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            var (label, action, enabled) = buttons[i];
+            var rect = new Rect2(new Vector2(x + i * (w + gap), y), new Vector2(w, h));
+            var fill = enabled ? Palette.Panel : Palette.Panel.Darkened(0.35f);
+            Palette.Panel3D(this, rect, fill);
+            Palette.TextCentered(this, rect.Position + rect.Size * 0.5f, label, 14,
+                enabled ? Palette.Ink : Palette.InkDim);
+            if (enabled)
+            {
+                string a = action;
+                Clicks.Add(rect, () => TouchControls.PressAction(a));
+            }
+        }
     }
 
     private void DrawBaseDiamond(Vector2 center, GameSituation s)

@@ -165,8 +165,8 @@ public partial class FrontOffice : Control
         Palette.BackButton(this, size, _clicks, Leave);
 
         var club = Teams.Get(_season.UserTeamId);
-        Palette.Text(this, new Vector2(40f, 46f), "FRONT OFFICE", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "FRONT OFFICE", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             $"{club.FullName} · year {_season.Year}", 14, Palette.InkDim);
 
         DrawTabs(size);
@@ -181,9 +181,9 @@ public partial class FrontOffice : Control
         }
 
         if (_notice != "")
-            Palette.Text(this, new Vector2(40f, size.Y - 44f), _notice, 14, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 44f)), _notice, 14, Palette.Highlight);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Left/Right to switch views  ·  click a name to act  ·  Esc to go back",
             14, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);

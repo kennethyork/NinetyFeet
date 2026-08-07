@@ -81,8 +81,8 @@ public partial class ClubSelect : Control
         DrawRect(new Rect2(Vector2.Zero, size), Palette.Night);
         _clicks.Begin();
 
-        Palette.Text(this, new Vector2(40f, 48f), "CHOOSE YOUR CLUB", 28, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 72f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size, 48f)), "CHOOSE YOUR CLUB", 28, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 26f),
             "You will run this club for the whole season — batting, pitching, trades and the draft.",
             14, Palette.InkDim);
 

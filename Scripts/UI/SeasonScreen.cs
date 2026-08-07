@@ -262,8 +262,8 @@ public partial class SeasonScreen : Control
         var club = Teams.Get(_season.UserTeamId);
         var rec = _season.Book.Record(club.Id);
 
-        Palette.Text(this, new Vector2(40f, 46f), "SEASON", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "SEASON", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 24f),
             $"{club.FullName}   {rec.Wins}-{rec.Losses}  ({rec.WinPctText})   " +
             $"{_season.UserGamesPlayed()} of {_season.UserGamesPlayed() + _season.UserGamesRemaining()} played",
             15, Palette.InkDim);
@@ -315,12 +315,12 @@ public partial class SeasonScreen : Control
         if (Shared)
         {
             bool bad = Net.NetLeague.I.Broken != null || Net.NetLink.I is { LeagueDrifted: true };
-            Palette.Text(this, new Vector2(40f, size.Y - 46f), Net.NetLeague.I.Status(), 14,
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 46f)), Net.NetLeague.I.Status(), 14,
                 bad ? Palette.Warning : Palette.Highlight);
         }
 
         if (!string.IsNullOrEmpty(_notice))
-            Palette.Text(this, new Vector2(40f, size.Y - 26f), _notice, 14, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 26f)), _notice, 14, Palette.Highlight);
     }
 
     /// <summary>

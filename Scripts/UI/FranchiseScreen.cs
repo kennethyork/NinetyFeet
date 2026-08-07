@@ -119,8 +119,8 @@ public partial class FranchiseScreen : Control
         // This is the clubhouse — the roster, the lineup, the injuries. It called itself FRONT
         // OFFICE, which is a different screen reached from a different link on the same nav bar.
         // Two screens with one name is a good way to be sure nobody finds either.
-        Palette.Text(this, new Vector2(40f, 46f), "CLUBHOUSE", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 70f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "CLUBHOUSE", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 24f),
             $"{club.FullName}   ·   Year {_season.Year}   ·   {Calendar.Format(_season.Today)}",
             15, Palette.InkDim);
 

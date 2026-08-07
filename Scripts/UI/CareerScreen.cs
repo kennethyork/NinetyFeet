@@ -47,7 +47,19 @@ public partial class CareerScreen : Control
 
     private void Say(string m) { _notice = m; _noticeTimer = 4f; QueueRedraw(); }
 
-    private void Leave() => Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+    private void Leave()
+    {
+        Palette.HideSoftKeyboard();
+        Game.Instance.GoTo("res://Scenes/MainMenu.tscn");
+    }
+
+    /// <summary>Opens Android's on-screen keyboard on the currently-focused name field.</summary>
+    private void OpenKeyboard()
+    {
+        string existing = _nameField == 0 ? _first : _last;
+        int cap = _nameField == 0 ? 14 : 16;
+        Palette.ShowSoftKeyboard(existing, cap);
+    }
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -112,7 +124,7 @@ public partial class CareerScreen : Control
         else DrawCareer(size);
 
         if (_notice != "")
-            Palette.Text(this, new Vector2(40f, size.Y - 44f), _notice, 14, Palette.Highlight);
+            Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 44f)), _notice, 14, Palette.Highlight);
 
         _clicks.DrawFocus(this, Palette.Highlight);
     }
@@ -121,8 +133,8 @@ public partial class CareerScreen : Control
 
     private void DrawCreate(Vector2 size)
     {
-        Palette.Text(this, new Vector2(40f, 46f), "START A CAREER", 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), "START A CAREER", 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             "One player. You do not pick where you play — you are drafted, and you earn the rest.",
             14, Palette.InkDim);
 
@@ -180,7 +192,7 @@ public partial class CareerScreen : Control
             Palette.Night);
         _clicks.Add(start, Begin);
 
-        Palette.Text(this, new Vector2(40f, size.Y - 22f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 22f)),
             "Click a field and type  ·  Tab switches fields  ·  Up/Down picks a build", 13,
             Palette.InkDim);
     }
@@ -197,7 +209,7 @@ public partial class CareerScreen : Control
             DrawRect(new Rect2(rect.Position + new Vector2(12f + Palette.TextWidth(value, 15), 9f),
                 new Vector2(2f, 18f)), Palette.Highlight);
 
-        _clicks.Add(rect, () => { focus(); QueueRedraw(); });
+        _clicks.Add(rect, () => { focus(); OpenKeyboard(); QueueRedraw(); });
     }
 
     private void Begin()
@@ -226,8 +238,8 @@ public partial class CareerScreen : Control
         var c = _career;
         var p = c.Player;
 
-        Palette.Text(this, new Vector2(40f, 46f), c.Name.ToUpperInvariant(), 26, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 68f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size)), c.Name.ToUpperInvariant(), 26, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 22f),
             $"{PlayerData.PositionLabel(c.Position)} · bats {Platoon.Letter(c.Bats)} · " +
             $"age {c.Age} · year {c.Year} · {c.Where}", 14, Palette.InkDim);
 

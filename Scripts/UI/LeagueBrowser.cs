@@ -82,15 +82,15 @@ public partial class LeagueBrowser : Control
         _clicks.Begin();
         Palette.BackButton(this, size, _clicks, Leave);
 
-        Palette.Text(this, new Vector2(40f, 48f), "THE LEAGUE", 28, Palette.Ink);
-        Palette.Text(this, new Vector2(40f, 72f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size, 48f)), "THE LEAGUE", 28, Palette.Ink);
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeTop(size) + 26f),
             $"{Teams.All.Count} clubs across the major-league map, plus Montreal and Nashville.",
             15, Palette.InkDim);
 
         DrawTeamList(size);
         DrawRosterPanel(size, Teams.Get(_selected));
 
-        Palette.Text(this, new Vector2(40f, size.Y - 24f),
+        Palette.Text(this, new Vector2(Palette.SafeLeft(size), Palette.SafeBottom(size, 24f)),
             "Up/Down to browse  ·  Left/Right to jump a division  ·  Esc to go back", 15, Palette.InkDim);
         _clicks.DrawFocus(this, Palette.Highlight);
     }
