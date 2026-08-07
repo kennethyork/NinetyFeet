@@ -21,8 +21,11 @@ public partial class Hud : Node2D
         Clicks.Begin();
 
         DrawScoreBug(new Vector2(20f, 18f), s);
-        DrawLineScore(new Vector2(size.X - 24f, 18f), s);
-        DrawPlayLog(new Vector2(20f, size.Y - 110f));
+        if (!TouchControls.MobileLayout)
+        {
+            DrawLineScore(new Vector2(size.X - 24f, 18f), s);
+            DrawPlayLog(new Vector2(20f, size.Y - 110f));
+        }
 
         // Blocking banners are now only for the moments that genuinely stop play. Everything
         // during an at-bat comes through the toast instead.
@@ -54,7 +57,7 @@ public partial class Hud : Node2D
             DrawPowerUpChip(size, s.Batter);
 
         DrawPitchMeter(size);
-        DrawParkStrip(size);
+        if (!TouchControls.MobileLayout) DrawParkStrip(size);
         DrawFirstGameHelp(size);
         DrawTutorialLesson(size);
 
@@ -179,16 +182,26 @@ public partial class Hud : Node2D
             return;
         }
 
-        string[] lines =
-        {
-            "AT THE PLATE   mouse or WASD aims  ·  click or space swings",
-            "               F power  ·  C contact  ·  B bunt",
-            "MANAGING       \u2190 steal  ·  \u2192 pinch hit  ·  \u2191\u2193 send or hold the runners",
-            "IN THE FIELD   Y moves the defence  ·  U gets somebody up in the pen",
-            "ON THE MOUND   1-4 pitches  ·  P change  ·  V mound visit  ·  I walk him",
-            "",
-            "Any key to dismiss. It will not come back.",
-        };
+        string[] lines = TouchControls.MobileLayout
+            ? new[]
+            {
+                "DRAG anywhere open to aim the bat or pitch",
+                "Tap the large action button to SWING or DEAL",
+                "Smaller buttons change swing, pitch, runners and throws",
+                "Tap II to pause, change settings or leave the game",
+                "",
+                "Tap a control to dismiss. This appears only once.",
+            }
+            : new[]
+            {
+                "AT THE PLATE   mouse or WASD aims  ·  click or space swings",
+                "               F power  ·  C contact  ·  B bunt",
+                "MANAGING       \u2190 steal  ·  \u2192 pinch hit  ·  \u2191\u2193 send or hold the runners",
+                "IN THE FIELD   Y moves the defence  ·  U gets somebody up in the pen",
+                "ON THE MOUND   1-4 pitches  ·  P change  ·  V mound visit  ·  I walk him",
+                "",
+                "Any key to dismiss. It will not come back.",
+            };
 
         float w = 470f, h = 34f + lines.Length * 19f;
         var at = new Vector2(size.X * 0.5f - w * 0.5f, size.Y * 0.5f - h * 0.5f);

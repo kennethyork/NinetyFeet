@@ -2,6 +2,7 @@ using Godot;
 using SandlotSlugfest.Audio;
 using SandlotSlugfest.Core;
 using SandlotSlugfest.Data;
+using SandlotSlugfest.Gameplay;
 using SandlotSlugfest.Season;
 
 namespace SandlotSlugfest.UI;
@@ -13,11 +14,15 @@ public partial class MainMenu : Control
         // Two ways to run a club, named so the difference is obvious before you commit:
         // "Season" is the ball game, "Dynasty" is the management sim. Everything else — front
         // office, league office, trade desk, league browser — lives where you actually use it.
-        "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game", "Learn to Play",
+        "Season", "Dynasty", "Career", "Moments", "The Collection", "Exhibition Game",
+        "Learn to Play",
         // Online was reachable only from the command line, by a headless self-test. All of it
         // worked and none of it was in the game.
         "Online", "Settings", "Controls", "Quit",
     };
+    private static readonly int[] MobileHome = { 0, 5, 6, -1, 8 };
+    private static readonly int[] MobileMore = { 1, 2, 3, 4, 7, 9, -2 };
+    private bool _mobileMore;
     private int _selected;
     private float _time;
 
@@ -45,9 +50,12 @@ public partial class MainMenu : Control
     private (float Top, float Step) MenuLayout()
     {
         Vector2 size = GetViewportRect().Size;
+        int count = VisibleCount;
 
-        int gaps = Mathf.Max(1, _items.Length - 1);
-        float step = Mathf.Clamp(size.Y * 0.058f, 20f, 42f);
+        int gaps = Mathf.Max(1, count - 1);
+        float minStep = TouchControls.MobileLayout ? 56f : 20f;
+        float maxStep = TouchControls.MobileLayout ? 66f : 42f;
+        float step = Mathf.Clamp(size.Y * (TouchControls.MobileLayout ? 0.085f : 0.058f), minStep, maxStep);
 
         // The board is padded above the first entry and below the last by the same amount, so the
         // room the entries themselves get is the band less two paddings.
@@ -59,7 +67,7 @@ public partial class MainMenu : Control
 
         if (gaps * step > available)
         {
-            step = Mathf.Max(15f, available / gaps);
+            step = Mathf.Max(TouchControls.MobileLayout ? 52f : 15f, available / gaps);
             padY = step * 0.72f;
             available = bandBottom - bandTop - padY * 2f;
         }
@@ -91,7 +99,26 @@ public partial class MainMenu : Control
         Vector2 size = GetViewportRect().Size;
         var (top, step) = MenuLayout();
         float y = top + index * step;
-        return new Rect2(new Vector2(size.X * 0.5f - 210f, y - step * 0.5f), new Vector2(420f, step));
+        float width = TouchControls.MobileLayout ? Mathf.Min(520f, size.X - 48f) : 420f;
+        return new Rect2(new Vector2(size.X * 0.5f - width * 0.5f, y - step * 0.5f),
+            new Vector2(width, step));
+    }
+
+    private int[] VisibleIndices => !TouchControls.MobileLayout ? null
+        : _mobileMore ? MobileMore : MobileHome;
+
+    private int VisibleCount => VisibleIndices?.Length ?? _items.Length;
+
+    private int ActionAt(int visibleIndex) => VisibleIndices?[visibleIndex] ?? visibleIndex;
+
+    private string LabelAt(int visibleIndex)
+    {
+        int action = ActionAt(visibleIndex);
+        if (action == -1) return "More";
+        if (action == -2) return "Back";
+        if (TouchControls.MobileLayout && action == 0 && SaveGame.Occupied(SaveGame.Slot))
+            return "Continue Season";
+        return _items[action];
     }
 
     public override void _UnhandledInput(InputEvent @event)
@@ -99,7 +126,7 @@ public partial class MainMenu : Control
         // The menu is clickable — hovering moves the selection, a click activates it.
         if (@event is InputEventMouseMotion motion)
         {
-            for (int i = 0; i < _items.Length; i++)
+            for (int i = 0; i < VisibleCount; i++)
                 if (ItemRect(i).HasPoint(motion.Position))
                 {
                     if (_selected != i) Sfx.Instance?.Play(Sound.UiMove, 0.5f);
@@ -112,7 +139,7 @@ public partial class MainMenu : Control
 
         if (@event is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click)
         {
-            for (int i = 0; i < _items.Length; i++)
+            for (int i = 0; i < VisibleCount; i++)
                 if (ItemRect(i).HasPoint(click.Position))
                 {
                     _selected = i;
@@ -122,14 +149,19 @@ public partial class MainMenu : Control
                 }
             return;
         }
+
         if (@event is InputEventJoypadButton { Pressed: true } pad)
         {
-            if (pad.ButtonIndex is JoyButton.DpadUp) _selected = (_selected - 1 + _items.Length) % _items.Length;
-            else if (pad.ButtonIndex is JoyButton.DpadDown) _selected = (_selected + 1) % _items.Length;
+            if (pad.ButtonIndex is JoyButton.DpadUp)
+                _selected = (_selected - 1 + VisibleCount) % VisibleCount;
+            else if (pad.ButtonIndex is JoyButton.DpadDown)
+                _selected = (_selected + 1) % VisibleCount;
             else if (pad.ButtonIndex is JoyButton.A or JoyButton.Start) { Activate(); return; }
             else if (pad.ButtonIndex is JoyButton.B) { GetTree().Quit(); return; }
             else return;
-            QueueRedraw(); return;
+            Sfx.Instance?.Play(Sound.UiMove, 0.5f);
+            QueueRedraw();
+            return;
         }
 
         if (@event is not InputEventKey { Pressed: true, Echo: false } key) return;
@@ -137,11 +169,11 @@ public partial class MainMenu : Control
         switch (key.PhysicalKeycode)
         {
             case Key.Up or Key.W:
-                _selected = (_selected - 1 + _items.Length) % _items.Length;
+                _selected = (_selected - 1 + VisibleCount) % VisibleCount;
                 Sfx.Instance?.Play(Sound.UiMove, 0.5f);
                 break;
             case Key.Down or Key.S:
-                _selected = (_selected + 1) % _items.Length;
+                _selected = (_selected + 1) % VisibleCount;
                 Sfx.Instance?.Play(Sound.UiMove, 0.5f);
                 break;
             case Key.Enter or Key.KpEnter or Key.Space:
@@ -149,7 +181,12 @@ public partial class MainMenu : Control
                 Activate();
                 break;
             case Key.Escape:
-                GetTree().Quit();
+                if (TouchControls.MobileLayout && _mobileMore)
+                {
+                    _mobileMore = false;
+                    _selected = 0;
+                }
+                else if (!TouchControls.MobileLayout) GetTree().Quit();
                 break;
         }
         QueueRedraw();
@@ -157,7 +194,23 @@ public partial class MainMenu : Control
 
     private void Activate()
     {
-        switch (_selected)
+        int action = ActionAt(_selected);
+        if (action == -1)
+        {
+            _mobileMore = true;
+            _selected = 0;
+            QueueRedraw();
+            return;
+        }
+        if (action == -2)
+        {
+            _mobileMore = false;
+            _selected = 0;
+            QueueRedraw();
+            return;
+        }
+
+        switch (action)
         {
             case 0:
                 // Season: you play your club's games.
@@ -195,7 +248,8 @@ public partial class MainMenu : Control
                 Game.Instance.GoTo("res://Scenes/TeamSelect.tscn");
                 break;
             case 6:
-                StartTutorial(); break;
+                StartTutorial();
+                break;
             case 7:
                 // Host or join: one ballgame, or a whole season the two of you share.
                 Game.Instance.PendingSeasonGame = null;
@@ -213,17 +267,31 @@ public partial class MainMenu : Control
                 break;
         }
     }
+
     private static void OpenLeagueOrCreate()
     {
         var g = Game.Instance;
-        if (g.League != null && SaveGame.Occupied(SaveGame.Slot)) { g.HomeTeamId = g.League.UserTeamId; g.CardClubRoster = null; g.GoTo("res://Scenes/Season.tscn"); }
+        if (g.League != null && SaveGame.Occupied(SaveGame.Slot))
+        {
+            g.HomeTeamId = g.League.UserTeamId;
+            g.CardClubRoster = null;
+            g.GoTo("res://Scenes/Season.tscn");
+        }
         else g.GoTo("res://Scenes/ClubSelect.tscn");
     }
+
     private static void StartTutorial()
     {
-        var g = Game.Instance; g.TutorialMode = true; g.PendingSeasonGame = null; g.PendingMoment = null;
-        g.CardClubRoster = null; g.ClearFarmGame(); g.AwayTeamId = 2; g.HomeTeamId = 31;
-        g.Mode = ControlMode.PlayerVsCpu; g.ReturnTo = "res://Scenes/MainMenu.tscn";
+        var g = Game.Instance;
+        g.TutorialMode = true;
+        g.PendingSeasonGame = null;
+        g.PendingMoment = null;
+        g.CardClubRoster = null;
+        g.ClearFarmGame();
+        g.AwayTeamId = 2;
+        g.HomeTeamId = 31;
+        g.Mode = ControlMode.PlayerVsCpu;
+        g.ReturnTo = "res://Scenes/MainMenu.tscn";
         g.GoTo("res://Scenes/Game.tscn");
     }
 
@@ -360,14 +428,15 @@ public partial class MainMenu : Control
         // sandlot looks like a dialog box someone forgot to remove.
         float padY = step * 0.72f;
         float halfW = 196f;
-        float y0 = top - padY, y1 = top + (_items.Length - 1) * step + padY;
+        int count = VisibleCount;
+        float y0 = top - padY, y1 = top + (count - 1) * step + padY;
         Ink.Shape(this, new[]
         {
             new Vector2(cx - halfW, y0 - 3f), new Vector2(cx + halfW, y0 + 2f),
             new Vector2(cx + halfW + 3f, y1 + 3f), new Vector2(cx - halfW - 2f, y1),
         }, new Color("#f4e8ce", 0.94f), new Color("#6b4a26"), 3.5f, 55);
 
-        for (int i = 0; i < _items.Length; i++)
+        for (int i = 0; i < count; i++)
         {
             bool on = i == _selected;
             float y = top + i * step;
@@ -377,7 +446,7 @@ public partial class MainMenu : Control
             if (on)
             {
                 float bob = Mathf.Sin(_time * 4f) * 3f;
-                float w = Palette.TextWidth(_items[i], fontSize);
+                float w = Palette.TextWidth(LabelAt(i), fontSize);
                 var at = new Vector2(cx - w * 0.5f - 26f, y - fontSize * 0.30f + bob);
                 DrawCircle(at, 8f, Palette.Ball);
                 DrawArc(at, 8f, 0f, Mathf.Tau, 14, new Color("#c9c2ad"), 1.4f);
@@ -385,14 +454,15 @@ public partial class MainMenu : Control
                 DrawArc(at + new Vector2(3f, 0f), 6f, Mathf.Pi - 1.0f, Mathf.Pi + 1.0f, 8, Palette.Warning, 1.4f);
             }
 
-            Palette.TextCentered(this, new Vector2(cx, y), _items[i], fontSize, color);
+            Palette.TextCentered(this, new Vector2(cx, y), LabelAt(i), fontSize, color);
         }
 
         // On grass, with a soft drop shadow — plain white on cream was unreadable where the
         // hint ran under the board.
-        Palette.TextCentered(this, new Vector2(cx + 1f, size.Y - 19f),
-            "Click or tap  ·  arrows + Enter  ·  controller D-pad + A", 16, new Color(0f, 0f, 0f, 0.45f));
-        Palette.TextCentered(this, new Vector2(cx, size.Y - 20f),
-            "Click or tap  ·  arrows + Enter  ·  controller D-pad + A", 16, new Color("#f7f2e4"));
+        string hint = TouchControls.MobileLayout ? "Tap to play" :
+            "Click or tap  ·  arrows + Enter  ·  controller D-pad + A";
+        Palette.TextCentered(this, new Vector2(cx + 1f, size.Y - 19f), hint, 16,
+            new Color(0f, 0f, 0f, 0.45f));
+        Palette.TextCentered(this, new Vector2(cx, size.Y - 20f), hint, 16, new Color("#f7f2e4"));
     }
 }

@@ -6,6 +6,7 @@ as `v0.2.0` runs the same platform tests and then creates a permanent GitHub Rel
 - a Windows x86_64 ZIP;
 - a Linux x86_64 AppImage;
 - an Android arm64 APK;
+- a signed Android App Bundle when release-signing secrets are configured;
 - `SHA256SUMS.txt` for download verification.
 
 Create a release only from a tested `main` commit:
@@ -30,6 +31,10 @@ password. Keep an offline backup: losing the key prevents updates to an installe
 
 Until all three secrets are configured, tag builds clearly warn and produce a debug-signed APK
 that is suitable for testing but not a store submission.
+
+The store preset targets API 36 and emits `NinetyFeet.aab`, the format required for a new Google
+Play app. Enrol the package in Play App Signing before the first production upload. The APK remains
+in releases for direct installation and device testing.
 
 ## Windows signing
 

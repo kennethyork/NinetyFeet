@@ -68,9 +68,9 @@ public static class TouchControls
         Buttons.Clear();
         if (scene?.Situation == null) return;
 
-        float m = 22f;                      // margin from the edge
-        float r = 78f;                      // a comfortable thumb target
-        float small = 62f;
+        float m = MobileLayout ? Mathf.Max(28f, SafeInset(size)) : 22f;
+        float r = MobileLayout ? 92f : 78f; // primary action belongs under a thumb
+        float small = MobileLayout ? 72f : 62f;
 
         Buttons.Add(new Pad(new Rect2(size.X - m - 48f, 108f, 48f, 48f),
             "II", InputActions.Pause, false, false));
@@ -143,6 +143,22 @@ public static class TouchControls
 
         Buttons.Add(new Pad(new Rect2(m + small + 10f, size.Y - m - small, small, small),
             "GO", InputActions.Steal, false, false));
+    }
+
+    /// <summary>Largest Android cutout/gesture inset converted from display pixels to canvas units.</summary>
+    private static float SafeInset(Vector2 viewport)
+    {
+        if (!MobileLayout) return 0f;
+        Vector2I screen = DisplayServer.ScreenGetSize();
+        Rect2I safe = DisplayServer.GetDisplaySafeArea();
+        if (screen.X <= 0 || screen.Y <= 0 || safe.Size.X <= 0 || safe.Size.Y <= 0) return 0f;
+
+        float sx = viewport.X / screen.X;
+        float sy = viewport.Y / screen.Y;
+        int right = screen.X - safe.End.X;
+        int bottom = screen.Y - safe.End.Y;
+        return Mathf.Max(Mathf.Max(safe.Position.X * sx, right * sx),
+            Mathf.Max(safe.Position.Y * sy, bottom * sy));
     }
 
     // -----------------------------------------------------------------------

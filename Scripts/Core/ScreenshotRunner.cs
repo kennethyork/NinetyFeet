@@ -161,7 +161,20 @@ public partial class ScreenshotRunner : Node
             return;
         }
 
-        var image = GetViewport().GetTexture().GetImage();
+        var texture = GetViewport().GetTexture();
+        if (texture == null)
+        {
+            GD.Print("  [capture] renderer has no viewport texture; layout checks completed only");
+            GetTree().Quit();
+            return;
+        }
+        var image = texture.GetImage();
+        if (image == null)
+        {
+            GD.Print("  [capture] renderer returned no image; layout checks completed only");
+            GetTree().Quit();
+            return;
+        }
         string path = $"{Directory}/shot_{_taken:D2}.png";
         image.SavePng(path);
         GD.Print($"saved {path}");

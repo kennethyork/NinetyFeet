@@ -201,7 +201,7 @@ jobs:
       - name: Install Android build dependencies
         run: |
           dotnet workload install android
-          sdkmanager 'platform-tools' 'platforms;android-35' 'build-tools;35.0.0'
+          sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
           yes | sdkmanager --licenses >/dev/null || true
 
       - uses: actions/download-artifact@v4
@@ -249,10 +249,21 @@ jobs:
           unzip -l build/android/NinetyFeet.apk | tee build/android-apk-contents.txt
           grep -q 'SandlotSlugfest.dll' build/android-apk-contents.txt
 
+          # Google Play accepts an AAB, not the sideloadable APK. Only create the store artifact
+          # when the real upload key is present; a debug-signed bundle invites an accidental,
+          # irreversible Play signing setup with the wrong identity.
+          if [[ "$export_flag" == --export-release ]]; then
+            "$godot" --headless --install-android-build-template --export-release "Android Store" \
+              "$PWD/build/android/NinetyFeet.aab" 2>&1 | tee build/android-aab-export.log
+            test -s build/android/NinetyFeet.aab
+          fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: NinetyFeet-android-arm64
-          path: build/android/NinetyFeet.apk
+          path: |
+            build/android/NinetyFeet.apk
+            build/android/NinetyFeet.aab
           if-no-files-found: error
 
   release:
@@ -282,6 +293,9 @@ jobs:
           (cd release/windows && zip -9 -r "../NinetyFeet-${version}-windows-x86_64.zip" .)
           mv release/linux/NinetyFeet-x86_64.AppImage "release/NinetyFeet-${version}-linux-x86_64.AppImage"
           mv release/android/NinetyFeet.apk "release/NinetyFeet-${version}-android-arm64.apk"
+          if [[ -f release/android/NinetyFeet.aab ]]; then
+            mv release/android/NinetyFeet.aab "release/NinetyFeet-${version}-android-arm64.aab"
+          fi
           cd release
           sha256sum NinetyFeet-* > SHA256SUMS.txt
 
@@ -289,11 +303,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            release/NinetyFeet-*.zip \
-            release/NinetyFeet-*.AppImage \
-            release/NinetyFeet-*.apk \
-            release/SHA256SUMS.txt \
+          shopt -s nullglob
+          assets=(release/NinetyFeet-*.zip release/NinetyFeet-*.AppImage \
+            release/NinetyFeet-*.apk release/NinetyFeet-*.aab release/SHA256SUMS.txt)
+          gh release create "$GITHUB_REF_NAME" "${assets[@]}" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Ninety Feet $GITHUB_REF_NAME" \
             --generate-notes

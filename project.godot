@@ -62,5 +62,16 @@ project/assembly_name="SandlotSlugfest"
 textures/vram_compression/import_etc2_astc=true
 
 renderer/rendering_method="forward_plus"
+; The desktop keeps the richer renderer. Android uses the broad OpenGL compatibility path: this
+; is a hand-drawn 2D game, so Vulkan-only overhead buys no visible art and excludes older phones.
+renderer/rendering_method.mobile="gl_compatibility"
 anti_aliasing/quality/msaa_2d=1
 environment/defaults/default_clear_color=Color(0.06, 0.09, 0.13, 1)
+
+[debug]
+
+; Keep a small local diagnostic trail for device bug reports. Nothing is uploaded and the privacy
+; promise remains true; players can attach a log deliberately when reporting a problem.
+file_logging/enable_file_logging=true
+file_logging/log_path="user://logs/ninetyfeet.log"
+file_logging/max_log_files=5

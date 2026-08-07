@@ -21,6 +21,7 @@ public partial class FieldView : Node2D
 
     private float _scale = 1.4f;
     private Vector2 _origin;      // screen position of home plate
+    private bool _cameraReady;
     private float _time;
 
     public override void _Process(double delta) => _time += (float)delta;
@@ -50,7 +51,23 @@ public partial class FieldView : Node2D
 
         // Fit roughly 430 feet of depth and 800 feet of width into the viewport.
         _scale = ViewScale(size);
-        _origin = new Vector2(size.X * 0.5f, size.Y - 70f);
+        var fittedOrigin = new Vector2(size.X * 0.5f, size.Y - 70f);
+        Vector2 previousOrigin = _origin;
+        _origin = fittedOrigin;
+
+        // A phone cannot show the entire outfield and keep the live actors readable. Once a ball
+        // leaves the infield, follow it like a broadcast camera; settle back behind home as soon
+        // as the action returns. The modest smoothing keeps a hard liner from snapping the field.
+        if (TouchControls.MobileLayout && Scene.Play != null)
+        {
+            Vector2 focus = Scene.Play.BallSpot;
+            Vector2 wanted = focus.Y > 105f
+                ? new Vector2(size.X * 0.5f - focus.X * _scale,
+                    size.Y * 0.43f + focus.Y * _scale)
+                : fittedOrigin;
+            if (!_cameraReady) { _origin = wanted; _cameraReady = true; }
+            else _origin = previousOrigin.Lerp(wanted, 0.12f);
+        }
 
         // A replay is shot from closer in and follows the ball, which is the entire reason it is
         // worth watching a second time. The camera pushes in and pans; nothing else changes.
@@ -148,10 +165,11 @@ public partial class FieldView : Node2D
     /// <summary>The inverse, so the mouse can steer a fielder around the park.</summary>
     public Vector2 ScreenToField(Vector2 screen)
     {
-        // _origin and _scale are set during _Draw; recompute so this is valid at any time.
+        // Use the camera actually drawn. On mobile it follows deep balls, so reconstructing the
+        // old fitted transform here would make a finger steer to the wrong patch of grass.
         Vector2 size = GetViewportRect().Size;
         float scale = ViewScale(size);
-        var origin = new Vector2(size.X * 0.5f, size.Y - 70f);
+        var origin = _cameraReady ? _origin : new Vector2(size.X * 0.5f, size.Y - 70f);
         return new Vector2((screen.X - origin.X) / scale, (origin.Y - screen.Y) / scale);
     }
 
