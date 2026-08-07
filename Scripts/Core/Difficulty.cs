@@ -144,6 +144,36 @@ public static class Settings
 {
     private const string Path = "user://settings.cfg";
 
+    private static float MobileFloat(string key, float fallback, float min, float max)
+    {
+        var cfg = new ConfigFile();
+        if (cfg.Load(Path) != Error.Ok) return fallback;
+        return Mathf.Clamp((float)cfg.GetValue("mobile", key, fallback), min, max);
+    }
+
+    private static void SaveMobile(string key, Variant value)
+    {
+        var cfg = new ConfigFile(); cfg.Load(Path);
+        cfg.SetValue("mobile", key, value); cfg.Save(Path);
+    }
+
+    public static float TouchScale() => MobileFloat("control_scale", 1f, 0.80f, 1.35f);
+    public static void SaveTouchScale(float value) => SaveMobile("control_scale", Mathf.Clamp(value, 0.80f, 1.35f));
+    public static float TouchOpacity() => MobileFloat("control_opacity", 0.82f, 0.40f, 1f);
+    public static void SaveTouchOpacity(float value) => SaveMobile("control_opacity", Mathf.Clamp(value, 0.40f, 1f));
+    public static float TouchSensitivity() => MobileFloat("aim_sensitivity", 1f, 0.65f, 1.50f);
+    public static void SaveTouchSensitivity(float value) => SaveMobile("aim_sensitivity", Mathf.Clamp(value, 0.65f, 1.50f));
+    public static float MobileCameraZoom() => MobileFloat("camera_zoom", 1.38f, 1.15f, 1.65f);
+    public static void SaveMobileCameraZoom(float value) => SaveMobile("camera_zoom", Mathf.Clamp(value, 1.15f, 1.65f));
+
+    public static bool LeftHandedTouch()
+    {
+        var cfg = new ConfigFile();
+        return cfg.Load(Path) == Error.Ok && (bool)cfg.GetValue("mobile", "left_handed", false);
+    }
+
+    public static void SaveLeftHandedTouch(bool value) => SaveMobile("left_handed", value);
+
     public static bool Accessibility(string key, bool fallback = false)
     {
         var cfg = new ConfigFile();

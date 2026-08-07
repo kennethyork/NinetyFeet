@@ -75,8 +75,10 @@ public static class TouchControls
         float top = MobileLayout ? Mathf.Max(28f, safe.Y + 16f) : 22f;
         float right = MobileLayout ? Mathf.Max(28f, safe.Z + 16f) : 22f;
         float bottom = MobileLayout ? Mathf.Max(28f, safe.W + 16f) : 22f;
-        float r = MobileLayout ? 104f : 78f; // primary action belongs under a thumb
-        float small = MobileLayout ? 68f : 62f;
+        float ui = MobileLayout ? Game.Instance?.TouchControlScale ?? 1f : 1f;
+        float r = (MobileLayout ? 104f : 78f) * ui; // primary action belongs under a thumb
+        float small = (MobileLayout ? 68f : 62f) * ui;
+        float gap = 10f * ui;
         float primaryX = size.X - right - r;
         float primaryY = size.Y - bottom - r;
         float lowerY = size.Y - bottom - small;
@@ -90,7 +92,7 @@ public static class TouchControls
             {
                 // Throws live where the bases live. A spatial diamond is much faster to read in
                 // the half-second after contact than four text buttons in an arbitrary row.
-                float d = small + 8f;
+                float d = small + 8f * ui;
                 Vector2 c = new(size.X - right - small - d, size.Y - bottom - small - d);
                 Buttons.Add(new Pad(new Rect2(c.X, c.Y - d, small, small), "2", InputActions.ThrowSecond, false, false));
                 Buttons.Add(new Pad(new Rect2(c.X + d, c.Y, small, small), "1", InputActions.ThrowFirst, false, false));
@@ -101,9 +103,10 @@ public static class TouchControls
             {
                 Buttons.Add(new Pad(new Rect2(primaryX, primaryY, r, r),
                     "GO", InputActions.SendRunners, true, false));
-                Buttons.Add(new Pad(new Rect2(primaryX - small - 12f, lowerY,
+                Buttons.Add(new Pad(new Rect2(primaryX - small - 12f * ui, lowerY,
                     small, small), "HOLD", InputActions.HoldRunners, false, false));
             }
+            FinishLayout(size, left, right);
             return;
         }
 
@@ -121,18 +124,19 @@ public static class TouchControls
                 InputActions.Pitch1, InputActions.Pitch2, InputActions.Pitch3, InputActions.Pitch4,
             };
 
-            float pitchesX = left + (MobileLayout ? 196f : 0f);
+            float pitchesX = left + (MobileLayout ? 196f * ui : 0f);
             for (int i = 0; i < arsenal.Length && i < 4; i++)
                 Buttons.Add(new Pad(
-                    new Rect2(pitchesX + i * (small + 10f), lowerY, small, small),
+                    new Rect2(pitchesX + i * (small + gap), lowerY, small, small),
                     SwingProfileNames.Short(arsenal[i]), actions[i], false,
                     scene.SelectedPitch == arsenal[i]));
 
             Buttons.Add(new Pad(new Rect2(primaryX, primaryY, r, r),
                 "DEAL", InputActions.Action, true, false));
 
-            Buttons.Add(new Pad(new Rect2(primaryX - small - 12f, lowerY - small - 10f, small, small),
+            Buttons.Add(new Pad(new Rect2(primaryX - small - 12f * ui, lowerY - small - gap, small, small),
                 "PEN", InputActions.ChangePitcher, false, false));
+            FinishLayout(size, left, right);
             return;
         }
 
@@ -140,18 +144,34 @@ public static class TouchControls
         Buttons.Add(new Pad(new Rect2(primaryX, primaryY, r, r),
             "SWING", InputActions.Action, true, false));
 
-        Buttons.Add(new Pad(new Rect2(primaryX - small - 12f, lowerY - small - 10f, small, small),
+        Buttons.Add(new Pad(new Rect2(primaryX - small - 12f * ui, lowerY - small - gap, small, small),
             "POW", InputActions.SwingPower, false, false));
 
-        Buttons.Add(new Pad(new Rect2(primaryX - small - 12f, lowerY, small, small),
+        Buttons.Add(new Pad(new Rect2(primaryX - small - 12f * ui, lowerY, small, small),
             "CON", InputActions.SwingContact, false, false));
 
-        float utilityX = left + (MobileLayout ? 196f : 0f);
-        Buttons.Add(new Pad(new Rect2(utilityX, lowerY - small - 10f, small, small),
+        float utilityX = left + (MobileLayout ? 196f * ui : 0f);
+        Buttons.Add(new Pad(new Rect2(utilityX, lowerY - small - gap, small, small),
             "BUNT", InputActions.Bunt, false, false));
 
         Buttons.Add(new Pad(new Rect2(utilityX, lowerY, small, small),
             "GO", InputActions.Steal, false, false));
+        FinishLayout(size, left, right);
+    }
+
+    private static void FinishLayout(Vector2 size, float left, float right)
+    {
+        if (!MobileLayout || Game.Instance?.LeftHandedTouch != true) return;
+
+        float shift = left - right;
+        for (int i = 0; i < Buttons.Count; i++)
+        {
+            Pad b = Buttons[i];
+            if (b.Action == InputActions.Pause) continue;
+            Rect2 mirrored = b.Where;
+            mirrored.Position = new Vector2(size.X - b.Where.End.X + shift, b.Where.Position.Y);
+            Buttons[i] = b with { Where = mirrored };
+        }
     }
 
     /// <summary>
@@ -231,7 +251,8 @@ public static class TouchControls
         }
 
         const float FeetPerPixel = 1f / 104f;     // matches BattingView.PixelsPerFoot
-        var moved = (to - _aimFrom) * FeetPerPixel;
+        float sensitivity = Game.Instance?.TouchAimSensitivity ?? 1f;
+        var moved = (to - _aimFrom) * FeetPerPixel * sensitivity;
 
         scene.SetTouchAim(new Vector2(_aimStart.X + moved.X, _aimStart.Y - moved.Y));
     }
@@ -276,20 +297,29 @@ public static class TouchControls
         {
             Vector4 safe = SafeInsets(size);
             float left = Mathf.Max(28f, safe.X + 16f);
+            float right = Mathf.Max(28f, safe.Z + 16f);
             float bottom = Mathf.Max(28f, safe.W + 16f);
-            Vector2 center = new(left + 78f, size.Y - bottom - 78f);
-            c.DrawCircle(center, 76f, new Color(0.02f, 0.04f, 0.06f, 0.28f));
-            c.DrawArc(center, 76f, 0f, Mathf.Tau, 40, new Color(1f, 1f, 1f, 0.24f), 3f);
+            float ui = Game.Instance?.TouchControlScale ?? 1f;
+            float opacity = Game.Instance?.TouchControlOpacity ?? 0.82f;
+            bool leftHanded = Game.Instance?.LeftHandedTouch == true;
+            Vector2 center = new(leftHanded ? size.X - right - 78f * ui : left + 78f * ui,
+                size.Y - bottom - 78f * ui);
+            c.DrawCircle(center, 76f * ui, new Color(0.02f, 0.04f, 0.06f, 0.28f * opacity));
+            c.DrawArc(center, 76f * ui, 0f, Mathf.Tau, 40,
+                new Color(1f, 1f, 1f, 0.24f * opacity), 3f);
 
             Vector2 nub = center;
             if (_aimFinger >= 0)
-                nub += (_aimAt - _aimFrom).LimitLength(44f);
-            c.DrawCircle(nub, 30f, new Color(1f, 1f, 1f, _aimFinger >= 0 ? 0.34f : 0.18f));
-            c.DrawArc(nub, 30f, 0f, Mathf.Tau, 24, new Color(1f, 1f, 1f, 0.32f), 2f);
-            Palette.TextCentered(c, center + new Vector2(0f, -96f), "AIM", 12,
-                new Color(1f, 1f, 1f, 0.52f));
+                nub += (_aimAt - _aimFrom).LimitLength(44f * ui);
+            c.DrawCircle(nub, 30f * ui, new Color(1f, 1f, 1f,
+                (_aimFinger >= 0 ? 0.34f : 0.18f) * opacity));
+            c.DrawArc(nub, 30f * ui, 0f, Mathf.Tau, 24,
+                new Color(1f, 1f, 1f, 0.32f * opacity), 2f);
+            Palette.TextCentered(c, center + new Vector2(0f, -96f * ui), "AIM", 12,
+                new Color(1f, 1f, 1f, 0.52f * opacity));
         }
 
+        float controlOpacity = MobileLayout ? Game.Instance?.TouchControlOpacity ?? 0.82f : 1f;
         foreach (var b in Buttons)
         {
             bool pressed = FlashUntil.TryGetValue(b.Action, out ulong until)
@@ -298,10 +328,11 @@ public static class TouchControls
                      : pressed ? new Color(1f, 0.82f, 0.38f, 0.95f)
                      : b.Big ? new Color(0.86f, 0.69f, 0.29f, 0.80f)
                              : new Color(1f, 1f, 1f, 0.16f);
+            fill.A *= controlOpacity;
 
             c.DrawCircle(b.Where.Position + b.Where.Size * 0.5f, b.Where.Size.X * 0.5f, fill);
             c.DrawArc(b.Where.Position + b.Where.Size * 0.5f, b.Where.Size.X * 0.5f,
-                0f, Mathf.Tau, 28, new Color(0f, 0f, 0f, 0.45f), 3f);
+                0f, Mathf.Tau, 28, new Color(0f, 0f, 0f, 0.45f * controlOpacity), 3f);
 
             Palette.TextCentered(c, b.Where.Position + b.Where.Size * 0.5f +
                 (pressed ? new Vector2(0f, 2f) : Vector2.Zero), b.Label,

@@ -31,6 +31,9 @@ confirming one reset must not change another mode or general accessibility, disp
 - Navigate menus with no pointer and ensure Back never traps the player.
 - Repeat with large text, high contrast, reduced motion and vibration disabled.
 - Check 16:9, ultrawide and a narrow phone layout for clipped or untappable controls.
+- On Android, repeat with both handedness layouts and the smallest/largest control and camera sizes.
+- Swipe every management list far enough to move it, then verify the row under the initial touch was
+  not activated accidentally.
 - Play every Moment twice and confirm the replay reward cannot repeat its first-clear pack.
 
 ## Feedback report

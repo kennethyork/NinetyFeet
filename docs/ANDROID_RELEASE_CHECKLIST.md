@@ -22,6 +22,20 @@ store rollout.
 - Play twenty minutes with no sustained stutter, overheating, audio breakup or battery warning.
 - Repeat with large text, high contrast, reduced motion and vibration off.
 
+## Touch configuration matrix
+
+- Complete one batting and one pitching inning with both left- and right-handed layouts.
+- Repeat at 85%, 100% and 130% control size; every target must remain separate and inside its safe edge.
+- Verify 45% opacity remains legible over light dirt, dark stands and every club colour.
+- Try every aim-sensitivity step and confirm the cursor can reach all four strike-zone corners
+  without lifting the aiming thumb.
+- Try every field-camera zoom step on a ground ball, a foul-line hit and a ball to the deepest wall;
+  actors must remain readable and the follow camera must keep the live ball on screen.
+- Swipe long rosters and Settings, then tap an adjacent row; a swipe must never activate its starting
+  row and a deliberate tap must activate exactly once.
+- Use Android Back from a card, a management screen, live play and the pause menu. Each gesture must
+  close only the topmost layer and must never terminate a live game.
+
 ## Store build
 
 - Confirm `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` are present.

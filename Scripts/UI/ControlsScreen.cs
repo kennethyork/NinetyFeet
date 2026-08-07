@@ -43,6 +43,29 @@ public partial class ControlsScreen : Control
         ("", "- / =", "Volume down / up"),
     };
 
+    private static readonly (string Section, string Key, string What)[] MobileRows =
+    {
+        ("AT THE PLATE", "Left aim pad", "Drag to move the hitting reticle"),
+        ("", "SWING", "Normal swing — balanced"),
+        ("", "POW / CON", "Trade contact for damage, or damage for contact"),
+        ("", "BUNT", "Square around before the pitch arrives"),
+        ("", "GO", "Send a runner"),
+
+        ("ON THE MOUND", "Left aim pad", "Drag to locate the pitch"),
+        ("", "Pitch buttons", "Choose from this pitcher's actual repertoire"),
+        ("", "DEAL", "Start or complete the delivery"),
+        ("", "PEN", "Open the bullpen"),
+
+        ("BALL IN PLAY", "GO / HOLD", "Advance or stop the runners"),
+        ("", "Base diamond", "Throw spatially to first, second, third or home"),
+        ("", "Open grass", "Tap or drag to steer with manual fielding"),
+
+        ("MENUS", "Tap", "Activate a row or button when your finger lifts"),
+        ("", "Swipe", "Scroll rosters, settings and league screens"),
+        ("", "Android Back", "Close the top layer, leave a screen or pause play"),
+        ("", "Settings", "Adjust size, opacity, sensitivity, handedness and zoom"),
+    };
+
     private readonly ClickMap _clicks = new();
     private readonly Scroller _scroll = new();
 
@@ -90,7 +113,8 @@ public partial class ControlsScreen : Control
         float bottom = size.Y - 56f;
         float y = _scroll.Begin(Top, bottom);
 
-        foreach (var (section, key, what) in Rows)
+        var shownRows = Gameplay.TouchControls.MobileLayout ? MobileRows : Rows;
+        foreach (var (section, key, what) in shownRows)
         {
             if (!string.IsNullOrEmpty(section))
             {
@@ -117,7 +141,10 @@ public partial class ControlsScreen : Control
         _scroll.Draw(this, x + 600f, Top, bottom);
 
         Palette.Text(this, new Vector2(x, size.Y - 26f),
-            _scroll.Overflows ? "Scroll for the rest  ·  Esc or Space to go back"
-                              : "Press Esc or Space to go back", 15, Palette.InkDim);
+            Gameplay.TouchControls.MobileLayout
+                ? (_scroll.Overflows ? "Swipe for the rest  ·  Android Back to leave"
+                                     : "Android Back to leave")
+                : (_scroll.Overflows ? "Scroll for the rest  ·  Esc or Space to go back"
+                                     : "Press Esc or Space to go back"), 15, Palette.InkDim);
     }
 }

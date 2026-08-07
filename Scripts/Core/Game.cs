@@ -99,6 +99,11 @@ public partial class Game : Node
     public bool HighContrast { get; set; }
     public bool ReducedMotion { get; set; }
     public bool Vibration { get; set; } = true;
+    public float TouchControlScale { get; set; } = 1f;
+    public float TouchControlOpacity { get; set; } = 0.82f;
+    public float TouchAimSensitivity { get; set; } = 1f;
+    public float MobileCameraZoom { get; set; } = 1.38f;
+    public bool LeftHandedTouch { get; set; }
     private int _innings = 9;
 
     /// <summary>Innings per game, set in Settings. Nine by default, the same as the real thing.</summary>
@@ -431,6 +436,11 @@ public partial class Game : Node
         HighContrast = Settings.Accessibility("high_contrast");
         ReducedMotion = Settings.Accessibility("reduced_motion");
         Vibration = Settings.Accessibility("vibration", true);
+        TouchControlScale = Settings.TouchScale();
+        TouchControlOpacity = Settings.TouchOpacity();
+        TouchAimSensitivity = Settings.TouchSensitivity();
+        MobileCameraZoom = Settings.MobileCameraZoom();
+        LeftHandedTouch = Settings.LeftHandedTouch();
 
         var args = OS.GetCmdlineUserArgs();
 

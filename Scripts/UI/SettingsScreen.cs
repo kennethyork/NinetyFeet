@@ -232,6 +232,52 @@ public partial class SettingsScreen : Control
         AccessibilityRow("Controller vibration", "vibration", g.Vibration,
             "Physical feedback for contact and misses.", v => g.Vibration = v, ref y);
 
+        if (Gameplay.TouchControls.MobileLayout)
+        {
+            y += 14f;
+            Section("TOUCH CONTROLS", ref y);
+
+            Row("Handedness", g.LeftHandedTouch ? "Left-handed" : "Right-handed",
+                g.LeftHandedTouch ? "Actions on the left; aiming on the right."
+                                  : "Aiming on the left; actions on the right.", ref y, () =>
+                {
+                    g.LeftHandedTouch = !g.LeftHandedTouch;
+                    Settings.SaveLeftHandedTouch(g.LeftHandedTouch);
+                });
+
+            Row("Control size", $"{Mathf.RoundToInt(g.TouchControlScale * 100f)}%",
+                "Changes every gameplay target without changing the field.", ref y, () =>
+                {
+                    g.TouchControlScale = Step(g.TouchControlScale,
+                        new[] { 0.85f, 1f, 1.15f, 1.30f });
+                    Settings.SaveTouchScale(g.TouchControlScale);
+                });
+
+            Row("Control opacity", $"{Mathf.RoundToInt(g.TouchControlOpacity * 100f)}%",
+                "Lower values leave more of the ballpark visible.", ref y, () =>
+                {
+                    g.TouchControlOpacity = Step(g.TouchControlOpacity,
+                        new[] { 0.45f, 0.65f, 0.82f, 1f });
+                    Settings.SaveTouchOpacity(g.TouchControlOpacity);
+                });
+
+            Row("Aim sensitivity", $"{Mathf.RoundToInt(g.TouchAimSensitivity * 100f)}%",
+                "How far the reticle moves for the same thumb drag.", ref y, () =>
+                {
+                    g.TouchAimSensitivity = Step(g.TouchAimSensitivity,
+                        new[] { 0.70f, 0.85f, 1f, 1.20f, 1.40f });
+                    Settings.SaveTouchSensitivity(g.TouchAimSensitivity);
+                });
+
+            Row("Field camera", $"{g.MobileCameraZoom:0.00}×",
+                "Closer actors are larger; deep flies still use the follow camera.", ref y, () =>
+                {
+                    g.MobileCameraZoom = Step(g.MobileCameraZoom,
+                        new[] { 1.20f, 1.38f, 1.52f, 1.65f });
+                    Settings.SaveMobileCameraZoom(g.MobileCameraZoom);
+                });
+        }
+
         // --- Sound ---
         y += 14f;
         Section("SOUND", ref y);
@@ -259,7 +305,9 @@ public partial class SettingsScreen : Control
 
         Palette.Text(this, new Vector2(40f, 46f), "SETTINGS", 26, Palette.Ink);
         Palette.Text(this, new Vector2(40f, 70f),
-            "Changes apply to your next league. Sound is immediate.",
+            Gameplay.TouchControls.MobileLayout
+                ? "Tap a row to change it  ·  swipe to scroll  ·  touch settings apply immediately."
+                : "Changes apply to your next league. Sound is immediate.",
             13, Palette.InkDim);
         Palette.BackButton(this, size, _clicks, () => Game.Instance.GoTo("res://Scenes/MainMenu.tscn"));
         _clicks.DrawFocus(this, Palette.Highlight);
@@ -268,7 +316,9 @@ public partial class SettingsScreen : Control
 
         Palette.Text(this, new Vector2(40f, size.Y - 14f),
             _scroll.Overflows
-                ? "Controls are on their own screen  ·  scroll for more"
+                ? (Gameplay.TouchControls.MobileLayout
+                    ? "Controls are on their own screen  ·  swipe for more"
+                    : "Controls are on their own screen  ·  scroll for more")
                 : "Controls are listed on their own screen from the main menu.", 12, Palette.InkDim);
     }
 
@@ -282,6 +332,14 @@ public partial class SettingsScreen : Control
             apply(next);
             QueueRedraw();
         });
+    }
+
+    private static float Step(float value, float[] choices)
+    {
+        int nearest = 0;
+        for (int i = 1; i < choices.Length; i++)
+            if (Mathf.Abs(choices[i] - value) < Mathf.Abs(choices[nearest] - value)) nearest = i;
+        return choices[(nearest + 1) % choices.Length];
     }
 
     private void ResetRow(string label, string key, bool exists, string note,

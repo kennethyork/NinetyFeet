@@ -83,7 +83,8 @@ Touch controls appear automatically on Android. Menus and gameplay buttons accep
 
 Batting and pitching styles, assists, automatic fielding and difficulty can be changed in
 **Settings**. Accessibility options include larger interface text, high-contrast labels, reduced
-decorative motion and optional controller vibration.
+decorative motion and optional vibration. Android players can also adjust control size and opacity,
+aim sensitivity, field-camera zoom and left- or right-handed layout.
 
 ## Saves
 
