@@ -14,6 +14,11 @@ public partial class FieldView : Node2D
 {
     public GameScene Scene;
 
+    // Fitting the whole park is comfortable on a monitor, but on a six-inch phone it turns the
+    // ball and every defender into pinpoints. Keep enough outfield in frame to read a normal fly
+    // ball while bringing the playable part of the diamond closer on touch devices.
+    private const float TouchZoom = 1.18f;
+
     private float _scale = 1.4f;
     private Vector2 _origin;      // screen position of home plate
     private float _time;
@@ -44,7 +49,7 @@ public partial class FieldView : Node2D
         Vector2 size = GetViewportRect().Size;
 
         // Fit roughly 430 feet of depth and 800 feet of width into the viewport.
-        _scale = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
+        _scale = ViewScale(size);
         _origin = new Vector2(size.X * 0.5f, size.Y - 70f);
 
         // A replay is shot from closer in and follows the ball, which is the entire reason it is
@@ -145,9 +150,15 @@ public partial class FieldView : Node2D
     {
         // _origin and _scale are set during _Draw; recompute so this is valid at any time.
         Vector2 size = GetViewportRect().Size;
-        float scale = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
+        float scale = ViewScale(size);
         var origin = new Vector2(size.X * 0.5f, size.Y - 70f);
         return new Vector2((screen.X - origin.X) / scale, (origin.Y - screen.Y) / scale);
+    }
+
+    private static float ViewScale(Vector2 size)
+    {
+        float fit = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
+        return fit * (TouchControls.Enabled ? TouchZoom : 1f);
     }
 
     private void DrawField()
