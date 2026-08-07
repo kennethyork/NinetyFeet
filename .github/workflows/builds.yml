@@ -24,7 +24,7 @@ jobs:
             "https://downloads.godotengine.org/?flavor=stable&platform=templates&slug=mono_export_templates.tpz&version=${GODOT_VERSION}" \
             --output templates.tpz
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: godot-${{ env.GODOT_VERSION }}-mono-templates
           path: templates.tpz
@@ -36,7 +36,7 @@ jobs:
     needs: templates
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Stamp Windows package version
         shell: pwsh
@@ -52,11 +52,11 @@ jobs:
             -replace 'config/version="[^"]*"', "config/version=`"$version`"" |
             Set-Content project.godot
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: godot-${{ env.GODOT_VERSION }}-mono-templates
 
@@ -103,7 +103,7 @@ jobs:
             throw "The Windows export did not complete its gameplay audit"
           }
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: NinetyFeet-windows-x86_64
           path: build/windows/
@@ -114,13 +114,13 @@ jobs:
     needs: templates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: godot-${{ env.GODOT_VERSION }}-mono-templates
 
@@ -167,7 +167,7 @@ jobs:
           echo "$out"
           grep -Eq 'OUT AUDIT: [0-9]+ games clean' <<<"$out"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: NinetyFeet-linux-x86_64-AppImage
           path: dist/NinetyFeet-x86_64.AppImage
@@ -178,7 +178,7 @@ jobs:
     needs: templates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Stamp Android package version
         run: |
@@ -187,16 +187,16 @@ jobs:
           sed -i -E "s|version/code=[0-9]+|version/code=${GITHUB_RUN_NUMBER}|; s|version/name=\"[^\"]*\"|version/name=\"${version}\"|" export_presets.cfg
           sed -i -E "s|config/version=\"[^\"]*\"|config/version=\"${version}\"|" project.godot
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - name: Install Android build dependencies
         run: |
@@ -204,7 +204,7 @@ jobs:
           sdkmanager 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
           yes | sdkmanager --licenses >/dev/null || true
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: godot-${{ env.GODOT_VERSION }}-mono-templates
 
@@ -258,7 +258,7 @@ jobs:
             test -s build/android/NinetyFeet.aab
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: NinetyFeet-android-arm64
           path: |
@@ -274,15 +274,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: NinetyFeet-windows-x86_64
           path: release/windows
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: NinetyFeet-linux-x86_64-AppImage
           path: release/linux
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: NinetyFeet-android-arm64
           path: release/android
