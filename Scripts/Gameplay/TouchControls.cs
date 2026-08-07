@@ -31,11 +31,19 @@ public static class TouchControls
     /// </summary>
     public static bool Enabled;
 
+    /// <summary>
+    /// True when phone-sized presentation should be used. A touchscreen laptop still wants the
+    /// desktop camera; <c>--touch</c> opts into the mobile layout for development captures.
+    /// </summary>
+    public static bool MobileLayout;
+
     public static void Detect(string[] args)
     {
+        bool preview = System.Array.IndexOf(args, "--touch") >= 0;
         Enabled = DisplayServer.IsTouchscreenAvailable()
                || OS.HasFeature("mobile")
-               || System.Array.IndexOf(args, "--touch") >= 0;
+               || preview;
+        MobileLayout = OS.HasFeature("mobile") || preview;
     }
 
     /// <summary>A button on the pad: where it is, what it says, and what it presses.</summary>
