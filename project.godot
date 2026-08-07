@@ -6,7 +6,7 @@ config_version=5
 [application]
 
 config/name="Ninety Feet"
-config/version="0.1.0"
+config/version="0.1.4"
 config/description="Arcade baseball on an honest simulation. 32 clubs, a real front office, and a race to ninety feet."
 run/main_scene="res://Scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.7.1", "C#", "Forward Plus")

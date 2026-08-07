@@ -41,7 +41,7 @@ jobs:
       - name: Stamp Windows package version
         shell: pwsh
         run: |
-          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.1.0' }
+          $version = if ($env:GITHUB_REF -like 'refs/tags/v*') { $env:GITHUB_REF_NAME.TrimStart('v') } else { '0.1.4' }
           $numeric = ($version -split '-')[0]
           $fileVersion = "$numeric.0"
           (Get-Content export_presets.cfg) `
@@ -183,7 +183,7 @@ jobs:
 
       - name: Stamp Android package version
         run: |
-          version=0.1.0
+          version=0.1.4
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then version="${GITHUB_REF_NAME#v}"; fi
           sed -i -E "s|version/code=[0-9]+|version/code=${GITHUB_RUN_NUMBER}|; s|version/name=\"[^\"]*\"|version/name=\"${version}\"|" export_presets.cfg
           sed -i -E "s|config/version=\"[^\"]*\"|config/version=\"${version}\"|" project.godot
