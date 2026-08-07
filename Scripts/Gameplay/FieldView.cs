@@ -158,7 +158,7 @@ public partial class FieldView : Node2D
     private static float ViewScale(Vector2 size)
     {
         float fit = Mathf.Min((size.Y - 120f) / 430f, size.X / 820f);
-        return fit * (TouchControls.Enabled ? TouchZoom : 1f);
+        return fit * (TouchControls.MobileLayout ? TouchZoom : 1f);
     }
 
     private void DrawField()
