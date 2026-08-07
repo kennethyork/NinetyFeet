@@ -13,6 +13,10 @@ public partial class Game : Node
 {
     public static Game Instance { get; private set; }
 
+    private Vector2 _menuTouchDown;
+    private bool _menuTouchMoved;
+    private float _menuScrollCarry;
+
     /// <summary>
     /// Makes every painted menu target tappable on a phone.
     ///
@@ -30,22 +34,56 @@ public partial class Game : Node
         switch (@event)
         {
             case InputEventScreenTouch { Index: 0 } touch:
-                Input.ParseInputEvent(new InputEventMouseButton
+                if (touch.Pressed)
                 {
-                    Position = touch.Position,
-                    GlobalPosition = touch.Position,
-                    ButtonIndex = MouseButton.Left,
-                    Pressed = touch.Pressed,
-                });
+                    // Do not click yet. A finger that lands on a roster row may be starting a
+                    // scroll; desktop-style activation on touch-down made every swipe also select
+                    // or press whatever happened to be underneath it.
+                    _menuTouchDown = touch.Position;
+                    _menuTouchMoved = false;
+                    _menuScrollCarry = 0f;
+                }
+                else if (!_menuTouchMoved)
+                {
+                    foreach (bool pressed in new[] { true, false })
+                        Input.ParseInputEvent(new InputEventMouseButton
+                        {
+                            Position = touch.Position,
+                            GlobalPosition = touch.Position,
+                            ButtonIndex = MouseButton.Left,
+                            Pressed = pressed,
+                        });
+                }
                 break;
 
             case InputEventScreenDrag { Index: 0 } drag:
+                if (!_menuTouchMoved && drag.Position.DistanceTo(_menuTouchDown) >= 12f)
+                    _menuTouchMoved = true;
+
                 Input.ParseInputEvent(new InputEventMouseMotion
                 {
                     Position = drag.Position,
                     GlobalPosition = drag.Position,
                     Relative = drag.Relative,
                 });
+
+                if (_menuTouchMoved)
+                {
+                    _menuScrollCarry += drag.Relative.Y;
+                    while (Mathf.Abs(_menuScrollCarry) >= 36f)
+                    {
+                        MouseButton wheel = _menuScrollCarry < 0f
+                            ? MouseButton.WheelDown : MouseButton.WheelUp;
+                        Input.ParseInputEvent(new InputEventMouseButton
+                        {
+                            Position = drag.Position,
+                            GlobalPosition = drag.Position,
+                            ButtonIndex = wheel,
+                            Pressed = true,
+                        });
+                        _menuScrollCarry += _menuScrollCarry < 0f ? 36f : -36f;
+                    }
+                }
                 break;
         }
     }
@@ -227,6 +265,22 @@ public partial class Game : Node
 
     public override void _Notification(int what)
     {
+        if (what == NotificationWMGoBackRequest)
+        {
+            // Android Back should mean the same thing as the back control already displayed by
+            // the current screen: close a card/overlay first, leave a menu second, and pause live
+            // play. Posting Escape keeps that policy in the screen that owns the state rather than
+            // duplicating a fragile scene-name switch here.
+            foreach (bool pressed in new[] { true, false })
+                Input.ParseInputEvent(new InputEventKey
+                {
+                    PhysicalKeycode = Key.Escape,
+                    Keycode = Key.Escape,
+                    Pressed = pressed,
+                });
+            return;
+        }
+
         // Android may kill a backgrounded process without returning through a menu. The pause
         // notification is therefore the important save point; focus-out covers desktop window
         // changes, and close/exit cover an orderly shutdown.

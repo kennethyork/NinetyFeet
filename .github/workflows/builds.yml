@@ -96,6 +96,7 @@ jobs:
           if (-not (Get-ChildItem -Recurse -Filter SandlotSlugfest.dll build\windows)) {
             throw "The Windows export is missing the game assembly"
           }
+          Copy-Item LICENSE build\windows\LICENSE
 
           $out = & build\windows\NinetyFeet.exe --headless -- --audit-outs 5 2>&1 | Out-String
           Write-Host $out

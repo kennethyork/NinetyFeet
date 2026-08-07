@@ -1,8 +1,16 @@
 # Ninety Feet
 
 [![Release builds](https://github.com/kennethyork/NinetyFeet/actions/workflows/builds.yml/badge.svg)](https://github.com/kennethyork/NinetyFeet/actions/workflows/builds.yml)
+[![GPLv3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
+[![Sponsor](https://img.shields.io/badge/support-GitHub_Sponsors-ea4aaa.svg)](https://github.com/sponsors/kennethyork)
 
 **Arcade baseball on an honest simulation. Thirty-two clubs, a real front office, and a race to ninety feet.**
+
+**[Download the latest release](https://github.com/kennethyork/NinetyFeet/releases/latest)** ·
+**[Support development](https://github.com/sponsors/kennethyork)**
+
+Ninety Feet is free software under GPLv3. The complete game is available to everyone: no ads,
+accounts, paid unlocks or required donations.
 
 Ninety Feet combines approachable, cartoon baseball with a persistent fictional league. Bat,
 pitch, field and run the bases yourself, then manage the same players through trades, contracts,
@@ -33,39 +41,45 @@ baseball rates.
 - **Per-mode resume:** Season, Dynasty, Career, Collection, Moments, Exhibition and Online each
   reopen with their own saved progress or selections. Completed trades are saved immediately.
 
-## Downloads
+## Download and play
 
-Every push to `main` builds three downloadable GitHub Actions artifacts:
+Stable, versioned builds are published on the
+[GitHub Releases page](https://github.com/kennethyork/NinetyFeet/releases/latest):
 
 - Android arm64 APK
 - Windows x86_64
 - Linux x86_64 AppImage
 
-Open the [latest Release builds run](https://github.com/kennethyork/NinetyFeet/actions/workflows/builds.yml),
-select a successful run and download the artifact for your platform. GitHub requires you to be
-signed in to download workflow artifacts.
+Development builds are also produced by the
+[Release builds workflow](https://github.com/kennethyork/NinetyFeet/actions/workflows/builds.yml),
+although GitHub requires an account to download workflow artifacts.
 
 Android builds may need permission to install apps from the browser or file manager used to open
 the APK. Windows may show a SmartScreen warning because development builds are not code-signed.
+
+## Donate
+
+If Ninety Feet has earned a place in your rotation, you can
+[support development through GitHub Sponsors](https://github.com/sponsors/kennethyork). Donations
+help pay for store accounts, signing, Android test hardware and development time. They are entirely
+optional and do not provide exclusive gameplay features—the project remains free and open source.
 
 ## Controls
 
 Touch controls appear automatically on Android. Menus and gameplay buttons accept direct taps.
 
-| Situation | Keyboard and mouse | Controller |
-| --- | --- | --- |
-| Aim while batting | Mouse or WASD | Left stick |
-| Normal swing | Left click or Space | A |
-| Power swing | Right click or F | Y |
-| Contact swing | Middle click or C | X |
-| Bunt | B | Left bumper |
-| Signature move | Shift or Tab | — |
-| Aim a pitch | Mouse | Left stick |
-| Choose / throw a pitch | 1–4, then click or Space | A/B/X/Y selects that slot; press it again to deal |
-| Bullpen / mound visit | P / V | On-screen menu |
-| Throw to first–home | 1–4 | Face buttons |
-| Steal / advance / hold | Arrow keys | On-screen controls |
-| Pause or go back | Escape | Menu / Back |
+| Situation | Android touch | Keyboard and mouse | Controller |
+| --- | --- | --- | --- |
+| Aim while batting | Drag the left aim pad | Mouse or WASD | Left stick |
+| Normal swing | `SWING` | Left click or Space | A |
+| Power / contact swing | `POW` / `CON` | F / C | Y / X |
+| Bunt | `BUNT` | B | Left bumper |
+| Aim a pitch | Drag the left aim pad | Mouse | Left stick |
+| Select and throw a pitch | Pitch button, then `DEAL` | 1–4, then click or Space | A/B/X/Y; press again to deal |
+| Bullpen | `PEN` | P | On-screen menu |
+| Throw to a base | Base diamond | 1–4 | Face buttons |
+| Advance or hold runners | `GO` / `HOLD` | Arrow keys | On-screen controls |
+| Pause or go back | `II` / Android Back | Escape | Menu / B |
 
 Batting and pitching styles, assists, automatic fielding and difficulty can be changed in
 **Settings**. Accessibility options include larger interface text, high-contrast labels, reduced
@@ -134,7 +148,7 @@ the importer does not grant rights to third-party names, likenesses, branding or
 Requirements:
 
 - Godot 4.7.1 Mono
-- .NET SDK 8 or newer
+- .NET SDK 9 or newer
 
 ```bash
 git clone https://github.com/kennethyork/NinetyFeet.git
@@ -182,6 +196,28 @@ checklist are documented in [`docs/RELEASING.md`](docs/RELEASING.md).
 
 Release preparation also includes the [`playtest checklist`](docs/PLAYTESTING.md), ready-to-edit
 [`store copy and capture plan`](docs/STORE_COPY.md), and the project's [`privacy notice`](PRIVACY.md).
+
+## Contributing
+
+Bug reports, playtest notes, documentation fixes and code contributions are welcome. When reporting
+a gameplay problem, include the platform, build version, game mode and the actions immediately
+before it happened. Android control feedback is most useful when it also includes the device model,
+screen shape and a screenshot or short recording.
+
+Before contributing audio, artwork, fonts or data, confirm that you created it or that its license
+allows redistribution with this GPLv3 project. Contributions should not include real-player data,
+league branding or other material without permission.
+
+## License
+
+Ninety Feet is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study,
+modify and redistribute it under that license's terms. Distributed modified versions must provide
+their corresponding source and retain the same freedoms.
+
+This grant applies only to material the project owns and can license. Godot and other third-party
+components retain their respective licenses. Do not add audio, artwork, fonts, names or other
+material unless its terms permit redistribution under the project license; see the roster-import
+warning above for user-supplied content.
 
 ## Project structure
 

@@ -4,6 +4,11 @@
 
 Play every pitch, build a fictional baseball dynasty, and carry every mode forward automatically.
 
+## Availability
+
+Ninety Feet is free and open-source under GPLv3. Donations support continued development but are
+optional, do not unlock content and must never be described as a purchase requirement.
+
 ## Long description
 
 Ninety Feet is an independent arcade baseball game built on a detailed, deterministic simulation.

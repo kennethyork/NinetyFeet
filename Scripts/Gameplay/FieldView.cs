@@ -17,7 +17,11 @@ public partial class FieldView : Node2D
     // Fitting the whole park is comfortable on a monitor, but on a six-inch phone it turns the
     // ball and every defender into pinpoints. Keep enough outfield in frame to read a normal fly
     // ball while bringing the playable part of the diamond closer on touch devices.
-    private const float TouchZoom = 1.18f;
+    // A phone is held much farther from the eye, relative to its size, than a monitor. The old
+    // 1.18 multiplier was technically closer but still read like a whole-park tactical view.
+    // This frames the infield as the default shot; the follow camera below picks up deep flies.
+    private const float TouchZoom = 1.38f;
+    private static float ActorScale => TouchControls.MobileLayout ? 0.50f : 0.42f;
 
     private float _scale = 1.4f;
     private Vector2 _origin;      // screen position of home plate
@@ -117,7 +121,7 @@ public partial class FieldView : Node2D
         {
             Vector2 at = ToScreen(frame.Fielders[i]);
             float facing = ballAt.X >= at.X ? 1f : -1f;
-            CartoonPlayer.Draw(this, at, 0.42f, facing, Pose.Run, fieldKit,
+            CartoonPlayer.Draw(this, at, ActorScale, facing, Pose.Run, fieldKit,
                 tape.FielderPlayers[i], _time, motionPhase: _time * 5f, lookAt: ballAt);
 
             if (frame.HasBall[i]) DrawCircle(at + new Vector2(0f, -46f), 4f, Palette.Ball);
@@ -127,7 +131,7 @@ public partial class FieldView : Node2D
         {
             Vector2 at = ToScreen(frame.Runners[i]);
             var shirt = frame.RunnerOut[i] ? Palette.GreyedOut(batKit) : batKit;
-            CartoonPlayer.Draw(this, at, 0.42f, ballAt.X >= at.X ? 1f : -1f,
+            CartoonPlayer.Draw(this, at, ActorScale, ballAt.X >= at.X ? 1f : -1f,
                 frame.RunnerOut[i] ? Pose.Idle : Pose.Run, shirt, tape.RunnerPlayers[i], _time,
                 motionPhase: _time * 6f, lookAt: ballAt);
         }
@@ -510,7 +514,7 @@ public partial class FieldView : Node2D
             // separate thing — and it is the one that reads as paying attention. Nine fielders all
             // tracking the ball is most of what makes a diamond look alive.
             var (pose, phase) = FielderPose(f, moving);
-            CartoonPlayer.Draw(this, at, 0.42f, facing, pose, team, f.Player, _time,
+            CartoonPlayer.Draw(this, at, ActorScale, facing, pose, team, f.Player, _time,
                 motionPhase: phase, lookAt: BallEye());
 
             if (f.IsChaser)
@@ -587,7 +591,7 @@ public partial class FieldView : Node2D
 
         // The new man, jogging in.
         Vector2 coming = bullpen.Lerp(mound + new Vector2(0f, 6f), t);
-        CartoonPlayer.Draw(this, coming, 0.42f, mound.X >= coming.X ? 1f : -1f,
+        CartoonPlayer.Draw(this, coming, ActorScale, mound.X >= coming.X ? 1f : -1f,
             Pose.Run, kit, visit.Incoming, _time, motionPhase: _time * 7f);
 
         if (visit.Incoming != null)
@@ -598,7 +602,7 @@ public partial class FieldView : Node2D
         if (visit.Stage == VisitStage.WalkingBack && visit.Outgoing != null)
         {
             Vector2 going = mound.Lerp(dugout, 1f - visit.Progress);
-            CartoonPlayer.Draw(this, going, 0.42f, dugout.X >= going.X ? 1f : -1f,
+            CartoonPlayer.Draw(this, going, ActorScale, dugout.X >= going.X ? 1f : -1f,
                 Pose.Run, kit, visit.Outgoing, _time, motionPhase: _time * 4.5f);
         }
     }
@@ -669,7 +673,7 @@ public partial class FieldView : Node2D
             // travelled rather than by a clock every man on the field shared, so a burner's feet
             // move faster than a catcher's.
             float beat = (r.Progress * FieldGeometry.BasePathLength + r.FromBase * 90f) * 0.42f;
-            CartoonPlayer.Draw(this, at, 0.42f, facing, pose, shirt, r.Player, _time,
+            CartoonPlayer.Draw(this, at, ActorScale, facing, pose, shirt, r.Player, _time,
                 motionPhase: pose == Pose.Run ? beat : 0f,
                 lookAt: r.IsOut ? ToScreen(FieldGeometry.Bases[0]) : BallEye());
 

@@ -39,6 +39,7 @@ mkdir -p "$appdir/usr/bin" "$appdir/usr/share/applications" \
 # The game and its runtime, kept together where they expect to be.
 cp -r "$build/NinetyFeet.x86_64" "$appdir/usr/bin/"
 cp -r "$build"/data_SandlotSlugfest_* "$appdir/usr/bin/"
+cp LICENSE "$appdir/usr/share/LICENSE.NinetyFeet"
 
 cp packaging/ninetyfeet.png "$appdir/usr/share/icons/hicolor/512x512/apps/ninetyfeet.png"
 cp packaging/ninetyfeet.png "$appdir/ninetyfeet.png"          # appimagetool wants it at the root

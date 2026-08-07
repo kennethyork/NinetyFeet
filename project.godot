@@ -11,6 +11,10 @@ config/description="Arcade baseball on an honest simulation. 32 clubs, a real fr
 run/main_scene="res://Scenes/MainMenu.tscn"
 config/features=PackedStringArray("4.7.1", "C#", "Forward Plus")
 config/icon="res://icon.svg"
+; Android sends its system Back gesture as a request to quit unless the application takes
+; ownership of it. Game translates that request into Escape so every screen's existing back,
+; close-layer and pause behavior is used instead of abruptly ending the process.
+config/quit_on_go_back=false
 ; Renaming the game moves user:// with it, because Godot derives that path from
 ; config/name. The existing season and card collection were copied across by hand
 ; when the name changed; nothing else needs doing.

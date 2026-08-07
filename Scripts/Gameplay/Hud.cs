@@ -20,7 +20,8 @@ public partial class Hud : Node2D
 
         Clicks.Begin();
 
-        DrawScoreBug(new Vector2(20f, 18f), s);
+        Vector4 safe = TouchControls.SafeInsets(size);
+        DrawScoreBug(new Vector2(20f + safe.X, 18f + safe.Y), s);
         if (!TouchControls.MobileLayout)
         {
             DrawLineScore(new Vector2(size.X - 24f, 18f), s);

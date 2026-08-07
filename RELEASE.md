@@ -36,6 +36,6 @@ metadata; Android's monotonically increasing `version/code` uses the Actions run
 - **Store accounts and declarations:** complete each store's identity, tax, content-rating, privacy,
   pricing and support-contact requirements. Do not claim hosted matchmaking or licensed players.
 
-Do not sell or tag a release merely because a local editor build runs. Follow
+Do not publish or tag a release merely because a local editor build runs. Follow
 [`docs/RELEASING.md`](docs/RELEASING.md) and [`docs/PLAYTESTING.md`](docs/PLAYTESTING.md), rerun the
 three-platform workflow, install its exact artifacts, and tag only the commit that passed.

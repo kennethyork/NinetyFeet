@@ -183,6 +183,7 @@ public static class Palette
 
     public static float TextWidth(string text, int size) =>
         Font.GetStringSize(text, HorizontalAlignment.Left, -1, Scaled(size)).X;
+
     private static int Scaled(int size) => Core.Game.Instance?.LargeText == true
         ? Mathf.Max(size + 1, Mathf.RoundToInt(size * 1.12f)) : size;
 
@@ -231,7 +232,11 @@ public static class Palette
         // button pinned to a centred design box sat forty pixels inside them horizontally and,
         // on a tall window, two hundred and eighty pixels below the title it belongs beside. The
         // stage is for the ballfield, whose proportions are the game. A menu simply fills.
-        var rect = new Rect2(new Vector2(viewport.X - 132f, 22f), new Vector2(104f, 34f));
+        Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
+        Vector2 buttonSize = Gameplay.TouchControls.MobileLayout
+            ? new Vector2(112f, 48f) : new Vector2(104f, 34f);
+        var rect = new Rect2(
+            new Vector2(viewport.X - safe.Z - buttonSize.X - 28f, safe.Y + 22f), buttonSize);
 
         Panel3D(canvas, rect, PanelLight);
         TextCentered(canvas, rect.Position + rect.Size * 0.5f, "‹  BACK", 15, Ink);
