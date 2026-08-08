@@ -59,7 +59,12 @@ public partial class LeagueOffice : Control
 
         _season = Game.Instance.League;
         _teamCursor = _season.UserTeamId;
+
+        // Kinetic touch scroll — pixel-perfect, with fling momentum.
+        TouchScroll.Handler = (px, _) => { Scroll(px); QueueRedraw(); };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
 
     public override void _UnhandledInput(InputEvent @event)
     {

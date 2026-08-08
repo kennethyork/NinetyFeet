@@ -256,13 +256,16 @@ public static class Palette
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// The x-coordinate for a screen title or header text. On desktop this is the historical 40px
-    /// inset; on a phone with a camera cutout on the left edge, this shifts inward so the title
-    /// clears the hole. Every menu passes this through instead of the bare 40f literal it used
-    /// to, so a title never lands behind a system decoration.
+    /// The x-coordinate for a screen title or header text. On desktop this is the caller's exact
+    /// <paramref name="baseInset"/> (the historical 40 px, unchanged); on a phone with a camera
+    /// cutout on the left edge, it shifts inward so the title clears the hole. Every menu passes
+    /// this through instead of a bare 40f literal so a title never lands behind a system
+    /// decoration on a device that has one, and never drifts from its old position on a desktop
+    /// window that does not.
     /// </summary>
     public static float SafeLeft(Vector2 viewport, float baseInset = 40f)
     {
+        if (!Gameplay.TouchControls.MobileLayout) return baseInset;
         Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
         return Mathf.Max(baseInset, safe.X + 24f);
     }
@@ -270,16 +273,19 @@ public static class Palette
     /// <summary>Right-edge inset paired with <see cref="SafeLeft"/> for footer text and buttons.</summary>
     public static float SafeRight(Vector2 viewport, float baseInset = 40f)
     {
+        if (!Gameplay.TouchControls.MobileLayout) return baseInset;
         Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
         return Mathf.Max(baseInset, safe.Z + 24f);
     }
 
     /// <summary>
-    /// The distance from the top edge a title's baseline should sit at. Andriod gesture bars and
-    /// camera cutouts vary by phone; this pushes the title down enough to clear them.
+    /// The distance from the top edge a title's baseline should sit at. On desktop the caller's
+    /// exact <paramref name="baseInset"/> is returned; on phones a floor of (cutout + 40) applies
+    /// so the title clears any camera hole-punch.
     /// </summary>
     public static float SafeTop(Vector2 viewport, float baseInset = 46f)
     {
+        if (!Gameplay.TouchControls.MobileLayout) return baseInset;
         Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
         return Mathf.Max(baseInset, safe.Y + 40f);
     }
@@ -287,11 +293,12 @@ public static class Palette
     /// <summary>
     /// The y-coordinate a footer line of text should sit at, measured from the top. Given as
     /// (viewport.Y - offset) so the caller reads like <c>SafeBottom(size, 22f)</c> where 22 is the
-    /// historical baseline distance from the bottom. Rises on phones so the hint clears the
-    /// system gesture bar.
+    /// historical baseline distance from the bottom. Rises on phones only so the hint clears the
+    /// system gesture bar; on desktop the caller's exact inset is honoured.
     /// </summary>
     public static float SafeBottom(Vector2 viewport, float baseInset = 22f)
     {
+        if (!Gameplay.TouchControls.MobileLayout) return viewport.Y - baseInset;
         Vector4 safe = Gameplay.TouchControls.SafeInsets(viewport);
         return viewport.Y - Mathf.Max(baseInset, safe.W + 22f);
     }

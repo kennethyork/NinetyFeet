@@ -34,7 +34,22 @@ public partial class DraftScreen : Control
         // Let the clubs ahead of us pick before the board is first shown.
         var made = _draft.RunToUser(_season);
         if (made.Count > 0) _notice = $"{made.Count} picks made before you were on the clock.";
+
+        TouchScroll.Handler = (px, _) =>
+        {
+            _touchAccum += px;
+            const float row = 26f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            _scroll = Mathf.Max(0, _scroll + step);
+            QueueRedraw();
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    private float _touchAccum;
 
     public override void _UnhandledInput(InputEvent @event)
     {

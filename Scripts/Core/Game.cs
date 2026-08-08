@@ -16,6 +16,9 @@ public partial class Game : Node
     private Vector2 _menuTouchDown;
     private bool _menuTouchMoved;
     private float _menuScrollCarry;
+    private float _flingVelocity;
+    private Vector2 _lastDragVelocity;
+    private Vector2 _lastTouchPos;
 
     /// <summary>
     /// Makes every painted menu target tappable on a phone.
@@ -24,6 +27,12 @@ public partial class Game : Node
     /// Godot's platform mouse emulation is not consistent across Android embeddings, so translate
     /// a primary finger here. Gameplay owns raw touch itself and must not receive the synthetic
     /// click as well (a drag used to aim would otherwise also swing).
+    ///
+    /// Scrolling used to be quantised to wheel notches, which stepped every list in visible jumps
+    /// and mismatched the scroll rate across screens. If the current menu registered a
+    /// <see cref="UI.TouchScroll"/> handler, raw pixel deltas are delivered directly and a
+    /// release-time fling continues the motion with exponential decay — the way every other
+    /// Android app scrolls a list. Screens without a handler fall back to the old wheel bridge.
     /// </summary>
     public override void _Input(InputEvent @event)
     {
@@ -40,8 +49,15 @@ public partial class Game : Node
                     // scroll; desktop-style activation on touch-down made every swipe also select
                     // or press whatever happened to be underneath it.
                     _menuTouchDown = touch.Position;
+                    _lastTouchPos = touch.Position;
                     _menuTouchMoved = false;
                     _menuScrollCarry = 0f;
+                    // Grab the moving list under the finger. Without this a fling can be scrolled
+                    // through by simply landing on the list — the momentum should stop, not
+                    // register a click, and the click should fire only if this touch itself is
+                    // a tap rather than the beginning of another swipe.
+                    _flingVelocity = 0f;
+                    _lastDragVelocity = Vector2.Zero;
                 }
                 else if (!_menuTouchMoved)
                 {
@@ -53,6 +69,12 @@ public partial class Game : Node
                             ButtonIndex = MouseButton.Left,
                             Pressed = pressed,
                         });
+                }
+                else if (UI.TouchScroll.Active && Mathf.Abs(_lastDragVelocity.Y) > 240f)
+                {
+                    // A flick, not a slow drag. Kick a fling that keeps pushing scroll deltas
+                    // into the active list; the _Process below decays it.
+                    _flingVelocity = -_lastDragVelocity.Y;
                 }
                 break;
 
@@ -67,25 +89,56 @@ public partial class Game : Node
                     Relative = drag.Relative,
                 });
 
-                if (_menuTouchMoved)
+                if (!_menuTouchMoved) break;
+
+                _lastDragVelocity = drag.Velocity;
+
+                _lastTouchPos = drag.Position;
+
+                if (UI.TouchScroll.Active)
                 {
-                    _menuScrollCarry += drag.Relative.Y;
-                    while (Mathf.Abs(_menuScrollCarry) >= 36f)
+                    // 1:1 pixel delivery. Finger moves up 40 px, content offset moves 40 px.
+                    UI.TouchScroll.Push(-drag.Relative.Y, drag.Position);
+                    break;
+                }
+
+                // Old bridge for screens that never registered a scroll handler.
+                _menuScrollCarry += drag.Relative.Y;
+                while (Mathf.Abs(_menuScrollCarry) >= 36f)
+                {
+                    MouseButton wheel = _menuScrollCarry < 0f
+                        ? MouseButton.WheelDown : MouseButton.WheelUp;
+                    Input.ParseInputEvent(new InputEventMouseButton
                     {
-                        MouseButton wheel = _menuScrollCarry < 0f
-                            ? MouseButton.WheelDown : MouseButton.WheelUp;
-                        Input.ParseInputEvent(new InputEventMouseButton
-                        {
-                            Position = drag.Position,
-                            GlobalPosition = drag.Position,
-                            ButtonIndex = wheel,
-                            Pressed = true,
-                        });
-                        _menuScrollCarry += _menuScrollCarry < 0f ? 36f : -36f;
-                    }
+                        Position = drag.Position,
+                        GlobalPosition = drag.Position,
+                        ButtonIndex = wheel,
+                        Pressed = true,
+                    });
+                    _menuScrollCarry += _menuScrollCarry < 0f ? 36f : -36f;
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    /// Continues a fling once the finger has left the screen. Emits pixel deltas at the current
+    /// velocity every frame and decays the velocity exponentially, so a flick from the top of a
+    /// long list carries and settles the way an Android list does. Runs regardless of scene
+    /// because the same autoload also owns the fling velocity; a scene change clears the handler
+    /// in _ExitTree, so on the next tick the fling naturally goes silent.
+    /// </summary>
+    public override void _Process(double delta)
+    {
+        if (_flingVelocity == 0f) return;
+        if (!UI.TouchScroll.Active) { _flingVelocity = 0f; return; }
+
+        float dt = (float)delta;
+        UI.TouchScroll.Push(_flingVelocity * dt, _lastTouchPos);
+
+        // e-folding roughly every 300 ms, i.e. 96% of speed shed per second.
+        _flingVelocity *= Mathf.Pow(0.04f, dt);
+        if (Mathf.Abs(_flingVelocity) < 40f) _flingVelocity = 0f;
     }
 
     public int AwayTeamId = 2;    // Bronx Bombardiers

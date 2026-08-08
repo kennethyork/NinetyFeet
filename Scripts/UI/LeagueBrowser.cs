@@ -18,7 +18,22 @@ public partial class LeagueBrowser : Control
         // click, so nothing on the screen is clickable — including the back button.
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(false);
+
+        TouchScroll.Handler = (px, _) =>
+        {
+            _touchAccum += px;
+            const float row = 16f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            _rosterScroll = Mathf.Max(0, _rosterScroll + step);
+            QueueRedraw();
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    private float _touchAccum;
 
     public override void _UnhandledInput(InputEvent @event)
     {
@@ -102,6 +117,13 @@ public partial class LeagueBrowser : Control
         Division lastDivision = (Division)(-1);
         League lastLeague = (League)(-1);
 
+        // Mobile bumps the row height to a comfortable tap target. Thirty-two clubs at 30 px each
+        // is 960 px which will run past the bottom on a phone — the kinetic touch scroller
+        // registered above lets the finger drag the list normally.
+        bool touch = Gameplay.TouchControls.MobileLayout;
+        float rowStep = touch ? 30f : 15f;
+        float rowH = touch ? 28f : 16f;
+
         foreach (var team in Teams.All)
         {
 
@@ -116,7 +138,7 @@ public partial class LeagueBrowser : Control
             }
 
             bool on = team.Id == _selected;
-            var row = new Rect2(new Vector2(x - 6f, y - 12f), new Vector2(330f, 16f));
+            var row = new Rect2(new Vector2(x - 6f, y - 12f), new Vector2(330f, rowH));
             if (on) DrawRect(row, Palette.PanelLight);
 
             DrawRect(new Rect2(new Vector2(x, y - 10f), new Vector2(5f, 12f)), team.Primary);
@@ -125,10 +147,15 @@ public partial class LeagueBrowser : Control
             Palette.Text(this, new Vector2(x + 16f, y), team.Abbrev, 12, on ? Palette.Highlight : Palette.InkDim);
             Palette.Text(this, new Vector2(x + 52f, y), team.FullName, 13, on ? Palette.Ink : Palette.InkDim);
 
+            // Tapping a row picks that team. Was keyboard-only, which meant a phone player could
+            // never see any club except the one the screen loaded on.
+            int picked = team.Id;
+            _clicks.Add(row, () => { _selected = picked; _rosterScroll = 0; QueueRedraw(); });
+
             // Thirty-two clubs and four division headings at the old spacing needed 828 pixels in
             // a 720-pixel screen, so the bottom of the National League West was printed straight
-            // through the footer. This fits.
-            y += 15f;
+            // through the footer. Desktop still fits; mobile scrolls.
+            y += rowStep;
         }
     }
 

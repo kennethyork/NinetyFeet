@@ -49,7 +49,26 @@ public partial class TradeScreen : Control
 
         // The Control swallows mouse events at its default filter, so nothing would be clickable.
         MouseFilter = MouseFilterEnum.Ignore;
+
+        // Two panes on this screen — my roster on the left, theirs on the right — so scroll
+        // needs to route by the finger's current x position.
+        TouchScroll.Handler = (px, pos) =>
+        {
+            _touchAccum += px;
+            const float row = 19f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            bool left = pos.X < GetViewportRect().Size.X * 0.5f;
+            if (left) _myScroll = Mathf.Max(0, _myScroll + step);
+            else _theirScroll = Mathf.Max(0, _theirScroll + step);
+            QueueRedraw();
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    private float _touchAccum;
 
     public override void _UnhandledInput(InputEvent @event)
     {

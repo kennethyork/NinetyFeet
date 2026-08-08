@@ -75,7 +75,16 @@ public partial class FranchiseScreen : Control
 
         _season = Game.Instance.League;
         _teamCursor = _season.UserTeamId;
+
+        // Kinetic touch scroll — but only for the tab that has a scroller, and only while a
+        // player card is not obscuring it. Delta is a no-op elsewhere so it's harmless.
+        TouchScroll.Handler = (px, _) =>
+        {
+            if (_selected == null && _tab == Tab.Roster) { _roster.By(px); QueueRedraw(); }
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
 
     public override void _UnhandledInput(InputEvent @event)
     {

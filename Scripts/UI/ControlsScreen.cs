@@ -75,7 +75,11 @@ public partial class ControlsScreen : Control
 
         // Without this the Control swallows every mouse event and the back button is a picture.
         MouseFilter = MouseFilterEnum.Ignore;
+
+        TouchScroll.Handler = (px, _) => { _scroll.By(px); QueueRedraw(); };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
 
     public override void _UnhandledInput(InputEvent @event)
     {

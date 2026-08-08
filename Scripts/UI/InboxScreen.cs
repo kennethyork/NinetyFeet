@@ -24,7 +24,22 @@ public partial class InboxScreen : Control
 
         // Opening the inbox reads the one you land on.
         if (Inbox.Messages.Count > 0) Inbox.Messages[0].Read = true;
+
+        TouchScroll.Handler = (px, _) =>
+        {
+            _touchAccum += px;
+            const float row = 26f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            _scroll = Mathf.Max(0, _scroll + step);
+            QueueRedraw();
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    private float _touchAccum;
 
     private void Leave() => Game.Instance.GoTo(Game.Instance.League != null
         ? "res://Scenes/Season.tscn"

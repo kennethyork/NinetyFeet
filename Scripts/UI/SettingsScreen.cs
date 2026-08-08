@@ -32,7 +32,12 @@ public partial class SettingsScreen : Control
         SetAnchorsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
         SetProcess(true);
+        // On mobile, take over kinetic scrolling. Delta arrives per-pixel from the touch adapter
+        // in Game._Input; the Scroller clamps at both ends. On desktop the wheel path still runs.
+        TouchScroll.Handler = (px, _) => { _scroll.By(px); QueueRedraw(); };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
 
     public override void _Process(double delta) => QueueRedraw();
 

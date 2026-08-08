@@ -75,7 +75,25 @@ public partial class CardsScreen : Control
         // The listings turn over with the calendar, so the market is worth looking at again.
         _marketDay = (int)(Time.GetUnixTimeFromSystem() / 3600);
         SetProcess(true);
+
+        // Kinetic touch scroll for the row-based list. Accumulates pixel deltas into whole-row
+        // steps so a fling scrolls smoothly at 1:1 with the finger. Row height is roughly 20 px
+        // for every tab in this screen.
+        TouchScroll.Handler = (px, _) =>
+        {
+            _touchAccum += px;
+            const float row = 20f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            Scroll(step);
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    /// <summary>Fractional pixel bank for kinetic scroll: rolls a full row's worth into a step.</summary>
+    private float _touchAccum;
 
     public override void _Process(double delta)
     {

@@ -47,7 +47,22 @@ public partial class FrontOffice : Control
         MouseFilter = MouseFilterEnum.Ignore;
         _season = Game.Instance.League;
         SetProcess(true);
+
+        TouchScroll.Handler = (px, _) =>
+        {
+            _touchAccum += px;
+            const float row = 19f;
+            int step = (int)(_touchAccum / row);
+            if (step == 0) return;
+            _touchAccum -= step * row;
+            _scroll = Mathf.Max(0, _scroll + step);
+            QueueRedraw();
+        };
     }
+
+    public override void _ExitTree() => TouchScroll.Handler = null;
+
+    private float _touchAccum;
 
     public override void _Process(double delta)
     {
